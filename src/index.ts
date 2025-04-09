@@ -1,19 +1,12 @@
 /**
- * TODO: 1. 根据fetch封装一个 class, 功能类似 axios
- * DONE: 2. 不要拦截器, 改用hook
- * DONE:    - 请求之前
- * DONE:    - 请求之后
- * DONE:    - 请求错误
- * TODO: 3. 支持请求重试 (hook 中实现)
- * DONE: 4. 支持请求取消 使用 AbortPromise(使用以前封装的)-> 现在用了新的方案, 不再需要 AbortPromise
- * TODO: 自定义错误
+ * TODO: 支持 static 方法
+ * TODO: 支持请求重试 (hook 中实现)
  */
 
 import type { AnyObject } from "typescript-api-pro";
 import { type BaseOptions, type BaseRequestOptions, type HookFetchPlugin, type RequestUseOptions } from "./types";
 import { HookFetch, mergeHeaders } from "./utils";
 
-// TODO: class 中所有请求都实际走这个 request 方法, 当前 options 的数据类型需要改, 因为那是 class 的, 请求应该有自己独特的options
 const request = <R, P, D, E>(options: BaseRequestOptions<P, D>): HookFetch<R, E> => {
   return new HookFetch<R, E>(options);
 }
@@ -61,7 +54,6 @@ class Base {
       this.#queue = this.#queue.filter(item => item !== controller);
     })
     return req;
-    // as Promise<ResponseWithSource<R>>
   }
 
   #requestWithParams<R = AnyObject, P = AnyObject, E = AnyObject>(url: string, params: P = {} as P, options: Omit<RequestUseOptions<P, never, E>, 'params'> = {}) {

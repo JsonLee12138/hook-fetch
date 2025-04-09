@@ -1,7 +1,7 @@
 {
   "name": "hook-fetch",
-  "description": "",
-  "version": "0.0.0",
+  "description": "A lightweight and modern HTTP request library developed based on the native Fetch API of the browser, providing a user-friendly interface similar to Axios and powerful extensibility.",
+  "version": "0.0.1-beta",
   "type": "module",
   "files": [
     "dist",
@@ -14,12 +14,24 @@
   "main": "./dist/cjs/index.js",
   "module": "./dist/es/index.js",
   "types": "./types/index.d.ts",
+  "exports": {
+    ".": {
+      "require": "./cjs/index.js",
+      "import": "./es/index.js",
+      "types": "./es/index.d.ts"
+    },
+    "./plugins": {
+      "require": "./cjs/plugins/index.js",
+      "import": "./es/plugins/index.js",
+      "types": "./types/plugins/index.d.ts"
+    }
+  },
   "repository": {
     "type": "git",
     "url": ""
   },
   "bugs": {
-    "url": "",
+    "url": "https://github.com/JsonLee12138/hook-fetch/issues",
     "email": "lijunsong2@gmail.com"
   },
   "license": "MIT",
@@ -35,7 +47,6 @@
     "terser": "^5.39.0",
     "typescript": "^5.7.3",
     "typescript-api-pro": "workspace:^",
-    "unplugin-auto-import": "^19.1.1",
     "vite": "^6.1.1",
     "vite-plugin-dts": "^4.5.3",
     "vitest": "^3.0.8"

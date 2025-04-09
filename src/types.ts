@@ -1,6 +1,6 @@
 import type QueryString from 'qs';
 import type { AnyObject } from 'typescript-api-pro';
-import type { ResponseWithSourceClass } from './utils';
+import type { ResponseError } from './utils';
 
 // 插件部分
 export interface RequestConfig<P, D, E = AnyObject> extends Omit<RequestInit, 'body' | 'signal' | 'credentials' | 'method'> {
@@ -32,7 +32,9 @@ type BeforeRequestHandler<E = unknown, P = unknown, D = unknown> = (config: Requ
 // eslint-disable-next-line no-explicit-any
 type AfterResponseHandler<T = unknown> = (context: FetchPluginContext<T>) => Promise<FetchPluginContext<any>>;
 
-type TransformStreamChunkHandler = (chunk: StreamContext) => Promise<StreamContext>;
+type TransformStreamChunkHandler = (chunk: StreamContext<any>) => Promise<StreamContext>;
+
+export type OnFinallyHandler<E = unknown, P = unknown, D = unknown> = (res: Pick<FetchPluginContext<unknown, E, P, D>, 'config' | 'response'>) => Promise<void>;
 
 export type HookFetchPlugin<T = unknown, E = unknown, P = unknown, D = unknown> = {
   /** 插件名称 */
@@ -42,8 +44,8 @@ export type HookFetchPlugin<T = unknown, E = unknown, P = unknown, D = unknown> 
   beforeRequest?: BeforeRequestHandler<E, P, D>;
   afterResponse?: AfterResponseHandler<T>;
   transformStreamChunk?: TransformStreamChunkHandler;
-  onError?: (error: Error) => void;
-  onFinally?: (res: Pick<FetchPluginContext, 'config' | 'response'>) => void;
+  onError?: (error: Error) => Promise<Error | void | ResponseError<E>>;
+  onFinally?: OnFinallyHandler<E, P, D>;
 }
 
 export interface OptionProps {
@@ -71,15 +73,6 @@ export type BaseRequestOptions<P, D, E = AnyObject> = Partial<{
   url: string;
   baseURL: string;
 };
-
-export type ResponseWithSource<T, E = AnyObject> = Promise<T> & Omit<ResponseWithSourceClass<E>, 'json'>;
-
-export type ResponseWithSourceClassOptions<E> = {
-  response: Response;
-  controller: AbortController;
-  plugins: Array<HookFetchPlugin>;
-  config: RequestConfig<unknown, unknown, E>;
-}
 
 export type RequestMethodWithParams = 'GET' | 'DELETE' | 'OPTIONS' | 'HEAD';
 
@@ -113,7 +106,17 @@ export enum StatusCode {
   ABORTED = 499,
   NETWORK_ERROR = 599,
   BODY_NULL = 502,
-  UNKNOWN = 500
+  UNKNOWN = 601
 }
 
 export type RequestUseOptions<P, D, E> = Omit<BaseRequestOptions<P, D, E>, 'url' | 'plugins' | 'baseURL' | 'controller'>
+
+
+export interface ResponseErrorOptions<E = unknown> {
+  name?: string;
+  message: string;
+  status?: number;
+  statusText?: string;
+  response?: Response;
+  config?: RequestConfig<unknown, unknown, E>;
+}

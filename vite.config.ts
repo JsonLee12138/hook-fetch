@@ -9,11 +9,15 @@ export default defineConfig({
   })],
   build: {
     lib: {
-      entry: './src/index.ts',
-      name: 'auto-import',
+      entry: {
+        index: './src/index.ts',
+        'plugins/index': './src/plugins/index.ts',
+        'plugins/sse': './src/plugins/sse.ts',
+      },
+      name: 'hook-fetch',
       // 第二个参数是入口文件名
-      fileName: (format, _) => {
-        return `${format}/index.js`
+      fileName: (format, entryName) => {
+        return `${format}/${entryName}.js`
       },
       formats: ['es', 'cjs']
     },

@@ -82,6 +82,7 @@ describe('test hook-fetch', () => {
       },
     })
 
+    // 目前自带一下插件, 可在 hook-fetch/plugins 中引入, 名为 `sseTextDecoderPlugin`
     const ssePlugin = (): HookFetchPlugin => {
       const decoder = new TextDecoder('utf-8');
       return {
@@ -133,13 +134,11 @@ describe('test hook-fetch', () => {
           if (response.result?.completed) {
             return response;
           } else {
-            // throw new Error('not completed')
-            return Promise.reject(new Error('not completed'))
+            throw new Error('not completed')
           }
         },
-        onError(error) {
-          console.log(error, '>>>')
-          throw new Error('customError', error)
+        async onError(error) {
+          return new Error('customError', error)
         }
       }
     }
@@ -147,11 +146,9 @@ describe('test hook-fetch', () => {
     instance.use(requestPlugin());
 
     try {
-      const res = await instance.get<TodoDTO>('/todos/1');
-      console.log(res)
+      await instance.get<TodoDTO>('/todos/1');
     } catch (error) {
-      console.log(error)
-      expect(error).toEqual(new Error('not completed'))
+      expect(error).toEqual(new Error('customError'))
     }
   })
 })
