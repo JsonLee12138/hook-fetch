@@ -18,7 +18,7 @@
     "hook-fetch-plugin-response-transform",
     "hook-fetch-plugin-request-transform"
   ],
-  "version": "0.0.2-beta",
+  "version": "0.0.5-beta",
   "type": "module",
   "files": [
     "dist",
@@ -33,13 +33,13 @@
   "types": "./types/index.d.ts",
   "exports": {
     ".": {
-      "require": "./cjs/index.js",
-      "import": "./es/index.js",
-      "types": "./es/index.d.ts"
+      "require": "./dist/cjs/index.js",
+      "import": "./dist/es/index.js",
+      "types": "./types/index.d.ts"
     },
     "./plugins": {
-      "require": "./cjs/plugins/index.js",
-      "import": "./es/plugins/index.js",
+      "require": "./dist/cjs/plugins/index.js",
+      "import": "./dist/es/plugins/index.js",
       "types": "./types/plugins/index.d.ts"
     }
   },
