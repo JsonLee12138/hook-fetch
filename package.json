@@ -1,7 +1,24 @@
 {
   "name": "hook-fetch",
   "description": "A lightweight and modern HTTP request library developed based on the native Fetch API of the browser, providing a user-friendly interface similar to Axios and powerful extensibility.",
-  "version": "0.0.1-beta",
+  "keywords": [
+    "fetch",
+    "axios",
+    "request",
+    "http",
+    "https",
+    "typescript",
+    "hook-fetch",
+    "hook-fetch-plugin",
+    "hook-fetch-plugin-retry",
+    "hook-fetch-plugin-timeout",
+    "hook-fetch-plugin-error",
+    "hook-fetch-plugin-response",
+    "hook-fetch-plugin-request",
+    "hook-fetch-plugin-response-transform",
+    "hook-fetch-plugin-request-transform"
+  ],
+  "version": "0.0.2-beta",
   "type": "module",
   "files": [
     "dist",
@@ -28,7 +45,7 @@
   },
   "repository": {
     "type": "git",
-    "url": ""
+    "url": "https://github.com/JsonLee12138/hook-fetch"
   },
   "bugs": {
     "url": "https://github.com/JsonLee12138/hook-fetch/issues",
