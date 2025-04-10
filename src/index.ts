@@ -25,6 +25,16 @@ class Base {
     this.#commonHeaders = headers;
     this.#plugins = plugins;
     this.#withCredentials = withCredentials;
+    this.request = this.request.bind(this);
+    this.get = this.get.bind(this);
+    this.head = this.head.bind(this);
+    this.options = this.options.bind(this);
+    this.delete = this.delete.bind(this);
+    this.post = this.post.bind(this);
+    this.put = this.put.bind(this);
+    this.patch = this.patch.bind(this);
+    this.abortAll = this.abortAll.bind(this);
+    this.use = this.use.bind(this);
   }
 
   // eslint-disable-next-line no-explicit-any
@@ -50,7 +60,7 @@ class Base {
       withCredentials: withCredentials ?? this.#withCredentials,
       extra: extra as AnyObject
     })
-    req.finally(() => {
+    req.lazyFinally(() => {
       this.#queue = this.#queue.filter(item => item !== controller);
     })
     return req;
@@ -64,32 +74,32 @@ class Base {
     return this.request<R, P, D, E>(url, { ...options, data })
   }
 
-  get<R = AnyObject, P = AnyObject, E = AnyObject>(url: string, params: P = {} as P, options?: Omit<RequestUseOptions<P, never, E>, 'params'>) {
-    return this.#requestWithParams<R, P, E>(url, params, options)
+  get<R = AnyObject, P = AnyObject, E = AnyObject>(url: string, params: P = {} as P, options?: Omit<RequestUseOptions<P, never, E>, 'params' | 'method'>) {
+    return this.#requestWithParams<R, P, E>(url, params, { ...options, method: 'GET' })
   }
 
-  head<R = AnyObject, P = AnyObject, E = AnyObject>(url: string, params: P = {} as P, options?: Omit<RequestUseOptions<P, never, E>, 'params'>) {
-    return this.#requestWithParams<R, P, E>(url, params, options)
+  head<R = AnyObject, P = AnyObject, E = AnyObject>(url: string, params: P = {} as P, options?: Omit<RequestUseOptions<P, never, E>, 'params' | 'method'>) {
+    return this.#requestWithParams<R, P, E>(url, params, { ...options, method: 'HEAD' })
   }
 
-  options<R = AnyObject, P = AnyObject, E = AnyObject>(url: string, params: P = {} as P, options?: Omit<RequestUseOptions<P, never, E>, 'params'>) {
-    return this.#requestWithParams<R, P, E>(url, params, options)
+  options<R = AnyObject, P = AnyObject, E = AnyObject>(url: string, params: P = {} as P, options?: Omit<RequestUseOptions<P, never, E>, 'params' | 'method'>) {
+    return this.#requestWithParams<R, P, E>(url, params, { ...options, method: 'OPTIONS' })
   }
 
-  delete<R = AnyObject, P = AnyObject, E = AnyObject>(url: string, options?: RequestUseOptions<P, never, E>) {
-    return this.request<R, P, never, E>(url, options)
+  delete<R = AnyObject, P = AnyObject, E = AnyObject>(url: string, options?: Omit<RequestUseOptions<P, never, E>, 'method'>) {
+    return this.request<R, P, never, E>(url, { ...options, method: 'DELETE' })
   }
 
-  post<R = AnyObject, D = AnyObject, P = AnyObject, E = AnyObject>(url: string, data?: D, options?: Omit<RequestUseOptions<P, D, E>, 'data'>) {
-    return this.#requestWithBody<R, D, P, E>(url, data, options)
+  post<R = AnyObject, D = AnyObject, P = AnyObject, E = AnyObject>(url: string, data?: D, options?: Omit<RequestUseOptions<P, D, E>, 'data' | 'method'>) {
+    return this.#requestWithBody<R, D, P, E>(url, data, { ...options, method: 'POST' })
   }
 
-  put<R = AnyObject, D = AnyObject, P = AnyObject, E = AnyObject>(url: string, data?: D, options?: Omit<RequestUseOptions<P, D, E>, 'data'>) {
-    return this.#requestWithBody<R, D, P, E>(url, data, options)
+  put<R = AnyObject, D = AnyObject, P = AnyObject, E = AnyObject>(url: string, data?: D, options?: Omit<RequestUseOptions<P, D, E>, 'data' | 'method'>) {
+    return this.#requestWithBody<R, D, P, E>(url, data, { ...options, method: 'PUT' })
   }
 
-  patch<R = AnyObject, D = AnyObject, P = AnyObject, E = AnyObject>(url: string, data?: D, options?: Omit<RequestUseOptions<P, D, E>, 'data'>) {
-    return this.#requestWithBody<R, D, P, E>(url, data, options)
+  patch<R = AnyObject, D = AnyObject, P = AnyObject, E = AnyObject>(url: string, data?: D, options?: Omit<RequestUseOptions<P, D, E>, 'data' | 'method'>) {
+    return this.#requestWithBody<R, D, P, E>(url, data, { ...options, method: 'PATCH' })
   }
 
   abortAll() {

@@ -1,6 +1,6 @@
 import { default as QueryString } from 'qs';
 import { AnyObject } from 'typescript-api-pro';
-import { HookFetchPlugin, BaseRequestOptions, OnFinallyHandler, RequestConfig, RequestMethod, ResponseErrorOptions, StreamContext } from './types';
+import { HookFetchPlugin, BaseRequestOptions, FetchPluginContext, RequestConfig, RequestMethod, ResponseErrorOptions, StreamContext } from './types';
 export declare const delay: (ms: number) => Promise<unknown>;
 export declare const timeoutCallback: (controller: AbortController) => void;
 export declare class ResponseError<E = unknown> extends Error {
@@ -15,9 +15,9 @@ export declare class ResponseError<E = unknown> extends Error {
 }
 export declare const parsePlugins: (plugins: HookFetchPlugin[]) => {
     beforeRequestPlugins: ((config: RequestConfig<unknown, unknown, unknown>) => Promise<RequestConfig<unknown, unknown, unknown>>)[];
-    afterResponsePlugins: ((context: import('./types').FetchPluginContext<unknown, unknown, unknown, unknown>) => Promise<import('./types').FetchPluginContext<any>>)[];
+    afterResponsePlugins: ((context: FetchPluginContext<unknown, unknown, unknown, unknown>) => Promise<FetchPluginContext<any>>)[];
     errorPlugins: ((error: Error) => Promise<void | Error | ResponseError<unknown>>)[];
-    finallyPlugins: OnFinallyHandler<unknown, unknown, unknown>[];
+    finallyPlugins: import('./types').OnFinallyHandler<unknown, unknown, unknown>[];
     transformStreamChunkPlugins: ((chunk: StreamContext<any>) => Promise<StreamContext>)[];
 };
 export declare const buildUrl: (url: string, params?: AnyObject, qsArrayFormat?: QueryString.IStringifyOptions["arrayFormat"]) => string;
@@ -26,14 +26,15 @@ export declare const getBody: (body: AnyObject, method: RequestMethod, headers?:
 export declare class HookFetch<T, E> implements PromiseLike<T> {
     #private;
     constructor(options: BaseRequestOptions<unknown, unknown, E>);
-    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | null | undefined, onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null | undefined): PromiseLike<TResult1 | TResult2>;
+    lazyFinally(onfinally?: (() => void) | null | undefined): Promise<T> | null;
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | null | undefined, onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null | undefined): Promise<TResult1 | TResult2>;
     catch<TResult = never>(onrejected?: ((reason: unknown) => TResult | PromiseLike<TResult>) | null | undefined): Promise<T | TResult>;
     finally(onfinally?: (() => void) | null | undefined): Promise<T>;
     abort(): void;
-    blob(): Promise<Blob>;
-    text(): Promise<string>;
-    arrayBuffer(): Promise<ArrayBuffer>;
-    formData(): Promise<FormData>;
-    bytes(): Promise<Uint8Array<ArrayBufferLike>>;
+    blob(): Promise<any>;
+    text(): Promise<any>;
+    arrayBuffer(): Promise<any>;
+    formData(): Promise<any>;
+    bytes(): Promise<any>;
     stream<T>(): AsyncGenerator<StreamContext<T> | StreamContext<null>, void, unknown>;
 }

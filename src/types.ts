@@ -14,9 +14,12 @@ export interface RequestConfig<P, D, E = AnyObject> extends Omit<RequestInit, 'b
   qsArrayFormat?: QueryString.IStringifyOptions['arrayFormat'];
 }
 
+export type FetchResponseType = 'json' | 'text' | 'blob' | 'arrayBuffer' | 'formData' | 'bytes';
+
 export interface FetchPluginContext<T = unknown, E = unknown, P = unknown, D = unknown> {
   config: RequestConfig<P, D, E>;
   response: Response;
+  responseType: FetchResponseType;
   result?: T;
   controller: AbortController;
 }
@@ -32,6 +35,7 @@ type BeforeRequestHandler<E = unknown, P = unknown, D = unknown> = (config: Requ
 // eslint-disable-next-line no-explicit-any
 type AfterResponseHandler<T = unknown> = (context: FetchPluginContext<T>) => Promise<FetchPluginContext<any>>;
 
+// eslint-disable-next-line no-explicit-any
 type TransformStreamChunkHandler = (chunk: StreamContext<any>) => Promise<StreamContext>;
 
 export type OnFinallyHandler<E = unknown, P = unknown, D = unknown> = (res: Pick<FetchPluginContext<unknown, E, P, D>, 'config' | 'response'>) => Promise<void>;

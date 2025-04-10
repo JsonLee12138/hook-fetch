@@ -11,9 +11,11 @@ export interface RequestConfig<P, D, E = AnyObject> extends Omit<RequestInit, 'b
     method: RequestMethod;
     qsArrayFormat?: QueryString.IStringifyOptions['arrayFormat'];
 }
+export type FetchResponseType = 'json' | 'text' | 'blob' | 'arrayBuffer' | 'formData' | 'bytes';
 export interface FetchPluginContext<T = unknown, E = unknown, P = unknown, D = unknown> {
     config: RequestConfig<P, D, E>;
     response: Response;
+    responseType: FetchResponseType;
     result?: T;
     controller: AbortController;
 }

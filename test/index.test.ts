@@ -74,6 +74,25 @@ describe('test hook-fetch', () => {
     expect(res).toEqual(result);
   })
 
+  test('test instance get text', async () => {
+    const instance = hookFetch.create({
+      baseURL: 'https://blog.chiyu.site',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+
+    try {
+      const res = await instance.get('/posts').text();
+
+      console.log(res);
+
+      expect(typeof res).toEqual('string');
+    } finally {
+      console.log('ok')
+    }
+  })
+
   test('test instance sse plugin', async () => {
     const instance = hookFetch.create({
       baseURL: 'https://sse.dev',

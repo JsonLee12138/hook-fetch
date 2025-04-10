@@ -2,7 +2,7 @@ import type QueryString from "qs";
 import qs from "qs";
 import { omit } from "radash";
 import type { AnyObject } from "typescript-api-pro";
-import { ContentType, HookFetchPlugin, StatusCode, type BaseRequestOptions, type OnFinallyHandler, type RequestConfig, type RequestMethod, type RequestMethodWithBody, type RequestMethodWithParams, type ResponseErrorOptions, type StreamContext } from "./types";
+import { ContentType, HookFetchPlugin, StatusCode, type BaseRequestOptions, type FetchPluginContext, type FetchResponseType, type RequestConfig, type RequestMethod, type RequestMethodWithBody, type RequestMethodWithParams, type ResponseErrorOptions, type StreamContext } from "./types";
 
 export const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -86,84 +86,6 @@ export const parsePlugins = (plugins: HookFetchPlugin[]) => {
   }
 }
 
-// 处理响应数据
-// export class ResponseWithSourceClass<E> {
-//   #response: Response;
-//   #plugins: ReturnType<typeof parsePlugins>;
-//   #controller: AbortController;
-//   #config: RequestConfig<unknown, unknown, E>;
-//   constructor({ response, plugins, config, controller }: ResponseWithSourceClassOptions<E>) {
-//     this.#response = response;
-//     this.#plugins = parsePlugins(plugins);
-//     this.#controller = controller;
-//     this.#config = config;
-//   }
-
-//   get $as() {
-//     // eslint-disable-next-line no-this-alias
-//     const _this = this;
-//     return {
-//       blob: () => this.#response.clone().blob(),
-//       text: () => this.#response.clone().text(),
-//       arrayBuffer: () => this.#response.clone().arrayBuffer(),
-//       formData: () => this.#response.clone().formData(),
-//       bytes: () => this.#response.clone().bytes(),
-//       async *stream<T>() {
-//         const reader = _this.#response.clone().body?.getReader();
-//         if (!reader) {
-//           return;
-//         }
-//         while (true) {
-//           const { done, value } = await reader.read();
-//           if (done) {
-//             break;
-//           }
-//           let res: StreamContext = {
-//             source: value,
-//             result: value,
-//             error: null
-//           };
-//           try {
-//             for (const plugin of _this.#plugins.transformStreamChunkPlugins) {
-//               res = await plugin(res);
-//             }
-//             yield res as StreamContext<T>;
-//           } catch (error) {
-//             res.error = error;
-//             res.result = null;
-//             yield res as StreamContext<null>;
-//           }
-//         }
-//       }
-//     };
-//   }
-
-//   get json() {
-//     return new Promise((resolve, reject) => {
-//       this.#response.clone().json().then(async (rawJson) => {
-//         let res: FetchPluginContext = {
-//           config: this.#config,
-//           response: this.#response,
-//           result: rawJson,
-//           controller: this.#controller
-//         }
-//         try {
-//           for (const plugin of this.#plugins.afterResponsePlugins) {
-//             res = await plugin(res)
-//           }
-//           resolve(res.result)
-//         } catch (error) {
-//           reject(error)
-//         }
-//       });
-//     })
-//   }
-
-//   $abort() {
-//     this.#controller.abort();
-//   }
-// }
-
 export const buildUrl = (url: string, params?: AnyObject, qsArrayFormat: QueryString.IStringifyOptions['arrayFormat'] = "repeat"): string => {
   if (params) {
     const paramsStr = qs.stringify(params, { arrayFormat: qsArrayFormat });
@@ -220,13 +142,17 @@ export const getBody = (body: AnyObject, method: RequestMethod, headers?: Header
   return res;
 }
 
-// TODO: 优化then和catch的链式调用->应该返回promiseLike
+// TODO: 错误处理还需修改
 export class HookFetch<T, E> implements PromiseLike<T> {
   #plugins: ReturnType<typeof parsePlugins>;
   #controller: AbortController;
   #config: RequestConfig<unknown, unknown, E>;
   #promise: Promise<Response>;
   #isTimeout: boolean = false;
+  // eslint-disable-next-line no-explicit-any
+  #executor: Promise<any> | null = null;
+  #finallyCallbacks: Array<(() => void) | null | undefined> = [];
+  #responseType: FetchResponseType = 'json';
 
   constructor(options: BaseRequestOptions<unknown, unknown, E>) {
     const { plugins = [], controller, url, baseURL = '', params, data, qsArrayFormat = 'repeat', withCredentials, extra, method = 'GET', headers } = options;
@@ -243,8 +169,6 @@ export class HookFetch<T, E> implements PromiseLike<T> {
       headers,
       qsArrayFormat
     }
-    // const { promise } = this.#createRequest(options);
-    // this.#promise = promise as Promise<Response>;
     this.#promise = this.#init(options);
   }
 
@@ -370,43 +294,94 @@ export class HookFetch<T, E> implements PromiseLike<T> {
   }
 
   get #json() {
-    return new Promise<T>((resolve, reject) => {
-      this.#response.then(r => r.json()).then(async res => {
-        let result = res;
-        for (const plugin of this.#plugins.afterResponsePlugins) {
-          result = await plugin(result)
-        }
-        resolve(result)
-      }).catch(async err => {
-        reject(await this.#normalizeError(err))
-      }).finally(async () => {
-        const options: Parameters<OnFinallyHandler>[0] = {
-          config: this.#config,
-          response: await this.#response.then(r => r.clone())
-        }
-        for (const plugin of this.#plugins.finallyPlugins) {
-          plugin(options)
-        }
-      })
-    })
+    return this.#response.then(r => r.json()).then(r => {
+      this.#responseType = 'json';
+      return this.#resolve(r);
+    });
+    // this.#executor = this.#response.then(r => r.json())
+    // return this;
+    // return new Promise<T>((resolve, reject) => {
+    //   this.#response.then(r => r.json()).then(async res => {
+    //     let result = res;
+    //     for (const plugin of this.#plugins.afterResponsePlugins) {
+    //       result = await plugin(result)
+    //     }
+    //     console.log(1)
+    //     // resolve(result)
+    //     this.then(result)
+    //   }).catch(async err => {
+    //     console.log(2)
+    //     // reject(await this.#normalizeError(err))
+    //     this.catch(await this.#normalizeError(err))
+    //   }).finally(async () => {
+    //     console.log(3)
+    //     const options: Parameters<OnFinallyHandler>[0] = {
+    //       config: this.#config,
+    //       response: await this.#response.then(r => r.clone())
+    //     }
+    //     for (const plugin of this.#plugins.finallyPlugins) {
+    //       plugin(options)
+    //     }
+    //     // return this.#promise.then();
+    //     this.finally()
+    //   })
+    // })
   }
+
+  lazyFinally(onfinally?: (() => void) | null | undefined): Promise<T> | null {
+    if (!this.#executor) {
+      if (onfinally) {
+        this.#finallyCallbacks.push(onfinally)
+      }
+      return null
+    };
+    return this.#executor.finally(() => {
+      for (const callback of this.#finallyCallbacks) {
+        callback!();
+      }
+      this.#finallyCallbacks = [];
+    });
+  }
+
+  get #getExecutor() {
+    if (this.#executor) return this.#executor;
+    return this.#json;
+  }
+
+  async #resolve(v: T | Blob | string | ArrayBuffer | FormData | Uint8Array<ArrayBufferLike>) {
+    const plugins = this.#plugins.afterResponsePlugins;
+    let ctx: FetchPluginContext = {
+      config: this.#config,
+      response: await this.#response.then(r => r.clone()),
+      responseType: this.#responseType,
+      controller: this.#controller,
+      result: v
+    };
+    for (const plugin of plugins) {
+      ctx = await plugin(ctx)
+    }
+    return ctx.result as T;
+  }
+
 
   then<TResult1 = T, TResult2 = never>(
     onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | null | undefined,
     onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null | undefined
-  ): PromiseLike<TResult1 | TResult2> {
-    return this.#json.then(onfulfilled, onrejected)
+  ): Promise<TResult1 | TResult2> {
+    return this.#getExecutor.then(
+      async (v) => onfulfilled?.call(this, await this.#resolve(v)),
+      async (e) => onrejected?.call(this, await this.#normalizeError(e))
+    ) as Promise<TResult1 | TResult2>
   }
 
-  // 没有走插件错误处理x
   catch<TResult = never>(
     onrejected?: ((reason: unknown) => TResult | PromiseLike<TResult>) | null | undefined
   ): Promise<T | TResult> {
-    return this.#json.catch(onrejected)
+    return this.#getExecutor.catch(onrejected)
   }
 
   finally(onfinally?: (() => void) | null | undefined): Promise<T> {
-    return this.#json.finally(onfinally);
+    return this.#getExecutor.finally(onfinally);
   }
 
   abort() {
@@ -414,27 +389,51 @@ export class HookFetch<T, E> implements PromiseLike<T> {
   }
 
   get #response() {
-    return this.#promise.then(r => r.clone())
+    return this.#promise.then(r => r.clone());
   }
 
   blob() {
-    return this.#response.then(r => r.blob())
+    this.#executor = this.#response.then(r => r.blob()).then(r => {
+      this.#responseType = 'blob';
+      return this.#resolve(r);
+    })
+    return this.#executor;
   }
 
   text() {
-    return this.#response.then(r => r.text())
+    this.#executor = this.#response.then(r => r.text()).then(r => {
+      this.#responseType = 'text';
+      return this.#resolve(r);
+    });
+    this.#executor.finally(this.lazyFinally.bind(this));
+    return this.#executor;
   }
 
   arrayBuffer() {
-    return this.#response.then(r => r.arrayBuffer())
+    this.#executor = this.#response.then(r => r.arrayBuffer()).then(r => {
+      this.#responseType = 'arrayBuffer';
+      return this.#resolve(r);
+    });
+    this.#executor.finally(this.lazyFinally.bind(this));
+    return this.#executor;
   }
 
   formData() {
-    return this.#response.then(r => r.formData())
+    this.#executor = this.#response.then(r => r.formData()).then(r => {
+      this.#responseType = 'formData';
+      return this.#resolve(r);
+    });
+    this.#executor.finally(this.lazyFinally.bind(this));
+    return this.#executor;
   }
 
   bytes() {
-    return this.#response.then(r => r.bytes())
+    this.#executor = this.#response.then(r => r.bytes()).then(r => {
+      this.#responseType = 'bytes';
+      return this.#resolve(r);
+    });
+    this.#executor.finally(this.lazyFinally.bind(this));
+    return this.#executor;
   }
 
   async *stream<T>() {

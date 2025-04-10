@@ -30,6 +30,19 @@ export default defineConfig({
     }
   },
   test: {
-    testTimeout: 20_000
+    testTimeout: 20_000,
+    // environment: 'happy-dom',
+    // // 启用浏览器环境测试
+    // browser: {
+    //   enabled: true,
+    //   provider: 'playwright',
+    //   instances: [
+    //     {
+    //       browser: 'chromium'
+    //     },
+    //   ],
+    // },
+    // // 设置全局测试环境
+    // globals: true,
   }
 })
