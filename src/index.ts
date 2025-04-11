@@ -1,17 +1,10 @@
-/**
- * TODO: 支持 static 方法
- * TODO: 支持请求重试 (hook 中实现)
- */
-
-import type { AnyObject } from "typescript-api-pro";
+import type { AnyObject, Generic } from "typescript-api-pro";
 import { type BaseOptions, type BaseRequestOptions, type HookFetchPlugin, type RequestUseOptions } from "./types";
 import { HookFetch, mergeHeaders } from "./utils";
 
 const _request_ = <R, P, D, E>(options: BaseRequestOptions<P, D>): HookFetch<R, E> => {
   return new HookFetch<R, E>(options);
 }
-
-type Generic<R extends AnyObject, K extends keyof R, T> = R & { [P in K]: T };
 
 class Base<R extends AnyObject = AnyObject, E = AnyObject, K extends keyof R = string> {
   #timeout: number;
