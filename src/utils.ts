@@ -142,7 +142,7 @@ export const getBody = (body: AnyObject, method: RequestMethod, headers?: Header
   return res;
 }
 
-// TODO: 错误处理还需修改
+
 export class HookFetch<T, E> implements PromiseLike<T> {
   #plugins: ReturnType<typeof parsePlugins>;
   #controller: AbortController;
@@ -153,8 +153,10 @@ export class HookFetch<T, E> implements PromiseLike<T> {
   #executor: Promise<any> | null = null;
   #finallyCallbacks: Array<(() => void) | null | undefined> = [];
   #responseType: FetchResponseType = 'json';
+  #fullOptions: BaseRequestOptions<unknown, unknown, E>;
 
   constructor(options: BaseRequestOptions<unknown, unknown, E>) {
+    this.#fullOptions = options;
     const { plugins = [], controller, url, baseURL = '', params, data, qsArrayFormat = 'repeat', withCredentials, extra, method = 'GET', headers } = options;
     this.#controller = controller ?? new AbortController();
     this.#plugins = parsePlugins(plugins);
@@ -463,5 +465,14 @@ export class HookFetch<T, E> implements PromiseLike<T> {
         yield res as StreamContext<null>;
       }
     }
+  }
+
+  retry() {
+    const { controller: _, ...options } = this.#fullOptions;
+    return new HookFetch(options);
+  }
+
+  get response() {
+    return this.#response;
   }
 }

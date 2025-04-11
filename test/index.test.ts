@@ -3,8 +3,24 @@ import hookFetch from '../src/index';
 import type { HookFetchPlugin } from '../src/types';
 
 describe('test hook-fetch', () => {
+  interface TodoDTO {
+    userId: number;
+    id: number;
+    title: string;
+    completed: boolean;
+  }
+
   test('test normal request', async () => {
     const res = await hookFetch('https://jsonplaceholder.typicode.com/todos/1');
+    const result = { userId: 1, id: 1, title: 'delectus aut autem', completed: false };
+    expect(res).toEqual(result);
+  });
+
+  test('test normal request retry', async () => {
+    const req = hookFetch('https://jsonplaceholder.typicode.com/todos/1')
+    req.abort()
+    const newReq = req.retry();
+    const res = await newReq;
     const result = { userId: 1, id: 1, title: 'delectus aut autem', completed: false };
     expect(res).toEqual(result);
   });
@@ -27,6 +43,13 @@ describe('test hook-fetch', () => {
 
   test('test blob', async () => {
     const req = hookFetch('https://picsum.photos/200/300');
+    const contentLength = (await req.response).headers.get('content-length');
+    console.log(contentLength, 'size');
+
+    for await (const chunk of req.stream<AllowSharedBufferSource>()) {
+      console.log(chunk.source.length, 'stream')
+    };
+
     const blob = await req.blob();
     console.log(blob);
     expect(blob instanceof Blob).toBe(true);
@@ -52,25 +75,61 @@ describe('test hook-fetch', () => {
   })
 
   test('test instance get', async () => {
-    const instance = hookFetch.create({
+    const instance = hookFetch.create<TodoDTO>({
       baseURL: 'https://jsonplaceholder.typicode.com',
       headers: {
         'Content-Type': 'application/json',
       },
     })
 
-    interface TodoDTO {
-      userId: number;
-      id: number;
-      title: string;
-      completed: boolean;
-    }
-
-    const res = await instance.get<TodoDTO>('/todos/1');
+    const res = await instance.get('/todos/1');
 
     console.log(res);
 
     const result = { userId: 1, id: 1, title: 'delectus aut autem', completed: false };
+    expect(res).toEqual(result);
+  })
+
+  test('test instance default request', async () => {
+
+
+    const instance = hookFetch.create<TodoDTO>({
+      baseURL: 'https://jsonplaceholder.typicode.com',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+
+
+    console.log(instance)
+
+    const res = await instance('/todos/1');
+
+    console.log(res);
+
+    const result = { userId: 1, id: 1, title: 'delectus aut autem', completed: false };
+    expect(res).toEqual(result);
+  })
+
+  test('test instance get retry', async () => {
+    const instance = hookFetch.create<TodoDTO>({
+      baseURL: 'https://jsonplaceholder.typicode.com',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+
+    const req = instance.get('/todos/1');
+
+    req.abort();
+
+    const newReq = req.retry();
+
+    const res = await newReq;
+    console.log(res);
+
+    const result = { userId: 1, id: 1, title: 'delectus aut autem', completed: false };
+
     expect(res).toEqual(result);
   })
 
@@ -132,19 +191,12 @@ describe('test hook-fetch', () => {
   })
 
   test('test instance request plugin', async () => {
-    const instance = hookFetch.create({
+    const instance = hookFetch.create<TodoDTO>({
       baseURL: 'https://jsonplaceholder.typicode.com',
       headers: {
         'Content-Type': 'application/json',
       },
     })
-
-    interface TodoDTO {
-      userId: number;
-      id: number;
-      title: string;
-      completed: boolean;
-    }
 
     const requestPlugin = (): HookFetchPlugin<TodoDTO> => {
       return {
@@ -165,7 +217,7 @@ describe('test hook-fetch', () => {
     instance.use(requestPlugin());
 
     try {
-      await instance.get<TodoDTO>('/todos/1');
+      await instance.get('/todos/1');
     } catch (error) {
       expect(error).toEqual(new Error('customError'))
     }
