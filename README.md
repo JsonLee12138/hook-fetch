@@ -281,3 +281,7 @@ interface HookFetchPlugin<T = unknown, E = unknown, P = unknown, D = unknown> {
 ## 📄 许可证
 
 MIT
+
+## 联系我们
+
+- [Discord](https://discord.gg/Ah55KD5d)

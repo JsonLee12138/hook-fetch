@@ -281,3 +281,7 @@ Feel free to submit `issues` or `pull requests` to help improve `Hook-Fetch`.
 ## 📄 License
 
 MIT
+
+## Contact US
+
+- [Discord](https://discord.gg/Ah55KD5d)
