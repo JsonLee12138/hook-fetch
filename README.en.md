@@ -264,6 +264,12 @@ interface HookFetchPlugin<T = unknown, E = unknown, P = unknown, D = unknown> {
 }
 ```
 
+### vscode hint plugin reference path
+```typescript
+// Create a file hook-fetch.d.ts in src with the following content
+/// <reference types="hook-fetch/plugins" />
+```
+
 ## Notes
 
 1. Hook-Fetch automatically parses JSON responses by default.

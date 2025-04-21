@@ -1,9 +1,11 @@
 import type { AnyObject, Generic } from "typescript-api-pro";
 import { type BaseOptions, type BaseRequestOptions, type HookFetchPlugin, type RequestUseOptions } from "./types";
-import { HookFetch, mergeHeaders } from "./utils";
+import { HookFetchRequest, mergeHeaders } from "./utils";
 
-const _request_ = <R, P, D, E>(options: BaseRequestOptions<P, D>): HookFetch<R, E> => {
-  return new HookFetch<R, E>(options);
+export * from './enum';
+
+const _request_ = <R, P, D, E>(options: BaseRequestOptions<P, D>): HookFetchRequest<R, E> => {
+  return new HookFetchRequest<R, E>(options);
 }
 
 class Base<R extends AnyObject = AnyObject, E = AnyObject, K extends keyof R = string> {
@@ -158,21 +160,21 @@ type ExportDefault = typeof useRequest & {
   patch: typeof patch;
 }
 
-const defaultFn = useRequest as ExportDefault;
+const hookFetch = useRequest as ExportDefault;
 
-defaultFn.create = <R extends AnyObject = AnyObject, E = AnyObject, K extends keyof R = string>(options: BaseOptions) => {
+hookFetch.create = <R extends AnyObject = AnyObject, E = AnyObject, K extends keyof R = string>(options: BaseOptions) => {
   const context = new Base<R, E, K>(options);
   const instance = context.request.bind(this);
   Object.assign(instance, Base.prototype, context);
   return instance as (typeof context.request & Base<R, E, K>);
 };
 
-defaultFn.get = get;
-defaultFn.head = head;
-defaultFn.options = options;
-defaultFn.delete = del;
-defaultFn.post = post;
-defaultFn.put = put;
-defaultFn.patch = patch;
+hookFetch.get = get;
+hookFetch.head = head;
+hookFetch.options = options;
+hookFetch.delete = del;
+hookFetch.post = post;
+hookFetch.put = put;
+hookFetch.patch = patch;
 
-export default defaultFn;
+export default hookFetch;

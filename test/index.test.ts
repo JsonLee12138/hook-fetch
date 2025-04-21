@@ -222,4 +222,15 @@ describe('test hook-fetch', () => {
       expect(error).toEqual(new Error('customError'))
     }
   })
+
+  test('post', async () => {
+    const formData = {
+      username: '111',
+      password: '111'
+    }
+    const res = await hookFetch('https://web.pandarobot.chat/api/auth/login', { method: 'POST', data: formData });
+    console.log(res)
+    const result = { userId: 1, id: 1, title: 'delectus aut autem', completed: false };
+    // expect(res).toEqual(result);
+  })
 })

@@ -18,7 +18,7 @@
     "hook-fetch-plugin-response-transform",
     "hook-fetch-plugin-request-transform"
   ],
-  "version": "0.0.2",
+  "version": "0.0.3",
   "type": "module",
   "files": [
     "dist",
@@ -35,17 +35,20 @@
     ".": {
       "require": "./dist/cjs/index.js",
       "import": "./dist/es/index.js",
-      "types": "./types/index.d.ts"
+      "types": "./types/index.d.ts",
+      "default": "./dist/es/index.js"
     },
     "./plugins": {
       "require": "./dist/cjs/plugins/index.js",
       "import": "./dist/es/plugins/index.js",
-      "types": "./types/plugins/index.d.ts"
+      "types": "./types/plugins/index.d.ts",
+      "default": "./dist/es/plugins/index.js"
     },
-    "./src": {
-      "require": "./src/index.ts",
-      "import": "./src/index.ts",
-      "types": "./types/plugins/index.d.ts"
+    "./plugins/sse": {
+      "require": "./dist/cjs/plugins/sse.js",
+      "import": "./dist/es/plugins/sse.js",
+      "types": "./types/plugins/sse.d.ts",
+      "default": "./dist/es/plugins/sse.js"
     }
   },
   "repository": {

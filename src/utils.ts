@@ -2,7 +2,8 @@ import type QueryString from "qs";
 import qs from "qs";
 import { omit } from "radash";
 import type { AnyObject } from "typescript-api-pro";
-import { ContentType, HookFetchPlugin, StatusCode, type BaseRequestOptions, type FetchPluginContext, type FetchResponseType, type RequestConfig, type RequestMethod, type RequestMethodWithBody, type RequestMethodWithParams, type ResponseErrorOptions, type StreamContext } from "./types";
+import { HookFetchPlugin, type BaseRequestOptions, type FetchPluginContext, type FetchResponseType, type RequestConfig, type RequestMethod, type RequestMethodWithBody, type RequestMethodWithParams, type ResponseErrorOptions, type StreamContext } from "./types";
+import { ContentType, StatusCode } from "./enum";
 
 export const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -118,7 +119,7 @@ export const getBody = (body: AnyObject, method: RequestMethod, headers?: Header
   let res: BodyInit | null = null;
   if (withBodyArr.includes(method.toUpperCase() as RequestMethodWithBody)) {
     const _headers_: Headers = new Headers(headers || {});
-    const _contentType = _headers_.get('Content-Type') || '';
+    const _contentType = _headers_.get('Content-Type') || ContentType.JSON;
     if (_contentType.includes(ContentType.JSON)) {
       res = JSON.stringify(body);
     } else if (_contentType.includes(ContentType.FORM_URLENCODED)) {
@@ -143,7 +144,7 @@ export const getBody = (body: AnyObject, method: RequestMethod, headers?: Header
 }
 
 
-export class HookFetch<T, E> implements PromiseLike<T> {
+export class HookFetchRequest<T, E> implements PromiseLike<T> {
   #plugins: ReturnType<typeof parsePlugins>;
   #controller: AbortController;
   #config: RequestConfig<unknown, unknown, E>;
@@ -300,34 +301,6 @@ export class HookFetch<T, E> implements PromiseLike<T> {
       this.#responseType = 'json';
       return this.#resolve(r);
     });
-    // this.#executor = this.#response.then(r => r.json())
-    // return this;
-    // return new Promise<T>((resolve, reject) => {
-    //   this.#response.then(r => r.json()).then(async res => {
-    //     let result = res;
-    //     for (const plugin of this.#plugins.afterResponsePlugins) {
-    //       result = await plugin(result)
-    //     }
-    //     console.log(1)
-    //     // resolve(result)
-    //     this.then(result)
-    //   }).catch(async err => {
-    //     console.log(2)
-    //     // reject(await this.#normalizeError(err))
-    //     this.catch(await this.#normalizeError(err))
-    //   }).finally(async () => {
-    //     console.log(3)
-    //     const options: Parameters<OnFinallyHandler>[0] = {
-    //       config: this.#config,
-    //       response: await this.#response.then(r => r.clone())
-    //     }
-    //     for (const plugin of this.#plugins.finallyPlugins) {
-    //       plugin(options)
-    //     }
-    //     // return this.#promise.then();
-    //     this.finally()
-    //   })
-    // })
   }
 
   lazyFinally(onfinally?: (() => void) | null | undefined): Promise<T> | null {
@@ -469,7 +442,7 @@ export class HookFetch<T, E> implements PromiseLike<T> {
 
   retry() {
     const { controller: _, ...options } = this.#fullOptions;
-    return new HookFetch(options);
+    return new HookFetchRequest(options);
   }
 
   get response() {

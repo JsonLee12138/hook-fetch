@@ -264,6 +264,12 @@ interface HookFetchPlugin<T = unknown, E = unknown, P = unknown, D = unknown> {
 }
 ```
 
+### vscode提示插件的引用路径
+```typescript
+// 在 src 中创建文件 hook-fetch.d.ts, 内容如下
+/// <reference types="hook-fetch/plugins" />
+```
+
 ## 注意事项
 
 1. Hook-Fetch 默认会自动解析JSON响应
