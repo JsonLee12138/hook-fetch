@@ -431,7 +431,19 @@ export class HookFetchRequest<T, E> implements PromiseLike<T> {
         for (const plugin of this.#plugins.transformStreamChunkPlugins) {
           res = await plugin(res);
         }
-        yield res as StreamContext<T>;
+        if(res.result && (isGenerator(res.result) || isAsyncGenerator(res.result))){
+          for await (const chunk of (res.result as AsyncGenerator<any, void, unknown>
+          )) {
+            let resultItem = {
+              source: res.source,
+              result: chunk,
+              error: null
+            }
+            yield resultItem as StreamContext<T>;
+          }
+        }else{
+          yield res as StreamContext<T>;
+        }
       } catch (error) {
         res.error = error;
         res.result = null;
@@ -448,4 +460,12 @@ export class HookFetchRequest<T, E> implements PromiseLike<T> {
   get response() {
     return this.#response;
   }
+}
+
+export const isGenerator = (v: any)=> {
+  return v[Symbol.toStringTag] === 'Generator' && typeof v.next === 'function' && typeof v.return === 'function' && typeof v.throw === 'function' && typeof v[Symbol.iterator] === 'function';
+}
+
+export const isAsyncGenerator = (v: any)=> {
+  return v[Symbol.toStringTag] === 'AsyncGenerator' && typeof v.next === 'function' && typeof v.return === 'function' && typeof v.throw === 'function' && typeof v[Symbol.asyncIterator] === 'function';
 }
