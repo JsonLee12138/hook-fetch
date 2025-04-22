@@ -19,6 +19,13 @@
     "hook-fetch-plugin-request-transform"
   ],
   "version": "0.0.6",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "ci:publish": "pnpm changeset publish -r",
+    "test": "vitest",
+    "lint-staged": "lint-staged"
+  },
   "type": "module",
   "files": [
     "dist",
@@ -60,13 +67,6 @@
     "email": "lijunsong2@gmail.com"
   },
   "license": "MIT",
-  "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "ci:publish": "pnpm changeset publish -r",
-    "test": "vitest",
-    "lint-staged": "lint-staged"
-  },
   "devDependencies": {
     "@changesets/cli": "^2.28.1",
     "@commitlint/cli": "^19.5.0",

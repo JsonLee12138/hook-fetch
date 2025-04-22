@@ -24,12 +24,14 @@ export default defineConfig(({mode})=> {
         formats: ['es', 'cjs']
       },
       minify: 'terser',
+      terserOptions: {
+        format: {
+          comments: 'all'
+        }
+      },
       outDir: './dist',
-      sourcemap: true,
+      sourcemap: false,
       emptyOutDir: true,
-      rollupOptions: {
-        external: ['ts-morph']
-      }
     },
     test: {
       testTimeout: 20_000,
