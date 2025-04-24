@@ -1,5 +1,5 @@
 import type { AnyObject, Generic } from "typescript-api-pro";
-import { type BaseOptions, type BaseRequestOptions, type HookFetchPlugin, type RequestUseOptions } from "./types";
+import { type BaseOptions, type BaseRequestOptions, type DeleteOptions, type GetOptions, type HeadOptions, type HookFetchPlugin, type OptionsOptions, type PatchOptions, type PostOptions, type PutOptions, type RequestOptions, type RequestWithBodyOptions, type RequestWithParamsOptions } from "./types";
 import { HookFetchRequest, mergeHeaders } from "./utils";
 
 const _request_ = <R, P, D, E>(options: BaseRequestOptions<P, D>): HookFetchRequest<R, E> => {
@@ -38,7 +38,7 @@ class Base<R extends AnyObject = AnyObject, E = AnyObject, K extends keyof R = s
     return this;
   }
 
-  request<T = AnyObject, P = AnyObject, D = AnyObject>(url: string, { timeout, headers, method = 'GET', params = {} as P, data, qsArrayFormat, withCredentials, extra }: RequestUseOptions<P, D, E> = {}) {
+  request<T = AnyObject, P = AnyObject, D = AnyObject>(url: string, { timeout, headers, method = 'GET', params = {} as P, data, qsArrayFormat, withCredentials, extra }: RequestOptions<P, D, E> = {}) {
     const controller = new AbortController();
     this.#queue.push(controller);
     const req = _request_<Generic<R, K, T>, P, D, E>({
@@ -61,39 +61,39 @@ class Base<R extends AnyObject = AnyObject, E = AnyObject, K extends keyof R = s
     return req;
   }
 
-  #requestWithParams<T = AnyObject, P = AnyObject>(url: string, params: P = {} as P, options: Omit<RequestUseOptions<P, never, E>, 'params'> = {}) {
+  #requestWithParams<T = AnyObject, P = AnyObject>(url: string, params: P = {} as P, options: RequestWithParamsOptions<P, E> = {}) {
     return this.request<T, P, never>(url, { ...options, params })
   }
 
-  #requestWithBody<T = AnyObject, D = AnyObject, P = AnyObject>(url: string, data: D = {} as D, options: Omit<RequestUseOptions<P, D, E>, 'data'> = {}) {
+  #requestWithBody<T = AnyObject, D = AnyObject, P = AnyObject>(url: string, data: D = {} as D, options: RequestWithBodyOptions<D, P, E> = {}) {
     return this.request<T, P, D>(url, { ...options, data })
   }
 
-  get<T = AnyObject, P = AnyObject>(url: string, params: P = {} as P, options?: Omit<RequestUseOptions<P, never, E>, 'params' | 'method'>) {
+  get<T = AnyObject, P = AnyObject>(url: string, params: P = {} as P, options?: GetOptions<P, E>) {
     return this.#requestWithParams<T, P>(url, params, { ...options, method: 'GET' })
   }
 
-  head<T = AnyObject, P = AnyObject>(url: string, params: P = {} as P, options?: Omit<RequestUseOptions<P, never, E>, 'params' | 'method'>) {
+  head<T = AnyObject, P = AnyObject>(url: string, params: P = {} as P, options?: HeadOptions<P, E>) {
     return this.#requestWithParams<T, P>(url, params, { ...options, method: 'HEAD' })
   }
 
-  options<T = AnyObject, P = AnyObject>(url: string, params: P = {} as P, options?: Omit<RequestUseOptions<P, never, E>, 'params' | 'method'>) {
+  options<T = AnyObject, P = AnyObject>(url: string, params: P = {} as P, options?: OptionsOptions<P, E>) {
     return this.#requestWithParams<T, P>(url, params, { ...options, method: 'OPTIONS' })
   }
 
-  delete<T = AnyObject, P = AnyObject>(url: string, options?: Omit<RequestUseOptions<P, never, E>, 'method'>) {
+  delete<T = AnyObject, P = AnyObject>(url: string, options?: DeleteOptions<P, E>) {
     return this.request<T, P, never>(url, { ...options, method: 'DELETE' })
   }
 
-  post<T = AnyObject, D = AnyObject, P = AnyObject>(url: string, data?: D, options?: Omit<RequestUseOptions<P, D, E>, 'data' | 'method'>) {
+  post<T = AnyObject, D = AnyObject, P = AnyObject>(url: string, data?: D, options?: PostOptions<D, P, E>) {
     return this.#requestWithBody<T, D, P>(url, data, { ...options, method: 'POST' })
   }
 
-  put<T = AnyObject, D = AnyObject, P = AnyObject>(url: string, data?: D, options?: Omit<RequestUseOptions<P, D, E>, 'data' | 'method'>) {
+  put<T = AnyObject, D = AnyObject, P = AnyObject>(url: string, data?: D, options?: PutOptions<D, P, E>) {
     return this.#requestWithBody<T, D, P>(url, data, { ...options, method: 'PUT' })
   }
 
-  patch<T = AnyObject, D = AnyObject, P = AnyObject>(url: string, data?: D, options?: Omit<RequestUseOptions<P, D, E>, 'data' | 'method'>) {
+  patch<T = AnyObject, D = AnyObject, P = AnyObject>(url: string, data?: D, options?: PatchOptions<D, P, E>) {
     return this.#requestWithBody<T, D, P>(url, data, { ...options, method: 'PATCH' })
   }
 
@@ -103,47 +103,47 @@ class Base<R extends AnyObject = AnyObject, E = AnyObject, K extends keyof R = s
   }
 }
 
-const useRequest = <R = AnyObject, P = AnyObject, D = AnyObject, E = AnyObject>(url: string, options: RequestUseOptions<P, D, E> = {}) => _request_<R, P, D, E>({
+const useRequest = <R = AnyObject, P = AnyObject, D = AnyObject, E = AnyObject>(url: string, options: RequestOptions<P, D, E> = {}) => _request_<R, P, D, E>({
   url,
   baseURL: '',
   ...options
 } as BaseRequestOptions<P, D>)
 
-const requestWithParams = <R = AnyObject, P = AnyObject, E = AnyObject>(url: string, params: P, options: Omit<RequestUseOptions<P, never, E>, 'params'> = {}) => {
-  return useRequest<R, P, never, E>(url, { ...options, params })
+const requestWithParams = <R = AnyObject, P = AnyObject, E = AnyObject>(url: string, params: P, options: RequestWithParamsOptions<P, E> = {}) => {
+  return useRequest<R, P, never, E>(url, { ...options, params });
 }
 
-const requestWithBody = <R = AnyObject, D = AnyObject, P = AnyObject, E = AnyObject>(url: string, data: D = null as D, options: Omit<RequestUseOptions<P, D, E>, 'data'> = {}) => {
-  return useRequest<R, P, D, E>(url, { ...options, data })
+const requestWithBody = <R = AnyObject, D = AnyObject, P = AnyObject, E = AnyObject>(url: string, data: D = null as D, options: RequestWithBodyOptions<D, P, E> = {}) => {
+  return useRequest<R, P, D, E>(url, { ...options, data });
 }
 
 export const request = useRequest;
 
-export const get = <R = AnyObject, P = AnyObject, E = AnyObject>(url: string, params: P = {} as P, options?: Omit<RequestUseOptions<P, never, E>, 'params' | 'method'>) => {
+export const get = <R = AnyObject, P = AnyObject, E = AnyObject>(url: string, params: P = {} as P, options?: GetOptions<P, E>) => {
   return requestWithParams<R, P, E>(url, params, { ...options, method: 'GET' })
 }
 
-export const head = <R = AnyObject, P = AnyObject, E = AnyObject>(url: string, params: P = {} as P, options?: Omit<RequestUseOptions<P, never, E>, 'params' | 'method'>) => {
+export const head = <R = AnyObject, P = AnyObject, E = AnyObject>(url: string, params: P = {} as P, options?: HeadOptions<P, E>) => {
   return requestWithParams<R, P, E>(url, params, { ...options, method: 'HEAD' })
 }
 
-export const options = <R = AnyObject, P = AnyObject, E = AnyObject>(url: string, params: P = {} as P, options?: Omit<RequestUseOptions<P, never, E>, 'params' | 'method'>) => {
+export const options = <R = AnyObject, P = AnyObject, E = AnyObject>(url: string, params: P = {} as P, options?: OptionsOptions<P, E>) => {
   return requestWithParams<R, P, E>(url, params, { ...options, method: 'OPTIONS' })
 }
 
-export const del = <R = AnyObject, P = AnyObject, E = AnyObject>(url: string, options?: Omit<RequestUseOptions<P, never, E>, 'method'>) => {
+export const del = <R = AnyObject, P = AnyObject, E = AnyObject>(url: string, options?: DeleteOptions<P, E>) => {
   return useRequest<R, P, never, E>(url, { ...options, method: 'DELETE' })
 }
 
-export const post = <R = AnyObject, D = AnyObject, P = AnyObject, E = AnyObject>(url: string, data?: D, options?: Omit<RequestUseOptions<P, D, E>, 'data' | 'method'>) => {
+export const post = <R = AnyObject, D = AnyObject, P = AnyObject, E = AnyObject>(url: string, data?: D, options?: PostOptions<D, P, E>) => {
   return requestWithBody<R, D, P, E>(url, data, { ...options, method: 'POST' })
 }
 
-export const put = <R = AnyObject, D = AnyObject, P = AnyObject, E = AnyObject>(url: string, data?: D, options?: Omit<RequestUseOptions<P, D, E>, 'data' | 'method'>) => {
+export const put = <R = AnyObject, D = AnyObject, P = AnyObject, E = AnyObject>(url: string, data?: D, options?: PutOptions<D, P, E>) => {
   return requestWithBody<R, D, P, E>(url, data, { ...options, method: 'PUT' })
 }
 
-export const patch = <R = AnyObject, D = AnyObject, P = AnyObject, E = AnyObject>(url: string, data?: D, options?: Omit<RequestUseOptions<P, D, E>, 'data' | 'method'>) => {
+export const patch = <R = AnyObject, D = AnyObject, P = AnyObject, E = AnyObject>(url: string, data?: D, options?: PatchOptions<D, P, E>) => {
   return requestWithBody<R, D, P, E>(url, data, { ...options, method: 'PATCH' })
 }
 

@@ -83,4 +83,38 @@ export interface OptionProps {
 
 export type BaseOptions = Partial<OptionProps>;
 
-export type RequestUseOptions<P, D, E> = Omit<BaseRequestOptions<P, D, E>, 'url' | 'plugins' | 'baseURL' | 'controller'>;
+export type RequestOptions<P = AnyObject, D = AnyObject, E = AnyObject> = Omit<BaseRequestOptions<P, D, E>, 'url' | 'plugins' | 'baseURL' | 'controller'>;
+
+/**
+ * 已废除, 请改用 RequestOptions
+ *
+ * Deprecated, please use RequestOptions instead
+ */
+export type RequestUseOptions<P = AnyObject, D = AnyObject, E = AnyObject> = RequestOptions<P, D, E>;
+
+export type RequestWithBodyOptions<D = AnyObject, P = AnyObject, E = AnyObject> = Omit<RequestOptions<P, D, E>, 'data'>;
+
+export type RequestWithParamsOptions<P = AnyObject, E = AnyObject> = Omit<RequestOptions<P, null, E>, 'params' | 'data'>;
+
+export type RequestWithBodyFnOptions<D = AnyObject, P = AnyObject, E = AnyObject> = Omit<RequestOptions<P, D, E>, 'data' | 'method'>;
+
+export type RequestWithParamsFnOptions<P = AnyObject, E = AnyObject> = Omit<RequestOptions<P, null, E>, 'params' | 'data' | 'method'>;
+
+export type PostOptions<D = AnyObject, P = AnyObject, E = AnyObject> = RequestWithBodyFnOptions<D, P, E>;
+
+export type PutOptions<D = AnyObject, P = AnyObject, E = AnyObject> = RequestWithBodyFnOptions<D, P, E>;
+
+export type PatchOptions<D = AnyObject, P = AnyObject, E = AnyObject> = RequestWithBodyFnOptions<D, P, E>;
+
+export type GetOptions<P = AnyObject, E = AnyObject> = RequestWithParamsFnOptions<P, E>;
+
+export type HeadOptions<P = AnyObject, E = AnyObject> = RequestWithParamsFnOptions<P, E>;
+
+/**
+ * OPTIONS 方法请求的可选参数类型
+ *
+ * OPTIONS method request optional parameter types
+ */
+export type OptionsOptions<P = AnyObject, E = AnyObject> = RequestWithParamsFnOptions<P, E>;
+
+export type DeleteOptions<P = AnyObject, E = AnyObject> = RequestWithParamsFnOptions<P, E>;
