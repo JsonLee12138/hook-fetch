@@ -18,7 +18,7 @@
     "hook-fetch-plugin-response-transform",
     "hook-fetch-plugin-request-transform"
   ],
-  "version": "1.0.0",
+  "version": "1.0.1",
   "scripts": {
     "dev": "vite",
     "build:umd": "vite build -c ./vite.config.umd.ts",
