@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import hookFetch from '../src/index';
 import type { HookFetchPlugin } from '../src/types';
+import type { Generic } from 'typescript-api-pro';
 
 describe('test hook-fetch', () => {
   interface TodoDTO {
@@ -91,9 +92,24 @@ describe('test hook-fetch', () => {
   })
 
   test('test instance default request', async () => {
+    interface BaseDTO {
+      code: number;
+      data: null;
+      msg: string;
+    }
 
+    const body: Generic<BaseDTO, 'data', TodoDTO> = {
+      code: 1,
+      data: {
+        id: 1,
+        userId: 1,
+        title: 'delectus aut autem',
+        completed: false,
+      },
+      msg: 'ok'
+    }
 
-    const instance = hookFetch.create<TodoDTO>({
+    const instance = hookFetch.create<BaseDTO, 'data'>({
       baseURL: 'https://jsonplaceholder.typicode.com',
       headers: {
         'Content-Type': 'application/json',
@@ -101,13 +117,17 @@ describe('test hook-fetch', () => {
     })
 
 
-    console.log(instance)
-
-    const res = await instance('/todos/1');
+    // console.log(instance)
+    const res = await instance.post<TodoDTO>('/posts', body);
 
     console.log(res);
 
-    const result = { userId: 1, id: 1, title: 'delectus aut autem', completed: false };
+    const result = {
+      code: 1,
+      data: { id: 1, userId: 1, title: 'delectus aut autem', completed: false },
+      msg: 'ok',
+      id: 101
+    };
     expect(res).toEqual(result);
   })
 

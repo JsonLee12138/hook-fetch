@@ -2,8 +2,9 @@ import type QueryString from "qs";
 import qs from "qs";
 import { omit } from "radash";
 import type { AnyObject } from "typescript-api-pro";
-import { HookFetchPlugin, type BaseRequestOptions, type FetchPluginContext, type FetchResponseType, type RequestConfig, type RequestMethod, type RequestMethodWithBody, type RequestMethodWithParams, type ResponseErrorOptions, type StreamContext } from "./types";
+import { HookFetchPlugin, type BaseRequestOptions, type FetchPluginContext, type FetchResponseType, type RequestConfig, type RequestMethod, type RequestMethodWithBody, type RequestMethodWithParams, type StreamContext } from "./types";
 import { ContentType, StatusCode } from "./enum";
+import type { ResponseErrorOptions } from "./error";
 
 export const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 

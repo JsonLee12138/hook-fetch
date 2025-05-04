@@ -1,14 +1,14 @@
 /// <reference types="vitest" />
 import { defineConfig, loadEnv } from 'vite';
-// import dts from 'vite-plugin-dts';
+import dts from 'vite-plugin-dts';
 
 export default defineConfig(({mode})=> {
   loadEnv(mode, process.cwd());
   return {
-    // plugins: [dts({
-    //   outDir: 'types',
-    //   copyDtsFiles: false
-    // })],
+    plugins: [dts({
+      outDir: 'types',
+      copyDtsFiles: false
+    })],
     build: {
       lib: {
         entry: {
@@ -17,18 +17,12 @@ export default defineConfig(({mode})=> {
           'plugins/sse': './src/plugins/sse.ts',
         },
         name: 'hook-fetch',
-        // 第二个参数是入口文件名
         fileName: (format, entryName) => {
           return `${format}/${entryName}.js`
         },
         formats: ['es', 'cjs']
       },
-      minify: 'terser',
-      terserOptions: {
-        format: {
-          comments: 'all'
-        }
-      },
+      minify: 'oxc',
       outDir: './dist',
       sourcemap: false,
       emptyOutDir: true,

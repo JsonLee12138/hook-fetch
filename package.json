@@ -18,10 +18,12 @@
     "hook-fetch-plugin-response-transform",
     "hook-fetch-plugin-request-transform"
   ],
-  "version": "0.0.6",
+  "version": "1.0.1",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build:umd": "vite build -c ./vite.config.umd.ts",
+    "build:base": "rimraf types && vite build",
+    "build": "rimraf types && pnpm build:base && pnpm build:umd",
     "ci:publish": "pnpm changeset publish -r",
     "test": "vitest",
     "lint-staged": "lint-staged"
@@ -38,24 +40,22 @@
   "main": "./dist/cjs/index.js",
   "module": "./dist/es/index.js",
   "types": "./types/index.d.ts",
+  "unpkg": "./dist/umd/index.js",
   "exports": {
     ".": {
       "require": "./dist/cjs/index.js",
       "import": "./dist/es/index.js",
-      "types": "./types/index.d.ts",
-      "default": "./dist/es/index.js"
+      "types": "./types/index.d.ts"
     },
     "./plugins": {
       "require": "./dist/cjs/plugins/index.js",
       "import": "./dist/es/plugins/index.js",
-      "types": "./types/plugins/index.d.ts",
-      "default": "./dist/es/plugins/index.js"
+      "types": "./types/plugins/index.d.ts"
     },
     "./plugins/sse": {
       "require": "./dist/cjs/plugins/sse.js",
       "import": "./dist/es/plugins/sse.js",
-      "types": "./types/plugins/sse.d.ts",
-      "default": "./dist/es/plugins/sse.js"
+      "types": "./types/plugins/sse.d.ts"
     }
   },
   "repository": {
@@ -77,16 +77,22 @@
     "lint-staged": "^13.2.0",
     "oxlint": "^0.16.3",
     "oxlint-config": "workspace:^",
-    "terser": "^5.39.0",
+    "rimraf": "^6.0.1",
+    "rolldown": "1.0.0-beta.8",
     "typescript": "^5.7.3",
-    "typescript-api-pro": "workspace:^",
-    "vite": "^6.1.1",
+    "vite": "npm:rolldown-vite@latest",
     "vite-plugin-dts": "^4.5.3",
     "vitest": "^3.0.8"
+  },
+  "peerDependencies": {
+    "typescript-api-pro": "^0.0.6"
   },
   "dependencies": {
     "qs": "^6.14.0",
     "radash": "^12.1.0"
+  },
+  "overrides": {
+    "vite": "npm:rolldown-vite@latest"
   },
   "config": {
     "commitizen": {
