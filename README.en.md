@@ -184,6 +184,20 @@ Plugin hooks:
 Hook-Fetch provides comprehensive TypeScript support, allowing you to define explicit types for requests and responses:
 
 ```typescript
+interface BaseResponseVO {
+  code: number;
+  data: never;
+  message: string;
+}
+
+const request = hookFetch.create<BaseResponseVO>({
+  baseURL: 'https://example.com',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  timeout: 5000,
+});
+
 // Define response data type
 interface User {
   id: number;
@@ -192,8 +206,8 @@ interface User {
 }
 
 // Use the type in a request
-const user = await api.get<User>('/users/1');
-console.log(user.name); // TypeScript provides complete type hints
+const res = await request.get<User>('/users/1');
+console.log(res.data); // TypeScript provides complete type hints
 ```
 
 ## Complete API

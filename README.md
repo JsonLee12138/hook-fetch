@@ -184,6 +184,20 @@ for await (const chunk of req.stream<string>()) {
 Hook-Fetch 提供了完善的TypeScript类型支持，可以为请求和响应定义明确的类型：
 
 ```typescript
+interface BaseResponseVO {
+  code: number;
+  data: never;
+  message: string;
+}
+
+const request = hookFetch.create<BaseResponseVO>({
+  baseURL: 'https://example.com',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  timeout: 5000,
+});
+
 // 定义响应数据类型
 interface User {
   id: number;
@@ -192,8 +206,8 @@ interface User {
 }
 
 // 在请求中使用类型
-const user = await api.get<User>('/users/1');
-console.log(user.name); // TypeScript提供完整类型提示
+const res = await request.get<User>('/users/1');
+console.log(res.data); // TypeScript提供完整类型提示
 ```
 
 ## 完整API

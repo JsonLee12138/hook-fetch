@@ -6,7 +6,7 @@ const _request_ = <R, P, D, E>(options: BaseRequestOptions<P, D>): HookFetchRequ
   return new HookFetchRequest<R, E>(options);
 }
 
-class Base<R extends AnyObject = AnyObject, E = AnyObject, K extends keyof R = string> {
+class HookFetch<R extends AnyObject = AnyObject, K extends keyof R = 'data', E = AnyObject> {
   #timeout: number;
   #baseURL: string;
   #commonHeaders: HeadersInit;
@@ -148,7 +148,7 @@ export const patch = <R = AnyObject, D = AnyObject, P = AnyObject, E = AnyObject
 }
 
 type ExportDefault = typeof useRequest & {
-  create: <R extends AnyObject = AnyObject, E = AnyObject, K extends keyof R = string>(options: BaseOptions) => (Base<R, E, K>['request'] & Base<R, E, K>);
+  create: <R extends AnyObject = AnyObject, K extends keyof R = 'data', E = AnyObject>(options: BaseOptions) => (HookFetch<R, K, E>['request'] & HookFetch<R, K, E>);
   get: typeof get;
   head: typeof head;
   options: typeof options;
@@ -160,11 +160,11 @@ type ExportDefault = typeof useRequest & {
 
 const hookFetch = useRequest as ExportDefault;
 
-hookFetch.create = <R extends AnyObject = AnyObject, E = AnyObject, K extends keyof R = string>(options: BaseOptions) => {
-  const context = new Base<R, E, K>(options);
+hookFetch.create = <R extends AnyObject = AnyObject, K extends keyof R = 'data', E = AnyObject>(options: BaseOptions) => {
+  const context = new HookFetch<R, K, E>(options);
   const instance = context.request.bind(this);
-  Object.assign(instance, Base.prototype, context);
-  return instance as (typeof context.request & Base<R, E, K>);
+  Object.assign(instance, HookFetch.prototype, context);
+  return instance as (typeof context.request & HookFetch<R, K, E>);
 };
 
 hookFetch.get = get;
