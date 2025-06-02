@@ -80,7 +80,7 @@ export interface OptionProps {
   baseURL: string;
   timeout: number;
   headers: HeadersInit;
-  plugins: Array<HookFetchPlugin>;
+  plugins: Array<HookFetchPlugin<any, any, any, any>>;
   withCredentials: boolean;
 }
 
