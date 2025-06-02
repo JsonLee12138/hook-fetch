@@ -52,13 +52,15 @@ export interface StreamContext<T = unknown> {
   error: unknown | null;
 }
 
-type BeforeRequestHandler<E = unknown, P = unknown, D = unknown> = (config: RequestConfig<E, P, D>) => Promise<RequestConfig<E, P, D>>;
+type BeforeRequestHandler<E = unknown, P = unknown, D = unknown> = (config: RequestConfig<P, D, E>) => RequestConfig<P, D, E> | Promise<RequestConfig<P, D, E>>;
 
-type AfterResponseHandler<T = unknown> = (context: FetchPluginContext<T>) => Promise<FetchPluginContext<any>>;
+type AfterResponseHandler<T = unknown, E = unknown, P = unknown, D = unknown> = (context: FetchPluginContext<T>, config: RequestConfig<P, D, E>) => FetchPluginContext<T> | Promise<FetchPluginContext<T>>;
 
-type TransformStreamChunkHandler = (chunk: StreamContext<any>) => Promise<StreamContext>;
+type BeforeStreamHandler<E = unknown, P = unknown, D = unknown> = (body: ReadableStream<any>, config: RequestConfig<P, D, E>) => ReadableStream<any> | Promise<ReadableStream<any>>;
 
-export type OnFinallyHandler<E = unknown, P = unknown, D = unknown> = (res: Pick<FetchPluginContext<unknown, E, P, D>, 'config' | 'response'>) => Promise<void>;
+type TransformStreamChunkHandler<E = unknown, P = unknown, D = unknown> = (chunk: StreamContext<any>, config: RequestConfig<P, D, E>) => StreamContext | Promise<StreamContext>;
+
+export type OnFinallyHandler<E = unknown, P = unknown, D = unknown> = (res: Pick<FetchPluginContext<unknown, E, P, D>, 'config' | 'response'>) => void | Promise<void>;
 
 export type HookFetchPlugin<T = unknown, E = unknown, P = unknown, D = unknown> = {
   /** 插件名称 */
@@ -66,9 +68,10 @@ export type HookFetchPlugin<T = unknown, E = unknown, P = unknown, D = unknown> 
   /** 优先级 */
   priority?: number;
   beforeRequest?: BeforeRequestHandler<E, P, D>;
-  afterResponse?: AfterResponseHandler<T>;
-  transformStreamChunk?: TransformStreamChunkHandler;
-  onError?: (error: Error) => Promise<Error | void | ResponseError<E>>;
+  afterResponse?: AfterResponseHandler<T, E, P, D>;
+  beforeStream?: BeforeStreamHandler<E, P, D>;
+  transformStreamChunk?: TransformStreamChunkHandler<E, P, D>;
+  onError?: (error: Error, config: RequestConfig<P, D, E>) => Promise<Error | void | ResponseError<E>>;
   onFinally?: OnFinallyHandler<E, P, D>;
 }
 

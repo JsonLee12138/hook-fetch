@@ -148,12 +148,12 @@ Hook-Fetch offers a robust plugin system allowing intervention at various stages
 
 ```typescript
 // Custom plugin example: SSE text decoding plugin
-// This is just an example. You can use the provided plugin `sseTextDecoderPlugin`
+// This is just an example. It's recommended to use the provided `sseTextDecoderPlugin` which has more comprehensive handling
 const ssePlugin = () => {
   const decoder = new TextDecoder('utf-8');
   return {
     name: 'sse',
-    async transformStreamChunk(chunk) {
+    async transformStreamChunk(chunk, config) {
       if (!chunk.error) {
         chunk.result = decoder.decode(chunk.result, { stream: true });
       }
@@ -172,12 +172,72 @@ for await (const chunk of req.stream<string>()) {
 }
 ```
 
-Plugin hooks:
-- `beforeRequest`: Handle configuration before sending the request
-- `afterResponse`: Process data after receiving the response
-- `transformStreamChunk`: Handle streaming data chunks
-- `onError`: Handle request errors
-- `onFinally`: Callback after request completion
+#### Plugin Lifecycle Examples
+
+```typescript
+// Complete plugin example showing the usage of each lifecycle hook
+const examplePlugin = () => {
+  return {
+    name: 'example',
+    priority: 1, // Priority, lower numbers have higher priority
+
+    // Pre-request processing
+    async beforeRequest(config) {
+      // Can modify request configuration
+      config.headers = new Headers(config.headers);
+      config.headers.set('authorization', `Bearer ${tokenValue}`);
+      return config;
+    },
+
+    // Post-response processing
+    async afterResponse(context, config) {
+      // Can process response data
+      if (context.responseType === 'json') {
+        if(context.result.code === 200){
+          return context
+        }else{
+          // Handle specific business logic
+          return Promise.reject(context)
+        }
+      }
+      return context;
+    },
+
+    // Stream initialization processing, for advanced usage refer to sseTextDecoderPlugin (https://github.com/JsonLee12138/hook-fetch/blob/main/src/plugins/sse.ts)
+    async beforeStream(body, config) {
+      // Can transform or wrap the stream
+      return body;
+    },
+
+    // Stream chunk processing, supports returning iterators and async iterators which will be automatically processed into multiple messages
+    async transformStreamChunk(chunk, config) {
+      // Can process each data chunk
+      if (!chunk.error) {
+        chunk.result = `Processed: ${chunk.result}`;
+      }
+      return chunk;
+    },
+
+    // Error handling
+    async onError(error, config) {
+      // Can handle or transform errors
+      if (error.status === 401) {
+        // Handle unauthorized error
+        return new Error('Please login first');
+      }
+      return error;
+    },
+
+    // Request completion processing
+    async onFinally(context, config) {
+      // Clean up resources or log
+      console.log(`Request to ${config.url} completed`);
+    }
+  };
+};
+```
+
+All lifecycle hooks support both synchronous and asynchronous operations. They can return either a Promise or a direct value. Each hook function receives the current configuration object (config), which can be used to make decisions and handle different request scenarios.
 
 ## Generic Support
 
@@ -262,19 +322,22 @@ interface HookFetchPlugin<T = unknown, E = unknown, P = unknown, D = unknown> {
   priority?: number;
 
   // Pre-request processing
-  beforeRequest?: (config: RequestConfig) => Promise<RequestConfig>;
+  beforeRequest?: (config: RequestConfig<P, D, E>) => Promise<RequestConfig<P, D, E>> | RequestConfig<P, D, E>;
 
   // Post-response processing
-  afterResponse?: (context: FetchPluginContext) => Promise<FetchPluginContext>;
+  afterResponse?: (context: FetchPluginContext<T, E, P, D>, config: RequestConfig<P, D, E>) => Promise<FetchPluginContext<T, E, P, D>> | FetchPluginContext<T, E, P, D>;
+
+  // Stream initialization processing
+  beforeStream?: (body: ReadableStream<any>, config: RequestConfig<P, D, E>) => Promise<ReadableStream<any>> | ReadableStream<any>;
 
   // Stream data chunk transformation
-  transformStreamChunk?: (chunk: StreamContext) => Promise<StreamContext>;
+  transformStreamChunk?: (chunk: StreamContext<any>, config: RequestConfig<P, D, E>) => Promise<StreamContext> | StreamContext;
 
   // Error handling
-  onError?: (error: Error) => Promise<Error | void | ResponseError>;
+  onError?: (error: Error, config: RequestConfig<P, D, E>) => Promise<Error | void | ResponseError<E>> | Error | void | ResponseError<E>;
 
   // Request completion processing
-  onFinally?: (context: FetchPluginContext) => Promise<void>;
+  onFinally?: (context: FetchPluginContext<T, E, P, D>, config: RequestConfig<P, D, E>) => Promise<void> | void;
 }
 ```
 
@@ -304,4 +367,4 @@ MIT
 
 ## Contact US
 
-- [Discord](https://discord.gg/Ah55KD5d)
+- [Discord](https://discord.gg/666U6JTCQY)

@@ -11,7 +11,8 @@ class HookFetch<R extends AnyObject = AnyObject, K extends keyof R = 'data', E =
   #baseURL: string;
   #commonHeaders: HeadersInit;
   #queue: Array<AbortController> = [];
-  #plugins: Array<HookFetchPlugin> = [];
+  // eslint-disable-next-line no-explicit-any
+  #plugins: Array<HookFetchPlugin<any, any, any, any>> = [];
   #withCredentials: boolean;
 
   constructor({ timeout = 0, baseURL = '', headers = {}, plugins = [], withCredentials = false }: BaseOptions) {

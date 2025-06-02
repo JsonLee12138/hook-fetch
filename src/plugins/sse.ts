@@ -1,92 +1,128 @@
 import type { HookFetchPlugin } from "../types";
 
-const decoder = new TextDecoder('utf-8');
-
 export interface SSETextDecoderPluginOptions {
   splitSeparator: string;
+  lineSeparator: string | undefined;
   trim: boolean;
   json: boolean;
   prefix: string;
+  doneSymbol: string;
 }
 
 /**
- * SSE 文本解码插件
+ * SSE 文本解码插件 | A SSE (Server-Sent Events) response text decoder plugin.
  *
- * A SSE (Server-Sent Events) response text decoder plugin.
+ * 用于处理服务端推送事件(SSE)的响应流,提供以下功能:
+ * - 将二进制Buffer解码为文本
+ * - 按指定分隔符拆分事件块
+ * - 去除首尾空白字符
+ * - 自动JSON解析
+ * - 移除特定前缀
  *
- * 用于对服务端推送消息（SSE）响应流中的 Buffer 进行解码、分割、trim、JSON-parsing，以及可选前缀剥离。
+ * Processes Server-Sent Events (SSE) response streams with the following features:
+ * - Decodes binary buffer to text
+ * - Splits event chunks by specified separator
+ * - Trims whitespace
+ * - Automatic JSON parsing
+ * - Removes specified prefix
  *
- * Decodes SSE response stream buffer, splits by separator, trims, JSON-parses and optionally removes prefix.
- *
- * @param {Object} [options] 配置选项
- * @param {Object} [options] Plugin options
- * @param {string} [options.splitSeparator='\n\n'] 分割符，用于拆分事件块（默认 '\n\n'）
- * @param {string} [options.splitSeparator='\n\n'] Separator to split SSE events (default '\n\n')
- * @param {boolean} [options.trim=true] 是否对分块做 trim 去除首尾空白（默认 true）
- * @param {boolean} [options.trim=true] Whether to trim leading/trailing spaces (default true)
- * @param {boolean} [options.json=false] 是否尝试将每块内容解析为 JSON（默认 false）
- * @param {boolean} [options.json=false] Whether to parse each chunk as JSON (default false)
- * @param {string} [options.prefix=''] 去除每块内容的特定前缀（如 "data: "，默认无）
- * @param {string} [options.prefix=''] Prefix to be removed from every chunk (like "data: ", default '')
- * @returns {HookFetchPlugin} 返回 HookFetch 插件实例
- * @returns {HookFetchPlugin} Returns a HookFetch plugin instance.
+ * @param {Object} [options] 配置选项 | Plugin options
+ * @param {string} [options.splitSeparator='\n\n'] 分割符,用于拆分事件块(默认 '\n\n') | Separator for splitting events (default '\n\n')
+ * @param {string} [options.lineSeparator] 行分割符,用于拆分每行(可选) | Line separator for splitting each line (optional)
+ * @param {boolean} [options.trim=true] 是否去除首尾空白(默认 true) | Whether to trim whitespace (default true)
+ * @param {boolean} [options.json=false] 是否解析JSON(默认 false) | Whether to parse JSON (default false)
+ * @param {string} [options.prefix=''] 要移除的前缀,如 "data: "(默认为空) | Prefix to remove, e.g. "data: " (default '')
+ * @param {string} [options.doneSymbol] 结束标记,收到此标记时结束流(可选) | Symbol indicating stream end (optional)
+ * @returns {HookFetchPlugin} 返回 HookFetch 插件实例 | Returns a HookFetch plugin instance
  * @example
  * request.use(sseTextDecoderPlugin({
  *   json: true,
  *   prefix: 'data:',
- *   splitSeparator: '\n\n'
+ *   splitSeparator: '\n\n',
+ *   doneSymbol: '[DONE]'
  * }));
  */
-export const sseTextDecoderPlugin = ({ splitSeparator = '\n\n', trim = true, json = false, prefix = '' }: Partial<SSETextDecoderPluginOptions> = {}): HookFetchPlugin => {
+export const sseTextDecoderPlugin = ({ splitSeparator = '\n\n', lineSeparator = void 0, trim = true, json = false, prefix = '', doneSymbol = void 0 }: Partial<SSETextDecoderPluginOptions> = {}): HookFetchPlugin<unknown, { sseAble: boolean }> => {
   return {
     name: 'sse',
-    async transformStreamChunk(chunk) {
-      if (!chunk.error) {
-        const result = decoder.decode(chunk.result as AllowSharedBufferSource, { stream: true });
-        const chunks = result.split(splitSeparator).map(item => item.trim()).filter(Boolean);
-        if (chunks.length > 1) {
-          function* items() {
-            for (const item of chunks) {
-              if (json) {
-                try {
-                  const r = JSON.parse(item.trim().slice(prefix.length).trim());
-                  yield r;
-                } catch (error) {
-                  if(trim){
-                  yield item.trim();
-                }else{
-                  yield item;
-                }
-                }
-              }else{
-                if(trim){
-                  yield item.trim();
-                }else{
-                  yield item;
-                }
+    async beforeStream(body, config) {
+      if (!(config.extra?.sseAble ?? true)) {
+        return body;
+      }
+      const decoderThrough = new TextDecoderStream();
+      const splitStream = new SplitStream({ splitSeparator });
+      const transformPartStream = new TransformPartStream({ splitSeparator: lineSeparator, trim, json, prefix, doneSymbol });
+      return body.pipeThrough(decoderThrough).pipeThrough(splitStream).pipeThrough(transformPartStream);
+    }
+  }
+}
+
+const isValidString = (str: string) => (str ?? '').trim() !== '';
+
+interface SplitThroughOptions {
+  splitSeparator: string;
+}
+
+class SplitStream extends TransformStream<string, string> {
+  constructor({ splitSeparator = '\n\n' }: Partial<SplitThroughOptions> = {}) {
+    let buffer = '';
+    const params: Transformer<string, string> = {
+      transform(chunk, controller) {
+        buffer += chunk;
+        const parts = buffer.split(splitSeparator);
+        parts.slice(0, -1).forEach((part) => {
+          if (isValidString(part))
+            controller.enqueue(part);
+        });
+        buffer = parts[parts.length - 1];
+      },
+      flush(controller) {
+        if (isValidString(buffer))
+          controller.enqueue(buffer);
+      },
+    }
+    super(params);
+  }
+}
+
+type TransformPartStreamOptions = Omit<SSETextDecoderPluginOptions, 'lineSeparator'> & {
+  splitSeparator: SSETextDecoderPluginOptions['lineSeparator'];
+}
+
+class TransformPartStream extends TransformStream<string, string> {
+  constructor({ splitSeparator = void 0, trim = true, json = false, prefix = '', doneSymbol = void 0 }: Partial<TransformPartStreamOptions> = {}) {
+    const dealLineTrim = (line: string, _trim_: boolean): string => {
+      if (_trim_) {
+        return line.trim();
+      }
+      return line;
+    }
+    const isDone = (line: string) => !!doneSymbol && line.slice(prefix.length).trim() === doneSymbol;
+    const params: Transformer<string, string> = {
+      transform(chunk, controller) {
+        let lines = splitSeparator ? chunk.split(splitSeparator) : [chunk];
+        for (const line of lines) {
+          if (json) {
+            try {
+              const r = JSON.parse(line.slice(prefix.length).trim());
+              controller.enqueue(r);
+            } catch (error) {
+              if (isDone(line)) {
+                controller.terminate();
+              } else {
+                controller.enqueue((dealLineTrim(line, trim)))
               }
             }
-          }
-          chunk.result = items();
-        } else {
-          if(json){
-            try {
-              const r = JSON.parse(result.trim().slice(prefix.length).trim());
-              chunk.result = r;
-            } catch (error) {
-              chunk.result = result;
-            }
-          }else{
-            if(trim){
-              chunk.result = result.trim();
-            }else{
-              chunk.result = result;
+          } else {
+            if (isDone(line)) {
+              controller.terminate();
+            } else {
+              controller.enqueue(dealLineTrim(line, trim));
             }
           }
-          return chunk;
         }
       }
-      return chunk;
     }
+    super(params);
   }
 }

@@ -17,6 +17,7 @@ describe('test hook-fetch deepseek', () => {
   request.use(sseTextDecoderPlugin({
     json: true,
     prefix: 'data:',
+    doneSymbol: '[DONE]',
   }));
 
   test('test instance sse plugin', async () => {
@@ -55,7 +56,7 @@ describe('test hook-fetch deepseek', () => {
 
     for await (const chunk of req.stream<string>()) {
       // expect(typeof chunk.result).toBe('string');
-      console.log(chunk.result);
+      console.log(typeof chunk.result, chunk.result);
     }
   })
 })

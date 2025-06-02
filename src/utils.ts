@@ -2,9 +2,9 @@ import type QueryString from "qs";
 import qs from "qs";
 import { omit } from "radash";
 import type { AnyObject } from "typescript-api-pro";
-import { HookFetchPlugin, type BaseRequestOptions, type FetchPluginContext, type FetchResponseType, type RequestConfig, type RequestMethod, type RequestMethodWithBody, type RequestMethodWithParams, type StreamContext } from "./types";
 import { ContentType, StatusCode } from "./enum";
 import type { ResponseErrorOptions } from "./error";
+import { HookFetchPlugin, type BaseRequestOptions, type FetchPluginContext, type FetchResponseType, type RequestConfig, type RequestMethod, type RequestMethodWithBody, type RequestMethodWithParams, type StreamContext } from "./types";
 
 export const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -62,6 +62,7 @@ export const parsePlugins = (plugins: HookFetchPlugin[]) => {
   const errorPlugins: Array<Exclude<HookFetchPlugin['onError'], undefined>> = [];
   const finallyPlugins: Array<Exclude<HookFetchPlugin['onFinally'], undefined>> = [];
   const transformStreamChunkPlugins: Array<Exclude<HookFetchPlugin['transformStreamChunk'], undefined>> = [];
+  const beforeStreamPlugins: Array<Exclude<HookFetchPlugin['beforeStream'], undefined>> = [];
   pluginsArr.forEach(plugin => {
     if (plugin.beforeRequest) {
       beforeRequestPlugins.push(plugin.beforeRequest);
@@ -78,12 +79,16 @@ export const parsePlugins = (plugins: HookFetchPlugin[]) => {
     if (plugin.transformStreamChunk) {
       transformStreamChunkPlugins.push(plugin.transformStreamChunk);
     }
+    if (plugin.beforeStream) {
+      beforeStreamPlugins.push(plugin.beforeStream);
+    }
   })
   return {
     beforeRequestPlugins,
     afterResponsePlugins,
     errorPlugins,
     finallyPlugins,
+    beforeStreamPlugins,
     transformStreamChunkPlugins
   }
 }
@@ -292,7 +297,7 @@ export class HookFetchRequest<T, E> implements PromiseLike<T> {
   async #normalizeError(error: unknown): Promise<ResponseError> {
     let err = await this.#createNormalizeError(error);
     for (const plugin of this.#plugins.errorPlugins) {
-      err = await plugin(err) as ResponseError<E>;
+      err = await plugin(err, this.#config) as ResponseError<E>;
     }
     return err
   }
@@ -334,7 +339,7 @@ export class HookFetchRequest<T, E> implements PromiseLike<T> {
       result: v
     };
     for (const plugin of plugins) {
-      ctx = await plugin(ctx)
+      ctx = await plugin(ctx, this.#config)
     }
     return ctx.result as T;
   }
@@ -413,43 +418,53 @@ export class HookFetchRequest<T, E> implements PromiseLike<T> {
   }
 
   async *stream<T>() {
-    const response = await this.#promise;
-    const reader = response.clone()?.body?.getReader();
-    if (!reader) {
-      return;
+    let body = (await this.#response)?.body;
+    if (!body) {
+      throw new Error('Response body is null');
     }
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) {
-        break;
-      }
-      let res: StreamContext = {
-        source: value,
-        result: value,
-        error: null
-      };
-      try {
-        for (const plugin of this.#plugins.transformStreamChunkPlugins) {
-          res = await plugin(res);
+    for (const plugin of this.#plugins.beforeStreamPlugins) {
+      body = await plugin(body, this.#config);
+    }
+    const reader = body.getReader();
+    if (!reader) {
+      throw new Error('Response body reader is null');
+    }
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          break;
         }
-        if(res.result && (isGenerator(res.result) || isAsyncGenerator(res.result))){
-          for await (const chunk of (res.result as AsyncGenerator<any, void, unknown>
-          )) {
-            let resultItem = {
-              source: res.source,
-              result: chunk,
-              error: null
-            }
-            yield resultItem as StreamContext<T>;
+        let res: StreamContext = {
+          source: value,
+          result: value,
+          error: null
+        };
+        try {
+          for (const plugin of this.#plugins.transformStreamChunkPlugins) {
+            res = await plugin(res, this.#config);
           }
-        }else{
-          yield res as StreamContext<T>;
+          if (res.result && (isGenerator(res.result) || isAsyncGenerator(res.result))) {
+            for await (const chunk of (res.result as AsyncGenerator<any, void, unknown>
+            )) {
+              let resultItem = {
+                source: res.source,
+                result: chunk,
+                error: null
+              }
+              yield resultItem as StreamContext<T>;
+            }
+          } else {
+            yield res as StreamContext<T>;
+          }
+        } catch (error) {
+          res.error = error;
+          res.result = null;
+          yield res as StreamContext<null>;
         }
-      } catch (error) {
-        res.error = error;
-        res.result = null;
-        yield res as StreamContext<null>;
       }
+    } finally {
+      reader.releaseLock();
     }
   }
 
@@ -463,10 +478,10 @@ export class HookFetchRequest<T, E> implements PromiseLike<T> {
   }
 }
 
-export const isGenerator = (v: any)=> {
+export const isGenerator = (v: any) => {
   return v[Symbol.toStringTag] === 'Generator' && typeof v.next === 'function' && typeof v.return === 'function' && typeof v.throw === 'function' && typeof v[Symbol.iterator] === 'function';
 }
 
-export const isAsyncGenerator = (v: any)=> {
+export const isAsyncGenerator = (v: any) => {
   return v[Symbol.toStringTag] === 'AsyncGenerator' && typeof v.next === 'function' && typeof v.return === 'function' && typeof v.throw === 'function' && typeof v[Symbol.asyncIterator] === 'function';
 }
