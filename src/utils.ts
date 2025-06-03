@@ -50,12 +50,12 @@ export class ResponseError<E = unknown> extends Error {
   }
 }
 
-export const parsePlugins = (plugins: HookFetchPlugin[]) => {
-  const pluginsSet = new Set<HookFetchPlugin>();
+const parsePlugins = (plugins: HookFetchPlugin[]) => {
+  const pluginsMap = new Map<string, HookFetchPlugin>();
   plugins.forEach(plugin => {
-    pluginsSet.add(plugin);
+    pluginsMap.set(plugin.name, plugin);
   })
-  const pluginsArr = Array.from(pluginsSet).sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0));
+  const pluginsArr = Array.from(pluginsMap.values()).sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0));
 
   const beforeRequestPlugins: Array<Exclude<HookFetchPlugin['beforeRequest'], undefined>> = [];
   const afterResponsePlugins: Array<Exclude<HookFetchPlugin['afterResponse'], undefined>> = [];
