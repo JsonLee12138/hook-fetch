@@ -341,10 +341,134 @@ interface HookFetchPlugin<T = unknown, E = unknown, P = unknown, D = unknown> {
 }
 ```
 
+
+
+
+
+## Vue Hooks
+
+Hook-Fetch provides Vue Composition API support, making it easier to use in Vue components:
+
+```typescript
+import { useHookFetch } from 'hook-fetch/vue';
+import hookFetch from 'hook-fetch';
+
+// Create request instance
+const api = hookFetch.create({
+  baseURL: 'https://api.example.com'
+});
+
+// Use in component
+const YourComponent = defineComponent({
+  setup() {
+    // Use useHookFetch
+    const { request, loading, cancel, text, stream, blob, arrayBufferData, formDataResult, bytesData } = useHookFetch({
+      request: api.get,
+      onError: (error) => {
+        console.error('Request error:', error);
+      }
+    });
+
+    // Make request
+    const fetchData = async () => {
+      const response = await request('/users');
+      console.log(response);
+    };
+
+    // Get text response
+    const fetchText = async () => {
+      const text = await text('/text');
+      console.log(text);
+    };
+
+    // Handle streaming response
+    const handleStream = async () => {
+      for await (const chunk of stream('/stream')) {
+        console.log(chunk);
+      }
+    };
+
+    // Cancel request
+    const handleCancel = () => {
+      cancel();
+    };
+
+    return {
+      loading,
+      fetchData,
+      fetchText,
+      handleStream,
+      handleCancel
+    };
+  }
+});
+```
+
+## React Hooks
+
+Hook-Fetch also provides React Hooks support, making it convenient to use in React components:
+
+```typescript
+import { useHookFetch } from 'hook-fetch/react';
+import hookFetch from 'hook-fetch';
+
+// Create request instance
+const api = hookFetch.create({
+  baseURL: 'https://api.example.com'
+});
+
+// Use in component
+const YourComponent = () => {
+  // Use useHookFetch
+  const { request, loading, setLoading, cancel, text, stream, blob, arrayBufferData, formDataResult, bytesData } = useHookFetch({
+    request: api.get,
+    onError: (error) => {
+      console.error('Request error:', error);
+    }
+  });
+
+  // Make request
+  const fetchData = async () => {
+    const response = await request('/users');
+    console.log(response);
+  };
+
+  // Get text response
+  const fetchText = async () => {
+    const text = await text('/text');
+    console.log(text);
+  };
+
+  // Handle streaming response
+  const handleStream = async () => {
+    for await (const chunk of stream('/stream')) {
+      console.log(chunk);
+    }
+  };
+
+  // Cancel request
+  const handleCancel = () => {
+    cancel();
+  };
+
+  return (
+    <div>
+      <div>Loading status: {loading ? 'Loading' : 'Completed'}</div>
+      <button onClick={fetchData}>Fetch Data</button>
+      <button onClick={fetchText}>Fetch Text</button>
+      <button onClick={handleStream}>Handle Stream</button>
+      <button onClick={handleCancel}>Cancel Request</button>
+    </div>
+  );
+};
+```
+
 ### vscode hint plugin reference path
 ```typescript
 // Create a file hook-fetch.d.ts in src with the following content
 /// <reference types="hook-fetch/plugins" />
+/// <reference types="hook-fetch/react" />
+/// <reference types="hook-fetch/vue" />
 ```
 
 ## Notes

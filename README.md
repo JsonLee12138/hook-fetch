@@ -452,10 +452,131 @@ interface HookFetchPlugin<T = unknown, E = unknown, P = unknown, D = unknown> {
 }
 ```
 
+
+## Vue Hooks
+
+Hook-Fetch 提供了 Vue 组合式 API 的支持，可以更方便地在 Vue 组件中使用：
+
+```typescript
+import { useHookFetch } from 'hook-fetch/vue';
+import hookFetch from 'hook-fetch';
+
+// 创建请求实例
+const api = hookFetch.create({
+  baseURL: 'https://api.example.com'
+});
+
+// 在组件中使用
+const YourComponent = defineComponent({
+  setup() {
+    // 使用 useHookFetch
+    const { request, loading, cancel, text, stream, blob, arrayBufferData, formDataResult, bytesData } = useHookFetch({
+      request: api.get,
+      onError: (error) => {
+        console.error('请求错误:', error);
+      }
+    });
+
+    // 发起请求
+    const fetchData = async () => {
+      const response = await request('/users');
+      console.log(response);
+    };
+
+    // 获取文本响应
+    const fetchText = async () => {
+      const text = await text('/text');
+      console.log(text);
+    };
+
+    // 处理流式响应
+    const handleStream = async () => {
+      for await (const chunk of stream('/stream')) {
+        console.log(chunk);
+      }
+    };
+
+    // 取消请求
+    const handleCancel = () => {
+      cancel();
+    };
+
+    return {
+      loading,
+      fetchData,
+      fetchText,
+      handleStream,
+      handleCancel
+    };
+  }
+});
+```
+
+## React Hooks
+
+Hook-Fetch 同样提供了 React Hooks 的支持，可以在 React 组件中方便地使用：
+
+```typescript
+import { useHookFetch } from 'hook-fetch/react';
+import hookFetch from 'hook-fetch';
+
+// 创建请求实例
+const api = hookFetch.create({
+  baseURL: 'https://api.example.com'
+});
+
+// 在组件中使用
+const YourComponent = () => {
+  // 使用 useHookFetch
+  const { request, loading, setLoading, cancel, text, stream, blob, arrayBufferData, formDataResult, bytesData } = useHookFetch({
+    request: api.get,
+    onError: (error) => {
+      console.error('请求错误:', error);
+    }
+  });
+
+  // 发起请求
+  const fetchData = async () => {
+    const response = await request('/users');
+    console.log(response);
+  };
+
+  // 获取文本响应
+  const fetchText = async () => {
+    const text = await text('/text');
+    console.log(text);
+  };
+
+  // 处理流式响应
+  const handleStream = async () => {
+    for await (const chunk of stream('/stream')) {
+      console.log(chunk);
+    }
+  };
+
+  // 取消请求
+  const handleCancel = () => {
+    cancel();
+  };
+
+  return (
+    <div>
+      <div>加载状态: {loading ? '加载中' : '已完成'}</div>
+      <button onClick={fetchData}>获取数据</button>
+      <button onClick={fetchText}>获取文本</button>
+      <button onClick={handleStream}>处理流</button>
+      <button onClick={handleCancel}>取消请求</button>
+    </div>
+  );
+};
+```
+
 ### vscode提示插件的引用路径
 ```typescript
 // 在 src 中创建文件 hook-fetch.d.ts, 内容如下
 /// <reference types="hook-fetch/plugins" />
+/// <reference types="hook-fetch/react" />
+/// <reference types="hook-fetch/vue" />
 ```
 
 ## 注意事项
