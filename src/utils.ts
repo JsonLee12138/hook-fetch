@@ -122,6 +122,7 @@ const withoutBodyArr: RequestMethodWithParams[] = ['GET', 'HEAD', 'OPTIONS', 'DE
 
 export const getBody = (body: AnyObject, method: RequestMethod, headers?: HeadersInit, qsArrayFormat: QueryString.IStringifyOptions['arrayFormat'] = 'repeat'): BodyInit | null => {
   if (!body) return null;
+  if(body instanceof FormData) return body;
   let res: BodyInit | null = null;
   if (withBodyArr.includes(method.toUpperCase() as RequestMethodWithBody)) {
     const _headers_: Headers = new Headers(headers || {});

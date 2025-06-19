@@ -90,6 +90,21 @@ class HookFetch<R extends AnyObject = AnyObject, K extends keyof R = 'data', E =
     return this.#requestWithBody<T, D, P>(url, data, { ...options, method: 'POST' })
   }
 
+  upload<T = AnyObject, D = AnyObject, P = AnyObject>(url: string, data?: D, options?: PostOptions<D, P, E>) {
+    const formData = new FormData();
+    for (const key in data) {
+      if (Object.prototype.hasOwnProperty.call(data, key)) {
+        const value = data[key];
+        if(value instanceof File || value instanceof Blob) {
+          formData.append(key, value);
+        } else {
+          formData.append(key, String(value));
+        }
+      }
+    }
+    return this.#requestWithBody<T, FormData, P>(url, formData, { ...options, method: 'POST' })
+  }
+
   put<T = AnyObject, D = AnyObject, P = AnyObject>(url: string, data?: D, options?: PutOptions<D, P, E>) {
     return this.#requestWithBody<T, D, P>(url, data, { ...options, method: 'PUT' })
   }
@@ -140,6 +155,21 @@ export const post = <R = AnyObject, D = AnyObject, P = AnyObject, E = AnyObject>
   return requestWithBody<R, D, P, E>(url, data, { ...options, method: 'POST' })
 }
 
+export const upload = <R = AnyObject, D = AnyObject, P = AnyObject, E = AnyObject>(url: string, data?: D, options?: PostOptions<D, P, E>) => {
+  const formData = new FormData();
+  for (const key in data) {
+    if (Object.prototype.hasOwnProperty.call(data, key)) {
+      const value = data[key];
+      if(value instanceof File || value instanceof Blob) {
+        formData.append(key, value);
+      } else {
+        formData.append(key, String(value));
+      }
+    }
+  }
+  return requestWithBody<R, FormData, P, E>(url, formData, { ...options, method: 'POST' })
+}
+
 export const put = <R = AnyObject, D = AnyObject, P = AnyObject, E = AnyObject>(url: string, data?: D, options?: PutOptions<D, P, E>) => {
   return requestWithBody<R, D, P, E>(url, data, { ...options, method: 'PUT' })
 }
@@ -157,6 +187,7 @@ type ExportDefault = typeof useRequest & {
   post: typeof post;
   put: typeof put;
   patch: typeof patch;
+  upload: typeof upload;
 }
 
 const hookFetch = useRequest as ExportDefault;
@@ -175,5 +206,6 @@ hookFetch.delete = del;
 hookFetch.post = post;
 hookFetch.put = put;
 hookFetch.patch = patch;
+hookFetch.upload = upload;
 
 export default hookFetch;

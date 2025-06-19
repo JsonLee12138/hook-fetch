@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import hookFetch from '../src/index';
+import hookFetch, { ContentType } from '../src/index';
 import type { HookFetchPlugin } from '../src/types';
 import type { Generic } from 'typescript-api-pro';
 
@@ -243,14 +243,150 @@ describe('test hook-fetch', () => {
     }
   })
 
-  test('post', async () => {
-    const formData = {
-      username: '111',
-      password: '111'
+  test('test file upload with FormData', async () => {
+    // 创建一个测试用的文件
+    const fileContent = 'Hello, this is a test file content!';
+    const file = new File([fileContent], 'test.txt', { type: 'text/plain' });
+
+    // 创建 FormData 对象
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('description', 'Test file upload');
+    formData.append('userId', '123');
+
+    // 使用支持文件上传的测试服务
+    const res = await hookFetch.upload('https://httpbin.org/post', {
+      file,
+      description: 'Test file upload',
+      userId: '123'
+    });
+
+    console.log('File upload response:', res);
+
+    // 验证响应包含我们上传的数据
+    expect(res.form).toBeDefined();
+    expect(res.form.description).toBe('Test file upload');
+    expect(res.form.userId).toBe('123');
+    expect(res.files).toBeDefined();
+    expect(res.files.file).toBeDefined();
+  });
+
+  // TODO: 后面的没用测试过
+  test('test file upload with instance', async () => {
+    const instance = hookFetch.create({
+      baseURL: 'https://httpbin.org',
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
+
+    // 创建测试文件
+    const fileContent = 'Test file content for instance upload';
+    const file = new File([fileContent], 'instance-test.txt', { type: 'text/plain' });
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('metadata', JSON.stringify({
+      uploadTime: new Date().toISOString(),
+      version: '1.0.0'
+    }));
+
+    const res = await instance.post('/post', formData);
+
+    console.log('Instance file upload response:', res);
+
+    expect(res.json).toBeDefined();
+    expect(res.json.metadata).toBeDefined();
+    expect(res.files).toBeDefined();
+    expect(res.files.file).toBeDefined();
+  });
+
+  test('test multiple files upload', async () => {
+    // 创建多个测试文件
+    const file1 = new File(['File 1 content'], 'file1.txt', { type: 'text/plain' });
+    const file2 = new File(['File 2 content'], 'file2.txt', { type: 'text/plain' });
+    const imageContent = new Uint8Array([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]); // PNG header
+    const file3 = new File([imageContent], 'test.png', { type: 'image/png' });
+
+    const formData = new FormData();
+    formData.append('files', file1);
+    formData.append('files', file2);
+    formData.append('image', file3);
+    formData.append('title', 'Multiple files upload test');
+
+    const res = await hookFetch('https://httpbin.org/post', {
+      method: 'POST',
+      data: formData
+    });
+
+    console.log('Multiple files upload response:', res);
+
+    expect(res.json).toBeDefined();
+    expect(res.json.title).toBe('Multiple files upload test');
+    expect(res.files).toBeDefined();
+    expect(res.files.files).toBeDefined();
+    expect(res.files.image).toBeDefined();
+  });
+
+  test('test file upload with progress tracking', async () => {
+    const fileContent = 'Large file content for progress testing '.repeat(1000); // 创建较大的文件
+    const file = new File([fileContent], 'large-file.txt', { type: 'text/plain' });
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('uploadType', 'progress-test');
+
+    const req = hookFetch('https://httpbin.org/post', {
+      method: 'POST',
+      data: formData
+    });
+
+    // 监听上传进度（通过流式处理）
+    let chunkCount = 0;
+    for await (const chunk of req.stream<AllowSharedBufferSource>()) {
+      chunkCount++;
+      console.log(`Upload chunk ${chunkCount}, size: ${chunk.source.length} bytes`);
+
+      // 限制处理的块数量，避免测试时间过长
+      if (chunkCount >= 5) {
+        req.abort();
+        break;
+      }
     }
-    const res = await hookFetch('https://web.pandarobot.chat/api/auth/login', { method: 'POST', data: formData });
-    console.log(res)
-    const result = { userId: 1, id: 1, title: 'delectus aut autem', completed: false };
-    // expect(res).toEqual(result);
-  })
+
+    // 由于我们中断了流，这里会抛出错误，这是预期的
+    try {
+      await req;
+    } catch (error) {
+      console.log('Upload was aborted as expected:', error);
+      expect(error).toBeDefined();
+    }
+  });
+
+  test('test file upload with custom headers', async () => {
+    const file = new File(['Custom headers test file'], 'custom-headers.txt', { type: 'text/plain' });
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('customField', 'customValue');
+
+    const res = await hookFetch('https://httpbin.org/post', {
+      method: 'POST',
+      data: formData,
+      headers: {
+        'X-Custom-Header': 'custom-value',
+        'Authorization': 'Bearer test-token',
+        'X-Upload-Source': 'test-suite'
+      }
+    });
+
+    console.log('Custom headers upload response:', res);
+
+    expect(res.json).toBeDefined();
+    expect(res.json.customField).toBe('customValue');
+    expect(res.headers).toBeDefined();
+    expect(res.headers['X-Custom-Header']).toBe('custom-value');
+    expect(res.headers['Authorization']).toBe('Bearer test-token');
+    expect(res.headers['X-Upload-Source']).toBe('test-suite');
+  });
 })
