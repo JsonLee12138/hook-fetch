@@ -27,14 +27,14 @@ pnpm add hook-fetch
 import hookFetch from 'hook-fetch';
 
 // 发起 GET 请求
-const response = await hookFetch('https://example.com/api/data');
-console.log(response); // 响应数据已自动解析为JSON
+const response = await hookFetch('https://example.com/api/data').json();
+console.log(response); // 调用 json() 方法解析响应数据为JSON
 
 // 使用其他HTTP方法
 const postResponse = await hookFetch('https://example.com/api/data', {
   method: 'POST',
   data: { name: 'hook-fetch' }
-});
+}).json();
 ```
 
 ### 创建实例
@@ -50,26 +50,26 @@ const api = hookFetch.create({
 });
 
 // 使用实例发起请求
-const userData = await api.get('/users/1');
+const userData = await api.get('/users/1').json();
 ```
 
 ### HTTP请求方法
 
 ```typescript
 // GET 请求
-const data = await api.get('/users', { page: 1, limit: 10 });
+const data = await api.get('/users', { page: 1, limit: 10 }).json();
 
 // POST 请求
-const newUser = await api.post('/users', { name: 'John', age: 30 });
+const newUser = await api.post('/users', { name: 'John', age: 30 }).json();
 
 // PUT 请求
-const updatedUser = await api.put('/users/1', { name: 'John Doe' });
+const updatedUser = await api.put('/users/1', { name: 'John Doe' }).json();
 
 // PATCH 请求
-const patchedUser = await api.patch('/users/1', { age: 31 });
+const patchedUser = await api.patch('/users/1', { age: 31 }).json();
 
 // DELETE 请求
-const deleted = await api.delete('/users/1');
+const deleted = await api.delete('/users/1').json();
 
 // HEAD 请求
 const headers = await api.head('/users/1');
@@ -87,8 +87,8 @@ Hook-Fetch 支持多种响应数据处理方式：
 ```typescript
 const req = hookFetch('https://example.com/api/data');
 
-// JSON 解析 (默认)
-const jsonData = await req;
+// JSON 解析
+const jsonData = await req.json();
 
 // 文本解析
 const textData = await req.text();
@@ -128,7 +128,7 @@ req.abort();
 
 // 重试请求
 const newReq = req.retry();
-const result = await newReq;
+const result = await newReq.json();
 ```
 
 ### 流式数据处理
@@ -308,21 +308,21 @@ const createRequest = () => {
   return {
     // 用户相关接口
     user: {
-      // 获取用户信息
-      getInfo: () => request.get('/user/info'),
-      // 更新用户信息
-      updateInfo: (data) => request.put('/user/info', data),
-      // 修改密码
-      changePassword: (data) => request.post('/user/password', data)
+          // 获取用户信息
+    getInfo: () => request.get('/user/info').json(),
+    // 更新用户信息
+    updateInfo: (data) => request.put('/user/info', data).json(),
+    // 修改密码
+    changePassword: (data) => request.post('/user/password', data).json()
     },
     // 订单相关接口
     order: {
       // 获取订单列表
-      getList: (params) => request.get('/orders', params),
+      getList: (params) => request.get('/orders', params).json(),
       // 创建订单
-      create: (data) => request.post('/orders', data),
+      create: (data) => request.post('/orders', data).json(),
       // 取消订单
-      cancel: (id) => request.post(`/orders/${id}/cancel`)
+      cancel: (id) => request.post(`/orders/${id}/cancel`).json()
     }
   };
 };
@@ -377,7 +377,7 @@ interface User {
 }
 
 // 在请求中使用类型
-const res = await request.get<User>('/users/1');
+const res = await request.get<User>('/users/1').json();
 console.log(res.data); // TypeScript提供完整类型提示
 ```
 
@@ -479,7 +479,7 @@ const YourComponent = defineComponent({
 
     // 发起请求
     const fetchData = async () => {
-      const response = await request('/users');
+      const response = await request('/users').json();
       console.log(response);
     };
 
@@ -537,7 +537,7 @@ const YourComponent = () => {
 
   // 发起请求
   const fetchData = async () => {
-    const response = await request('/users');
+    const response = await request('/users').json();
     console.log(response);
   };
 
@@ -581,7 +581,7 @@ const YourComponent = () => {
 
 ## 注意事项
 
-1. Hook-Fetch 默认会自动解析JSON响应
+1. Hook-Fetch 需要显式调用 `.json()` 方法来解析JSON响应
 2. 所有的请求方法都返回Promise对象
 3. 可以通过`.retry()`方法重试已中断的请求
 4. 插件按照优先级顺序执行

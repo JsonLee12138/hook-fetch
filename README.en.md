@@ -27,14 +27,14 @@ pnpm add hook-fetch
 import hookFetch from 'hook-fetch';
 
 // Make a GET request
-const response = await hookFetch('https://example.com/api/data');
-console.log(response); // Response data is automatically parsed as JSON
+const response = await hookFetch('https://example.com/api/data').json();
+console.log(response); // Call json() method to parse response data as JSON
 
 // Using other HTTP methods
 const postResponse = await hookFetch('https://example.com/api/data', {
   method: 'POST',
   data: { name: 'hook-fetch' }
-});
+}).json();
 ```
 
 ### Creating an Instance
@@ -50,26 +50,26 @@ const api = hookFetch.create({
 });
 
 // Use the instance to make requests
-const userData = await api.get('/users/1');
+const userData = await api.get('/users/1').json();
 ```
 
 ### HTTP Request Methods
 
 ```typescript
 // GET request
-const data = await api.get('/users', { page: 1, limit: 10 });
+const data = await api.get('/users', { page: 1, limit: 10 }).json();
 
 // POST request
-const newUser = await api.post('/users', { name: 'John', age: 30 });
+const newUser = await api.post('/users', { name: 'John', age: 30 }).json();
 
 // PUT request
-const updatedUser = await api.put('/users/1', { name: 'John Doe' });
+const updatedUser = await api.put('/users/1', { name: 'John Doe' }).json();
 
 // PATCH request
-const patchedUser = await api.patch('/users/1', { age: 31 });
+const patchedUser = await api.patch('/users/1', { age: 31 }).json();
 
 // DELETE request
-const deleted = await api.delete('/users/1');
+const deleted = await api.delete('/users/1').json();
 
 // HEAD request
 const headers = await api.head('/users/1');
@@ -87,8 +87,8 @@ Hook-Fetch supports various response data handling methods:
 ```typescript
 const req = hookFetch('https://example.com/api/data');
 
-// JSON parsing (default)
-const jsonData = await req;
+// JSON parsing
+const jsonData = await req.json();
 
 // Text parsing
 const textData = await req.text();
@@ -128,7 +128,7 @@ req.abort();
 
 // Retry the request
 const newReq = req.retry();
-const result = await newReq;
+const result = await newReq.json();
 ```
 
 ### Streaming Data Processing
@@ -266,7 +266,7 @@ interface User {
 }
 
 // Use the type in a request
-const res = await request.get<User>('/users/1');
+const res = await request.get<User>('/users/1').json();
 console.log(res.data); // TypeScript provides complete type hints
 ```
 
@@ -371,7 +371,7 @@ const YourComponent = defineComponent({
 
     // Make request
     const fetchData = async () => {
-      const response = await request('/users');
+      const response = await request('/users').json();
       console.log(response);
     };
 
@@ -429,7 +429,7 @@ const YourComponent = () => {
 
   // Make request
   const fetchData = async () => {
-    const response = await request('/users');
+    const response = await request('/users').json();
     console.log(response);
   };
 
@@ -473,7 +473,7 @@ const YourComponent = () => {
 
 ## Notes
 
-1. Hook-Fetch automatically parses JSON responses by default.
+1. Hook-Fetch requires explicitly calling the `.json()` method to parse JSON responses.
 2. All request methods return Promise objects.
 3. You can retry aborted requests using the `.retry()` method.
 4. Plugins execute in order of priority.
