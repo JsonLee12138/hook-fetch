@@ -12,15 +12,15 @@ describe('test hook-fetch', () => {
   }
 
   test('test normal request', async () => {
-    const res = await hookFetch('https://jsonplaceholder.typicode.com/todos/1');
+    const res = await hookFetch('https://jsonplaceholder.typicode.com/todos/1').json();
     const result = { userId: 1, id: 1, title: 'delectus aut autem', completed: false };
     expect(res).toEqual(result);
   });
 
   test('test normal request retry', async () => {
-    const req = hookFetch('https://jsonplaceholder.typicode.com/todos/1')
+    const req = hookFetch('https://jsonplaceholder.typicode.com/todos/1');
     req.abort()
-    const newReq = req.retry();
+    const newReq = req.retry().json();
     const res = await newReq;
     const result = { userId: 1, id: 1, title: 'delectus aut autem', completed: false };
     expect(res).toEqual(result);
@@ -83,7 +83,7 @@ describe('test hook-fetch', () => {
       },
     })
 
-    const res = await instance.get('/todos/1');
+    const res = await instance.get('/todos/1').json();
 
     console.log(res);
 
@@ -118,7 +118,7 @@ describe('test hook-fetch', () => {
 
 
     // console.log(instance)
-    const res = await instance.post<TodoDTO>('/posts', body);
+    const res = await instance.post<TodoDTO>('/posts', body).json();
 
     console.log(res);
 
@@ -143,7 +143,7 @@ describe('test hook-fetch', () => {
 
     req.abort();
 
-    const newReq = req.retry();
+    const newReq = req.retry().json();
 
     const res = await newReq;
     console.log(res);
@@ -237,8 +237,9 @@ describe('test hook-fetch', () => {
     instance.use(requestPlugin());
 
     try {
-      await instance.get('/todos/1');
+      await instance.get('/todos/1').json();
     } catch (error) {
+      console.log(error);
       expect(error).toEqual(new Error('customError'))
     }
   })
@@ -259,7 +260,7 @@ describe('test hook-fetch', () => {
       file,
       description: 'Test file upload',
       userId: '123'
-    });
+    }).json();
 
     console.log('File upload response:', res);
 
@@ -291,12 +292,12 @@ describe('test hook-fetch', () => {
       version: '1.0.0'
     }));
 
-    const res = await instance.post('/post', formData);
+    const res = await instance.post('/post', formData).json();
 
     console.log('Instance file upload response:', res);
 
-    expect(res.json).toBeDefined();
-    expect(res.json.metadata).toBeDefined();
+    expect(res.form).toBeDefined();
+    expect(res.form.metadata).toBeDefined();
     expect(res.files).toBeDefined();
     expect(res.files.file).toBeDefined();
   });
@@ -317,12 +318,12 @@ describe('test hook-fetch', () => {
     const res = await hookFetch('https://httpbin.org/post', {
       method: 'POST',
       data: formData
-    });
+    }).json();
 
     console.log('Multiple files upload response:', res);
 
-    expect(res.json).toBeDefined();
-    expect(res.json.title).toBe('Multiple files upload test');
+    expect(res.form).toBeDefined();
+    expect(res.form.title).toBe('Multiple files upload test');
     expect(res.files).toBeDefined();
     expect(res.files.files).toBeDefined();
     expect(res.files.image).toBeDefined();
@@ -378,12 +379,12 @@ describe('test hook-fetch', () => {
         'Authorization': 'Bearer test-token',
         'X-Upload-Source': 'test-suite'
       }
-    });
+    }).json();
 
     console.log('Custom headers upload response:', res);
 
-    expect(res.json).toBeDefined();
-    expect(res.json.customField).toBe('customValue');
+    expect(res.form).toBeDefined();
+    expect(res.form.customField).toBe('customValue');
     expect(res.headers).toBeDefined();
     expect(res.headers['X-Custom-Header']).toBe('custom-value');
     expect(res.headers['Authorization']).toBe('Bearer test-token');

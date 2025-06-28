@@ -12,6 +12,15 @@ export const timeoutCallback = (controller: AbortController) => {
   controller.abort();
 }
 
+enum ResponseType {
+  JSON = 'json',
+  BLOB = 'blob',
+  TEXT = 'text',
+  ARRAY_BUFFER = 'arrayBuffer',
+  FORM_DATA = 'formData',
+  BYTES = 'bytes'
+}
+
 export class ResponseError<E = unknown> extends Error {
   #message: string;
   #name: string;
@@ -122,7 +131,7 @@ const withoutBodyArr: RequestMethodWithParams[] = ['GET', 'HEAD', 'OPTIONS', 'DE
 
 export const getBody = (body: AnyObject, method: RequestMethod, headers?: HeadersInit, qsArrayFormat: QueryString.IStringifyOptions['arrayFormat'] = 'repeat'): BodyInit | null => {
   if (!body) return null;
-  if(body instanceof FormData) return body;
+  if (body instanceof FormData) return body;
   let res: BodyInit | null = null;
   if (withBodyArr.includes(method.toUpperCase() as RequestMethodWithBody)) {
     const _headers_: Headers = new Headers(headers || {});
@@ -303,11 +312,8 @@ export class HookFetchRequest<T, E> implements PromiseLike<T> {
     return err
   }
 
-  get #json() {
-    return this.#response.then(r => r.json()).then(r => {
-      this.#responseType = 'json';
-      return this.#resolve(r);
-    });
+  json() {
+    return this.#then(ResponseType.JSON, this.#response.then(r => r.json()));
   }
 
   lazyFinally(onfinally?: (() => void) | null | undefined): Promise<T> | null {
@@ -327,7 +333,7 @@ export class HookFetchRequest<T, E> implements PromiseLike<T> {
 
   get #getExecutor() {
     if (this.#executor) return this.#executor;
-    return this.#json;
+    return this.#response
   }
 
   async #resolve(v: T | Blob | string | ArrayBuffer | FormData | Uint8Array<ArrayBufferLike>) {
@@ -375,47 +381,36 @@ export class HookFetchRequest<T, E> implements PromiseLike<T> {
   }
 
   blob() {
-    this.#executor = this.#response.then(r => r.blob()).then(r => {
-      this.#responseType = 'blob';
-      return this.#resolve(r);
-    })
-    return this.#executor;
+    return this.#then(ResponseType.BLOB, this.#response.then(r => r.blob()));
   }
 
   text() {
-    this.#executor = this.#response.then(r => r.text()).then(r => {
-      this.#responseType = 'text';
-      return this.#resolve(r);
-    });
-    this.#executor.finally(this.lazyFinally.bind(this));
-    return this.#executor;
+    return this.#then(ResponseType.TEXT, this.#response.then(r => r.text()));
   }
 
   arrayBuffer() {
-    this.#executor = this.#response.then(r => r.arrayBuffer()).then(r => {
-      this.#responseType = 'arrayBuffer';
+    return this.#then(ResponseType.ARRAY_BUFFER, this.#response.then(r => r.arrayBuffer()));
+  }
+
+  #then(type: ResponseType, promise: Promise<any>) {
+    this.#executor = promise.then(r => {
+      this.#responseType = type;
       return this.#resolve(r);
+    }).catch(e => {
+      this.#responseType = type;
+      return this.#normalizeError(e);
     });
+
     this.#executor.finally(this.lazyFinally.bind(this));
     return this.#executor;
   }
 
   formData() {
-    this.#executor = this.#response.then(r => r.formData()).then(r => {
-      this.#responseType = 'formData';
-      return this.#resolve(r);
-    });
-    this.#executor.finally(this.lazyFinally.bind(this));
-    return this.#executor;
+    return this.#then(ResponseType.FORM_DATA, this.#response.then(r => r.formData()));
   }
 
   bytes() {
-    this.#executor = this.#response.then(r => r.bytes()).then(r => {
-      this.#responseType = 'bytes';
-      return this.#resolve(r);
-    });
-    this.#executor.finally(this.lazyFinally.bind(this));
-    return this.#executor;
+    return this.#then(ResponseType.BYTES, this.#response.then(r => r.bytes()));
   }
 
   async *stream<T>() {
@@ -464,6 +459,8 @@ export class HookFetchRequest<T, E> implements PromiseLike<T> {
           yield res as StreamContext<null>;
         }
       }
+    } catch (error) {
+      return this.#normalizeError(error);
     } finally {
       reader.releaseLock();
     }
