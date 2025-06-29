@@ -240,22 +240,23 @@ export class HookFetchRequest<T, E> implements PromiseLike<T> {
             status: res.status,
             statusText: res.statusText,
             config: this.#config,
-            name: 'Fail Request'
+            name: 'Fail Request',
+            response: res
           })
-        }else{
+        } else {
           err = new ResponseError({
             message: 'NETWORK_ERROR',
             status: StatusCode.NETWORK_ERROR,
             statusText: 'Network Error',
             config: this.#config,
-            name: 'Network Error'
+            name: 'Network Error',
           })
         }
       } catch (error) {
         err = error as Error;
       } finally {
-        if(err){
-          reject(await this.#normalizeError(err))
+        if (err) {
+          reject(err)
         }
         if (timeoutId) {
           clearTimeout(timeoutId);

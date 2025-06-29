@@ -401,14 +401,14 @@ describe('test hook-fetch', () => {
     const requestPlugin = (): HookFetchPlugin<any> => {
       return {
         name: 'error',
-        async onError(error, config) {
+        async onError(error) {
           return error
         }
       }
     }
     instance.use(requestPlugin());
     try {
-      await instance.get('/test').json();
+      await instance.get('/test');
     } catch (error) {
       expect(error.status).toEqual(401)
     }
