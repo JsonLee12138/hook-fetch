@@ -228,30 +228,35 @@ export class HookFetchRequest<T, E> implements PromiseLike<T> {
         promises.push(timeoutPromise)
       }
 
+      let err: Error | null = null;
       try {
         const res = await Promise.race(promises);
         if (res) {
           if (res.ok) {
             resolve(res)
           }
-          return reject(new ResponseError({
+          err = new ResponseError({
             message: 'Fail Request',
             status: res.status,
             statusText: res.statusText,
             config: this.#config,
             name: 'Fail Request'
-          }))
+          })
+        }else{
+          err = new ResponseError({
+            message: 'NETWORK_ERROR',
+            status: StatusCode.NETWORK_ERROR,
+            statusText: 'Network Error',
+            config: this.#config,
+            name: 'Network Error'
+          })
         }
-        return reject(new ResponseError({
-          message: 'NETWORK_ERROR',
-          status: StatusCode.NETWORK_ERROR,
-          statusText: 'Network Error',
-          config: this.#config,
-          name: 'Network Error'
-        }))
       } catch (error) {
-        reject(await this.#normalizeError(error))
+        err = error as Error;
       } finally {
+        if(err){
+          reject(await this.#normalizeError(err))
+        }
         if (timeoutId) {
           clearTimeout(timeoutId);
         }

@@ -390,4 +390,27 @@ describe('test hook-fetch', () => {
     expect(res.headers['Authorization']).toBe('Bearer test-token');
     expect(res.headers['X-Upload-Source']).toBe('test-suite');
   });
+
+  test('test error', async () => {
+    const instance = hookFetch.create({
+      baseURL: 'http://localhost:3000',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+    const requestPlugin = (): HookFetchPlugin<any> => {
+      return {
+        name: 'error',
+        async onError(error, config) {
+          return error
+        }
+      }
+    }
+    instance.use(requestPlugin());
+    try {
+      await instance.get('/test').json();
+    } catch (error) {
+      expect(error.status).toEqual(401)
+    }
+  })
 })

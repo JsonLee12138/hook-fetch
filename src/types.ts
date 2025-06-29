@@ -71,7 +71,7 @@ export type HookFetchPlugin<T = unknown, E = unknown, P = unknown, D = unknown> 
   afterResponse?: AfterResponseHandler<T, E, P, D>;
   beforeStream?: BeforeStreamHandler<E, P, D>;
   transformStreamChunk?: TransformStreamChunkHandler<E, P, D>;
-  onError?: (error: Error, config: RequestConfig<P, D, E>) => Promise<Error | void | ResponseError<E>>;
+  onError?: (error: ResponseError, config: RequestConfig<P, D, E>) => Promise<Error | void | ResponseError<E>>;
   onFinally?: OnFinallyHandler<E, P, D>;
 }
 
