@@ -222,6 +222,7 @@ describe('test hook-fetch', () => {
       return {
         name: 'request',
         async afterResponse(response) {
+          console.log(response, 'response');
           if (response.result?.completed) {
             return response;
           } else {
