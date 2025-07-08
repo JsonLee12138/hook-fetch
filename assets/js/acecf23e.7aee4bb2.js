@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkhook_fetch_docs=self.webpackChunkhook_fetch_docs||[]).push([[1903],{1912:o=>{o.exports=JSON.parse('{"blogBasePath":"/hook-fetch/blog","blogTitle":"Blog","authorsListPath":"/hook-fetch/blog/authors"}')}}]);

@@ -1,0 +1,18 @@
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://jsonlee12138.github.io/hook-fetch/sitemap.xml
+
+# 禁止爬取一些不重要的文件
+Disallow: /_docusaurus/
+Disallow: /assets/js/
+Disallow: /assets/css/
+
+# 允许爬取主要内容
+Allow: /docs/
+Allow: /en/docs/
+Allow: /
+
+# 爬取延迟（可选）
+Crawl-delay: 1
