@@ -17,6 +17,10 @@ jobs:
   release:
     runs-on: ubuntu-latest
 
+    env:
+      # 从 refs/tags/v1.2.3-beta.0 → v1.2.3-beta.0
+      TAG_NAME: ${{ github.ref_name }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -45,12 +49,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: pnpm ci:beta
-        # run: |
-        #   if [[ "$TAG_NAME" == *beta* ]];then
-        #     echo "发布beta版本"
-        #     pnpm ci:beta
-        #   else:
-        #     echo "发布release版本"
-        #     pnpm ci:publish
-        #   fi
+        # run: pnpm ci:beta
+        run: |
+          if [[ "$TAG_NAME" == *beta* ]];then
+            echo "发布beta版本"
+            pnpm ci:beta
+          else:
+            echo "发布release版本"
+            pnpm ci:publish
+          fi

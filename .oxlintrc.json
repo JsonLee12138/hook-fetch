@@ -1,5 +1,22 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "extends": ["./node_modules/oxlint-config/common.json"],
-  "plugins": ["react", "unicorn", "typescript", "oxc", "vitest"]
+  "plugins": [
+    "typescript",
+    "unicorn",
+    "oxc",
+    "import",
+    "jsdoc",
+    "promise",
+    "react",
+    "vitest"
+  ],
+  "categories": {
+    "correctness": "off"
+  },
+  "env": {
+    "builtin": true
+  },
+  "rules": {
+    "@typescript-eslint/no-non-null-assertion": "off"
+  }
 }
