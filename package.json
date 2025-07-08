@@ -25,6 +25,7 @@
     "build:base": "rimraf types && vite build",
     "build": "rimraf types && pnpm build:base && pnpm build:umd",
     "ci:publish": "pnpm changeset publish -r",
+    "ci:beta": "pnpm changeset publish --tag beta -r",
     "test": "vitest",
     "lint-staged": "lint-staged"
   },
