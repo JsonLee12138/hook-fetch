@@ -60,7 +60,7 @@ jobs:
           if [[ "$TAG_NAME" == *beta* ]];then
             echo "发布beta版本"
             pnpm ci:beta
-          else:
+          else
             echo "发布release版本"
             pnpm ci:publish
           fi
