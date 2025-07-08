@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkhook_fetch_docs=self.webpackChunkhook_fetch_docs||[]).push([[8870],{6812:e=>{e.exports=JSON.parse('{"metadata":{"permalink":"/hook-fetch/en/blog","page":1,"postsPerPage":10,"totalPages":1,"totalCount":4,"blogDescription":"Blog","blogTitle":"Blog"}}')}}]);
