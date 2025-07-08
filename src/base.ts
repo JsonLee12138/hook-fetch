@@ -56,7 +56,7 @@ class HookFetch<R extends AnyObject = AnyObject, K extends keyof R = 'data', E =
       withCredentials: withCredentials ?? this.#withCredentials,
       extra: extra as AnyObject
     })
-    req.lazyFinally(() => {
+    req.finally(() => {
       this.#queue = this.#queue.filter(item => item !== controller);
     })
     return req;

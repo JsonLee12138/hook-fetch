@@ -168,7 +168,8 @@ export class HookFetchRequest<T, E> implements PromiseLike<T> {
   #isTimeout: boolean = false;
   // eslint-disable-next-line no-explicit-any
   #executor: Promise<any> | null = null;
-  #finallyCallbacks: Array<(() => void) | null | undefined> = [];
+  // #finallyCallbacks: Array<(() => void) | null | undefined> = [];
+  #finallyCallbacks: Set<(() => void) | null | undefined> = new Set();
   #responseType: FetchResponseType = 'json';
   #fullOptions: BaseRequestOptions<unknown, unknown, E>;
 
@@ -322,19 +323,29 @@ export class HookFetchRequest<T, E> implements PromiseLike<T> {
     return this.#then(ResponseType.JSON, this.#response.then(r => r.json()));
   }
 
-  lazyFinally(onfinally?: (() => void) | null | undefined): Promise<T> | null {
-    if (!this.#executor) {
-      if (onfinally) {
-        this.#finallyCallbacks.push(onfinally)
-      }
-      return null
-    };
-    return this.#executor.finally(() => {
-      for (const callback of this.#finallyCallbacks) {
-        callback!();
-      }
-      this.#finallyCallbacks = [];
-    });
+  // lazyFinally(onfinally?: (() => void) | null | undefined): Promise<T> | null {
+  //   if (!this.#executor) {
+  //     if (onfinally) {
+  //       // this.#finallyCallbacks.push(onfinally)
+  //       this.#finallyCallbacks.add(onfinally)
+  //     }
+  //     return null
+  //   };
+  //   return this.#executor.finally(() => {
+  //     for (const callback of this.#finallyCallbacks) {
+  //       callback!();
+  //     }
+  //     // this.#finallyCallbacks = [];
+  //     this.#finallyCallbacks.clear();
+  //   });
+  // }
+
+  #execFinally() {
+    for (const callback of this.#finallyCallbacks) {
+      callback!();
+    }
+    // this.#finallyCallbacks = [];
+    this.#finallyCallbacks.clear();
   }
 
   get #getExecutor() {
@@ -374,8 +385,9 @@ export class HookFetchRequest<T, E> implements PromiseLike<T> {
     return this.#getExecutor.catch(onrejected)
   }
 
-  finally(onfinally?: (() => void) | null | undefined): Promise<T> {
-    return this.#getExecutor.finally(onfinally);
+  finally(onfinally?: (() => void) | null | undefined) {
+    // return this.#getExecutor.finally(onfinally);
+    this.#finallyCallbacks.add(onfinally);
   }
 
   abort() {
@@ -405,9 +417,8 @@ export class HookFetchRequest<T, E> implements PromiseLike<T> {
     }).catch(e => {
       this.#responseType = type;
       return this.#normalizeError(e);
-    });
+    }).finally(this.#execFinally.bind(this));
 
-    this.#executor.finally(this.lazyFinally.bind(this));
     return this.#executor;
   }
 
@@ -469,6 +480,7 @@ export class HookFetchRequest<T, E> implements PromiseLike<T> {
       return this.#normalizeError(error);
     } finally {
       reader.releaseLock();
+      this.#execFinally();
     }
   }
 

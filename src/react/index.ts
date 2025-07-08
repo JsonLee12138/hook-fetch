@@ -43,7 +43,8 @@ export const useHookFetch = <Q extends (...args: any[]) => any>({
           onError?.(e);
         }
       }
-    }).finally(() => {
+    })
+    instance.current?.finally(() => {
       setLoading(false);
     });
     return instance;

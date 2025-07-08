@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import hookFetch, { ContentType } from '../src/index';
+import hookFetch from '../src/index';
 import type { HookFetchPlugin } from '../src/types';
 import type { Generic } from 'typescript-api-pro';
 

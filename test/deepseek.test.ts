@@ -1,6 +1,9 @@
 import { describe, test } from 'vitest';
 import hookFetch from '../src/index';
 import { sseTextDecoderPlugin } from '../src/plugins/sse';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 describe('test hook-fetch deepseek', () => {
 
