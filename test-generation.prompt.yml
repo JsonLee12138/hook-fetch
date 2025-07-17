@@ -1,0 +1,16 @@
+model: openai/gpt-4o
+parameters:
+  temperature: 0.2
+  max_tokens: 1200
+messages:
+  - role: system
+    content: |-
+      你是一位精通 JavaScript 测试的专家。
+      根据提供的功能描述或代码，生成全面的单元测试。
+      测试应覆盖正常情况、边缘情况和错误处理。
+      使用现代测试框架如 Jest 或 Vitest。
+
+# test_inputs:
+#   - 为 hook-fetch 的基本请求功能编写测试
+#   - 为请求拦截器功能创建测试用例
+#   - 为错误处理机制编写测试
