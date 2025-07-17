@@ -4,9 +4,9 @@ import type { ResponseError } from './utils';
 
 export type FetchResponseType = 'json' | 'text' | 'blob' | 'arrayBuffer' | 'formData' | 'bytes';
 
-export type RequestMethodWithParams = 'GET' | 'DELETE' | 'OPTIONS' | 'HEAD';
+export type RequestMethodWithParams = 'GET' | 'HEAD';
 
-export type RequestMethodWithBody = 'PUT' | 'PATCH' | 'POST';
+export type RequestMethodWithBody = 'PUT' | 'PATCH' | 'POST' | 'DELETE' | 'OPTIONS';
 
 export type RequestMethod = RequestMethodWithParams | RequestMethodWithBody;
 
@@ -120,4 +120,4 @@ export type HeadOptions<P = AnyObject, E = AnyObject> = RequestWithParamsFnOptio
  */
 export type OptionsOptions<P = AnyObject, E = AnyObject> = RequestWithParamsFnOptions<P, E>;
 
-export type DeleteOptions<P = AnyObject, E = AnyObject> = RequestWithParamsFnOptions<P, E>;
+export type DeleteOptions<P = AnyObject, D = AnyObject, E = AnyObject> = RequestUseOptions<P, D, E>;

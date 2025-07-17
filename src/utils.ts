@@ -126,8 +126,8 @@ export const mergeHeaders = (_baseHeaders: HeadersInit | Headers = {}, _newHeade
   return _result;
 }
 
-const withBodyArr: RequestMethodWithBody[] = ['PATCH', 'POST', 'PUT'];
-const withoutBodyArr: RequestMethodWithParams[] = ['GET', 'HEAD', 'OPTIONS', 'DELETE'];
+const withBodyArr: RequestMethodWithBody[] = ['PATCH', 'POST', 'PUT', 'DELETE', 'OPTIONS'];
+const withoutBodyArr: RequestMethodWithParams[] = ['GET', 'HEAD'];
 
 export const getBody = (body: AnyObject, method: RequestMethod, headers?: HeadersInit, qsArrayFormat: QueryString.IStringifyOptions['arrayFormat'] = 'repeat'): BodyInit | null => {
   if (!body) return null;

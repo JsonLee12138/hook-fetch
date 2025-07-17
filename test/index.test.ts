@@ -414,4 +414,18 @@ describe('test hook-fetch', () => {
       expect(error.status).toEqual(401)
     }
   })
+
+  test('delete&body', async () => {
+    const body = {
+      id: 1,
+      userId: 1,
+      title: 'delectus aut autem',
+      completed: false,
+    }
+    const res = await hookFetch.delete('https://postman-echo.com/delete', {
+      data: body
+    }).json();
+
+    expect(res.data).toEqual(JSON.stringify(body));
+  })
 })

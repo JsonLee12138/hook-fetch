@@ -82,8 +82,8 @@ class HookFetch<R extends AnyObject = AnyObject, K extends keyof R = 'data', E =
     return this.#requestWithParams<T, P>(url, params, { ...options, method: 'OPTIONS' })
   }
 
-  delete<T = AnyObject, P = AnyObject>(url: string, options?: DeleteOptions<P, E>) {
-    return this.request<T, P, never>(url, { ...options, method: 'DELETE' })
+  delete<T = AnyObject, D = AnyObject,P = AnyObject>(url: string, options?: DeleteOptions<P, D, E>) {
+    return this.request<T, P, D>(url, { ...options, method: 'DELETE' })
   }
 
   post<T = AnyObject, D = AnyObject, P = AnyObject>(url: string, data?: D, options?: PostOptions<D, P, E>) {
@@ -147,8 +147,8 @@ export const options = <R = AnyObject, P = AnyObject, E = AnyObject>(url: string
   return requestWithParams<R, P, E>(url, params, { ...options, method: 'OPTIONS' })
 }
 
-export const del = <R = AnyObject, P = AnyObject, E = AnyObject>(url: string, options?: DeleteOptions<P, E>) => {
-  return useRequest<R, P, never, E>(url, { ...options, method: 'DELETE' })
+export const del = <R = AnyObject, D = AnyObject,P = AnyObject, E = AnyObject>(url: string, options?: DeleteOptions<P, D, E>) => {
+  return useRequest<R, P, D, E>(url, { ...options, method: 'DELETE' })
 }
 
 export const post = <R = AnyObject, D = AnyObject, P = AnyObject, E = AnyObject>(url: string, data?: D, options?: PostOptions<D, P, E>) => {

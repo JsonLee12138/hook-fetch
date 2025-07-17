@@ -9,3 +9,6 @@ messages:
         - 实现一个自动重试失败请求的拦截器
         - 编写一个缓存成功响应的工具函数
 model: openai/gpt-4o
+parameters:
+  temperature: 0.2
+  max_tokens: 1000
