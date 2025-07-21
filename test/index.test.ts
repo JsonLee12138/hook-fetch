@@ -273,7 +273,6 @@ describe('test hook-fetch', () => {
     expect(res.files.file).toBeDefined();
   });
 
-  // TODO: 后面的没用测试过
   test('test file upload with instance', async () => {
     const instance = hookFetch.create({
       baseURL: 'https://httpbin.org',

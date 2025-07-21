@@ -118,6 +118,6 @@ export type HeadOptions<P = AnyObject, E = AnyObject> = RequestWithParamsFnOptio
  *
  * OPTIONS method request optional parameter types
  */
-export type OptionsOptions<P = AnyObject, E = AnyObject> = RequestWithParamsFnOptions<P, E>;
+export type OptionsOptions<P = AnyObject, D = AnyObject, E = AnyObject> = RequestUseOptions<P, D, E>;
 
 export type DeleteOptions<P = AnyObject, D = AnyObject, E = AnyObject> = RequestUseOptions<P, D, E>;

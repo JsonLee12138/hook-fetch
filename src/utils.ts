@@ -323,28 +323,10 @@ export class HookFetchRequest<T, E> implements PromiseLike<T> {
     return this.#then(ResponseType.JSON, this.#response.then(r => r.json()));
   }
 
-  // lazyFinally(onfinally?: (() => void) | null | undefined): Promise<T> | null {
-  //   if (!this.#executor) {
-  //     if (onfinally) {
-  //       // this.#finallyCallbacks.push(onfinally)
-  //       this.#finallyCallbacks.add(onfinally)
-  //     }
-  //     return null
-  //   };
-  //   return this.#executor.finally(() => {
-  //     for (const callback of this.#finallyCallbacks) {
-  //       callback!();
-  //     }
-  //     // this.#finallyCallbacks = [];
-  //     this.#finallyCallbacks.clear();
-  //   });
-  // }
-
   #execFinally() {
     for (const callback of this.#finallyCallbacks) {
       callback!();
     }
-    // this.#finallyCallbacks = [];
     this.#finallyCallbacks.clear();
   }
 

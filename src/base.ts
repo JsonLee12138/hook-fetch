@@ -2,6 +2,8 @@ import type { AnyObject, Generic } from "typescript-api-pro";
 import { type BaseOptions, type BaseRequestOptions, type DeleteOptions, type GetOptions, type HeadOptions, type HookFetchPlugin, type OptionsOptions, type PatchOptions, type PostOptions, type PutOptions, type RequestOptions, type RequestWithBodyOptions, type RequestWithParamsOptions } from "./types";
 import { HookFetchRequest, mergeHeaders } from "./utils";
 
+// TODO: 整理整个代码
+
 const _request_ = <R, P, D, E>(options: BaseRequestOptions<P, D>): HookFetchRequest<R, E> => {
   return new HookFetchRequest<R, E>(options);
 }
@@ -78,8 +80,8 @@ class HookFetch<R extends AnyObject = AnyObject, K extends keyof R = 'data', E =
     return this.#requestWithParams<T, P>(url, params, { ...options, method: 'HEAD' })
   }
 
-  options<T = AnyObject, P = AnyObject>(url: string, params: P = {} as P, options?: OptionsOptions<P, E>) {
-    return this.#requestWithParams<T, P>(url, params, { ...options, method: 'OPTIONS' })
+  options<T = AnyObject, P = AnyObject, D = AnyObject>(url: string, params: P = {} as P, options?: OptionsOptions<P, D, E>) {
+    return this.request<T, P, D>(url, { ...options, method: 'OPTIONS', params })
   }
 
   delete<T = AnyObject, D = AnyObject,P = AnyObject>(url: string, options?: DeleteOptions<P, D, E>) {
@@ -143,8 +145,8 @@ export const head = <R = AnyObject, P = AnyObject, E = AnyObject>(url: string, p
   return requestWithParams<R, P, E>(url, params, { ...options, method: 'HEAD' })
 }
 
-export const options = <R = AnyObject, P = AnyObject, E = AnyObject>(url: string, params: P = {} as P, options?: OptionsOptions<P, E>) => {
-  return requestWithParams<R, P, E>(url, params, { ...options, method: 'OPTIONS' })
+export const options = <R = AnyObject, P = AnyObject, D = AnyObject, E = AnyObject>(url: string, params: P = {} as P, options?: OptionsOptions<P, D, E>) => {
+  return useRequest<R, P, D, E>(url, { ...options, params, method: 'OPTIONS' })
 }
 
 export const del = <R = AnyObject, D = AnyObject,P = AnyObject, E = AnyObject>(url: string, options?: DeleteOptions<P, D, E>) => {
