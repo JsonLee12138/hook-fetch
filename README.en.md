@@ -190,14 +190,22 @@ const examplePlugin = () => {
     },
 
     // Post-response processing
-    async afterResponse(context, config) {
-      // Can process response data
+    async afterResponse(context) {
+      // Can process response data. context.result is the result after being processed by methods like json()
       if (context.responseType === 'json') {
+        // For example, determine if the request is truly successful based on the backend's business code
         if(context.result.code === 200){
+          // Business success, return context directly
           return context
         }else{
-          // Handle specific business logic
-          return Promise.reject(context)
+          // Business failure, actively throw a ResponseError, which will be caught in the onError hook
+          throw new ResponseError({
+            message: context.result.message, // Use the error message from the backend
+            status: context.result.code,     // Use the business code as the status
+            response: context.response,      // Original Response object
+            config: context.config,
+            name: 'BusinessError'            // Custom error name
+          });
         }
       }
       return context;
@@ -219,12 +227,18 @@ const examplePlugin = () => {
     },
 
     // Error handling
-    async onError(error, config) {
-      // Can handle or transform errors
-      if (error.status === 401) {
+    async onError(error) {
+      // The error object could be a network error or a ResponseError thrown from afterResponse
+      // You can handle errors uniformly here, e.g., reporting, logging, or transforming the error info
+      if (error.name === 'BusinessError') {
+        // Handle custom business errors
+        console.error(`Business Error: ${error.message}`);
+      } else if (error.status === 401) {
         // Handle unauthorized error
-        return new Error('Please login first');
+        console.error('Login has expired, please log in again');
+        // window.location.href = '/login';
       }
+      // Re-throw the processed (or original) error so it can be caught by the final catch block
       return error;
     },
 

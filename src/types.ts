@@ -1,6 +1,6 @@
 import type QueryString from 'qs';
 import type { AnyObject } from 'typescript-api-pro';
-import type { ResponseError } from './utils';
+import type { ResponseError } from './error';
 
 export type FetchResponseType = 'json' | 'text' | 'blob' | 'arrayBuffer' | 'formData' | 'bytes';
 
@@ -52,15 +52,17 @@ export interface StreamContext<T = unknown> {
   error: unknown | null;
 }
 
-type BeforeRequestHandler<E = unknown, P = unknown, D = unknown> = (config: RequestConfig<P, D, E>) => RequestConfig<P, D, E> | Promise<RequestConfig<P, D, E>>;
+export type BeforeRequestHandler<E = unknown, P = unknown, D = unknown> = (config: RequestConfig<P, D, E>) => RequestConfig<P, D, E> | PromiseLike<RequestConfig<P, D, E>>;
 
-type AfterResponseHandler<T = unknown, E = unknown, P = unknown, D = unknown> = (context: FetchPluginContext<T>, config: RequestConfig<P, D, E>) => FetchPluginContext<T> | Promise<FetchPluginContext<T>>;
+export type AfterResponseHandler<T = unknown, E = unknown, P = unknown, D = unknown> = (context: FetchPluginContext<T>, config: RequestConfig<P, D, E>) => FetchPluginContext<T> | PromiseLike<FetchPluginContext<T>>;
 
-type BeforeStreamHandler<E = unknown, P = unknown, D = unknown> = (body: ReadableStream<any>, config: RequestConfig<P, D, E>) => ReadableStream<any> | Promise<ReadableStream<any>>;
+export type BeforeStreamHandler<E = unknown, P = unknown, D = unknown> = (body: ReadableStream<any>, config: RequestConfig<P, D, E>) => ReadableStream<any> | PromiseLike<ReadableStream<any>>;
 
-type TransformStreamChunkHandler<E = unknown, P = unknown, D = unknown> = (chunk: StreamContext<any>, config: RequestConfig<P, D, E>) => StreamContext | Promise<StreamContext>;
+export type TransformStreamChunkHandler<E = unknown, P = unknown, D = unknown> = (chunk: StreamContext<any>, config: RequestConfig<P, D, E>) => StreamContext | PromiseLike<StreamContext>;
 
-export type OnFinallyHandler<E = unknown, P = unknown, D = unknown> = (res: Pick<FetchPluginContext<unknown, E, P, D>, 'config' | 'response'>) => void | Promise<void>;
+export type OnFinallyHandler<E = unknown, P = unknown, D = unknown> = (res: Pick<FetchPluginContext<unknown, E, P, D>, 'config' | 'response'>) => void | PromiseLike<void>;
+
+export type OnErrorHandler<E = unknown, P = unknown, D = unknown> = (error: ResponseError, config: RequestConfig<P, D, E>) => PromiseLike<Error | void | ResponseError<E>> | Error | void | ResponseError<E>;
 
 export type HookFetchPlugin<T = unknown, E = unknown, P = unknown, D = unknown> = {
   /** 插件名称 */
@@ -71,7 +73,7 @@ export type HookFetchPlugin<T = unknown, E = unknown, P = unknown, D = unknown> 
   afterResponse?: AfterResponseHandler<T, E, P, D>;
   beforeStream?: BeforeStreamHandler<E, P, D>;
   transformStreamChunk?: TransformStreamChunkHandler<E, P, D>;
-  onError?: (error: ResponseError, config: RequestConfig<P, D, E>) => Promise<Error | void | ResponseError<E>>;
+  onError?: OnErrorHandler<E, P, D>;
   onFinally?: OnFinallyHandler<E, P, D>;
 }
 

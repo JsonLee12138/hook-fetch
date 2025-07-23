@@ -190,14 +190,22 @@ const examplePlugin = () => {
     },
 
     // 响应接收后处理
-    async afterResponse(context, config) {
-      // 可以处理响应数据
+    async afterResponse(context) {
+      // 可以处理响应数据, context.result 是已经过 json() 等方法处理后的结果
       if (context.responseType === 'json') {
+        // 例如，根据后端的业务码判断请求是否真正成功
         if(context.result.code === 200){
+          // 业务成功，直接返回 context
           return context
         }else{
-          // 具体逻辑自行处理
-          return Promise.reject(context)
+          // 业务失败，主动抛出一个 ResponseError，它将在 onError 钩子中被捕获
+          throw new ResponseError({
+            message: context.result.message, // 使用后端的错误信息
+            status: context.result.code,     // 使用后端的业务码作为状态
+            response: context.response,      // 原始 Response 对象
+            config: context.config,
+            name: 'BusinessError'            // 自定义错误名称
+          });
         }
       }
       return context;
@@ -219,12 +227,18 @@ const examplePlugin = () => {
     },
 
     // 错误处理
-    async onError(error, config) {
-      // 可以处理或转换错误
-      if (error.status === 401) {
+    async onError(error) {
+      // error 对象可能是网络错误，也可能是 afterResponse 中抛出的 ResponseError
+      // 可以在这里统一处理错误，例如上报、记录日志或转换错误信息
+      if (error.name === 'BusinessError') {
+        // 处理自定义的业务错误
+        console.error(`业务错误: ${error.message}`);
+      } else if (error.status === 401) {
         // 处理未授权错误
-        return new Error('Please login first');
+        console.error('登录已过期，请重新登录');
+        // window.location.href = '/login';
       }
+      // 将处理后的（或原始的）错误继续抛出，以便最终的 catch 块可以捕获
       return error;
     },
 

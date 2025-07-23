@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import hookFetch from '../src/index';
+import hookFetch, { ResponseError } from '../src/index';
 import type { HookFetchPlugin } from '../src/types';
 import type { Generic } from 'typescript-api-pro';
 
@@ -392,11 +392,30 @@ describe('test hook-fetch', () => {
   });
 
   test('test error', async () => {
+    const jwtPlugin = (): HookFetchPlugin<any> => {
+      return {
+        name: 'jwt',
+        afterResponse(ctx) {
+          if (ctx.result.code === 200) {
+            return ctx;
+          }
+          throw new ResponseError({
+            message: ctx.result.message,
+            status: ctx.result.code,
+            statusText: ctx.result.msg,
+            response: ctx.response,
+            config: ctx.config,
+            name: 'jwt'
+          })
+        },
+      }
+    }
     const instance = hookFetch.create({
       baseURL: 'http://localhost:3000',
       headers: {
         'Content-Type': 'application/json',
       },
+      plugins: [jwtPlugin()]
     })
     const requestPlugin = (): HookFetchPlugin<any> => {
       return {
@@ -408,9 +427,12 @@ describe('test hook-fetch', () => {
     }
     instance.use(requestPlugin());
     try {
-      await instance.get('/test');
+      await instance.get('/api/test').json();
+      throw new Error('Expected error to be thrown');
     } catch (error) {
       expect(error.status).toEqual(401)
+      expect(error.message).toEqual('test')
+      expect(error.name).toEqual('jwt')
     }
   })
 

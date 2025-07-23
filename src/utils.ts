@@ -3,8 +3,8 @@ import qs from "qs";
 import { omit } from "radash";
 import type { AnyObject } from "typescript-api-pro";
 import { ContentType, StatusCode } from "./enum";
-import type { ResponseErrorOptions } from "./error";
 import { HookFetchPlugin, type BaseRequestOptions, type FetchPluginContext, type FetchResponseType, type RequestConfig, type RequestMethod, type RequestMethodWithBody, type RequestMethodWithParams, type StreamContext } from "./types";
+import { ResponseError } from "./error";
 
 export const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -19,44 +19,6 @@ enum ResponseType {
   ARRAY_BUFFER = 'arrayBuffer',
   FORM_DATA = 'formData',
   BYTES = 'bytes'
-}
-
-export class ResponseError<E = unknown> extends Error {
-  #message: string;
-  #name: string;
-  #status?: number;
-  #statusText?: string;
-  #response?: Response;
-  #config?: RequestConfig<unknown, unknown, E>;
-
-  constructor({ message, status, statusText, response, config, name }: ResponseErrorOptions<E>) {
-    super(message);
-    this.#message = message;
-    this.#status = status;
-    this.#statusText = statusText;
-    this.#response = response;
-    this.#config = config;
-    this.#name = name ?? message;
-  }
-
-  get message() {
-    return this.#message;
-  }
-  get status() {
-    return this.#status;
-  }
-  get statusText() {
-    return this.#statusText;
-  }
-  get response() {
-    return this.#response;
-  }
-  get config() {
-    return this.#config;
-  }
-  get name() {
-    return this.#name;
-  }
 }
 
 const parsePlugins = (plugins: HookFetchPlugin[]) => {
@@ -344,10 +306,14 @@ export class HookFetchRequest<T, E> implements PromiseLike<T> {
       controller: this.#controller,
       result: v
     };
-    for (const plugin of plugins) {
-      ctx = await plugin(ctx, this.#config)
+    try {
+      for (const plugin of plugins) {
+        ctx = await plugin(ctx, this.#config)
+      }
+      return ctx.result as T;
+    } catch (error) {
+      return Promise.reject(error)
     }
-    return ctx.result as T;
   }
 
 
@@ -396,9 +362,9 @@ export class HookFetchRequest<T, E> implements PromiseLike<T> {
     this.#executor = promise.then(r => {
       this.#responseType = type;
       return this.#resolve(r);
-    }).catch(e => {
+    }).catch(async (e) => {
       this.#responseType = type;
-      return this.#normalizeError(e);
+      throw await this.#normalizeError(e);
     }).finally(this.#execFinally.bind(this));
 
     return this.#executor;
