@@ -1,41 +1,122 @@
 {
-  "name": "@jsonlee/core",
-  "version": "1.0.0",
-  "description": "",
-  "main": "dist/cjs/index.cjs",
-  "types": "types/index.d.ts",
-  "module": "dist/es/index.mjs",
+  "name": "hook-fetch",
+  "description": "A lightweight and modern HTTP request library developed based on the native Fetch API of the browser, providing a user-friendly interface similar to Axios and powerful extensibility.",
+  "keywords": [
+    "fetch",
+    "axios",
+    "request",
+    "http",
+    "https",
+    "typescript",
+    "hook-fetch",
+    "hook-fetch-plugin",
+    "hook-fetch-plugin-retry",
+    "hook-fetch-plugin-timeout",
+    "hook-fetch-plugin-error",
+    "hook-fetch-plugin-response",
+    "hook-fetch-plugin-request",
+    "hook-fetch-plugin-response-transform",
+    "hook-fetch-plugin-request-transform"
+  ],
+  "version": "2.0.5",
+  "scripts": {
+    "dev": "vite",
+    "build:rolldown": "rolldown -c ./rolldown.config.ts",
+    "build:umd": "vite build -c ./vite.config.umd.ts",
+    "build:base": "rimraf types && vite build",
+    "build": "rimraf types && rimraf dist && pnpm build:rolldown",
+    "ci:publish": "pnpm changeset publish -r",
+    "ci:beta": "pnpm changeset publish --tag beta -r",
+    "test": "vitest",
+    "lint-staged": "lint-staged"
+  },
   "type": "module",
   "files": [
     "dist",
     "types",
     "!dist/**/*.map",
-    "!types/**/*.map",
     "README.md",
     "LICENSE",
     "README.en.md"
   ],
-  "scripts": {
-    "publish:beta": "npm publish --tag beta",
-    "publish:release": "npm publish",
-    "build": "rolldown -c rolldown.config.ts",
-    "oxlint": "oxlint",
-    "test": "vitest",
-    "test:ui": "vitest --ui",
-    "lint:fix": "eslint --fix .",
-    "lint": "eslint ."
+  "main": "./dist/cjs/index.cjs",
+  "module": "./dist/es/index.mjs",
+  "types": "./types/index.d.ts",
+  "unpkg": "./dist/umd/index.js",
+  "exports": {
+    ".": {
+      "require": "./dist/cjs/index.cjs",
+      "import": "./dist/es/index.mjs",
+      "types": "./types/index.d.ts"
+    },
+    "./plugins": {
+      "require": "./dist/cjs/plugins/index.cjs",
+      "import": "./dist/es/plugins/index.mjs",
+      "types": "./types/plugins/index.d.ts"
+    },
+    "./plugins/sse": {
+      "require": "./dist/cjs/plugins/sse.cjs",
+      "import": "./dist/es/plugins/sse.mjs",
+      "types": "./types/plugins/sse.d.ts"
+    },
+    "./vue": {
+      "require": "./dist/cjs/vue/index.cjs",
+      "import": "./dist/es/vue/index.mjs",
+      "types": "./types/vue/index.d.ts"
+    },
+    "./react": {
+      "require": "./dist/cjs/react/index.cjs",
+      "import": "./dist/es/react/index.mjs",
+      "types": "./types/react/index.d.ts"
+    }
   },
-  "keywords": [],
-  "author": "",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/JsonLee12138/hook-fetch"
+  },
+  "homepage": "https://jsonlee12138.github.io/hook-fetch/",
+  "bugs": {
+    "url": "https://github.com/JsonLee12138/hook-fetch/issues",
+    "email": "lijunsong2@gmail.com"
+  },
   "license": "MIT",
   "devDependencies": {
-    "@jsonlee/tsconfig": "workspace:^",
-    "oxlint": "^1.8.0",
-    "rolldown": "1.0.0-beta.29",
-    "rolldown-plugin-dts": "^0.14.1",
-    "typescript": "~5.6.2",
-    "happy-dom": "^14.0.0",
-    "@vitest/ui": "^2.0.0",
-    "vitest": "^2.0.0"
+    "@changesets/cli": "^2.28.1",
+    "@commitlint/cli": "^19.5.0",
+    "@commitlint/config-conventional": "^19.5.0",
+    "@types/qs": "^6.9.18",
+    "@types/react": "^19.1.7",
+    "cz-git": "^1.11.1",
+    "dotenv": "^17.1.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^13.2.0",
+    "oxlint": "^0.16.3",
+    "react": "^19.1.0",
+    "rimraf": "^6.0.1",
+    "rolldown": "1.0.0-beta.28",
+    "rolldown-plugin-dts": "^0.13.6",
+    "typescript": "^5.7.3",
+    "vite": "npm:rolldown-vite@latest",
+    "vite-plugin-dts": "^4.5.3",
+    "vitest": "^3.0.8",
+    "vue": "^3.5.16",
+    "@jsonlee/tsconfig": "workspace:^"
+  },
+  "peerDependencies": {
+    "react": "^19.1.0",
+    "typescript-api-pro": "^0.0.6",
+    "vue": "^3.5.16"
+  },
+  "dependencies": {
+    "qs": "^6.14.0",
+    "radash": "^12.1.0"
+  },
+  "overrides": {
+    "vite": "npm:rolldown-vite@latest"
+  },
+  "config": {
+    "commitizen": {
+      "path": "node_modules/cz-git"
+    }
   }
 }

@@ -1,0 +1,66 @@
+{
+  "homepage.features.streaming.title": {
+    "message": "流式处理",
+    "description": "The title of streaming feature"
+  },
+  "homepage.features.streaming.description": {
+    "message": "原生支持流式响应处理，实时获取数据流，完美适配 AI 聊天场景，支持 Server-Sent Events 和自定义流处理器。",
+    "description": "The description of streaming feature"
+  },
+  "homepage.features.abort.title": {
+    "message": "请求取消",
+    "description": "The title of request abort feature"
+  },
+  "homepage.features.abort.description": {
+    "message": "内置 AbortController 支持，轻松取消请求，避免内存泄漏。支持超时控制、重复请求取消和组件卸载时自动清理。",
+    "description": "The description of request abort feature"
+  },
+  "homepage.features.plugins.title": {
+    "message": "插件系统",
+    "description": "The title of plugin system feature"
+  },
+  "homepage.features.plugins.description": {
+    "message": "强大的插件架构，支持请求/响应拦截器、缓存、重试、认证等功能。轻松扩展，满足各种业务场景需求。",
+    "description": "The description of plugin system feature"
+  },
+  "homepage.features.hooks.title": {
+    "message": "React & Vue Hooks",
+    "description": "The title of hooks support feature"
+  },
+  "homepage.features.hooks.description": {
+    "message": "为 React 和 Vue 提供专门的 Hooks，简化状态管理。自动处理加载状态、错误处理和数据缓存，提升开发效率。",
+    "description": "The description of hooks support feature"
+  },
+  "homepage.features.typescript.title": {
+    "message": "TypeScript 优先",
+    "description": "The title of TypeScript support feature"
+  },
+  "homepage.features.typescript.description": {
+    "message": "完整的 TypeScript 类型支持，提供智能提示和类型安全。从请求到响应的完整类型推导，减少运行时错误。",
+    "description": "The description of TypeScript support feature"
+  },
+  "homepage.features.performance.title": {
+    "message": "高性能轻量",
+    "description": "The title of performance feature"
+  },
+  "homepage.features.performance.description": {
+    "message": "基于原生 fetch API，零依赖设计，包体积小。支持 Tree Shaking，按需加载，不影响应用性能。",
+    "description": "The description of performance feature"
+  },
+  "homepage.tagline": {
+    "message": "基于原生 fetch API 的现代化 HTTP 请求库",
+    "description": "The tagline of the website"
+  },
+  "homepage.title": {
+    "message": "Hook-Fetch - 现代化 HTTP 请求库",
+    "description": "The title of the homepage"
+  },
+  "homepage.description": {
+    "message": "基于原生 fetch API 的现代化 HTTP 请求库，支持流式处理、请求取消、插件系统。为 React 和 Vue 提供专门的 Hooks。零依赖，TypeScript 优先。",
+    "description": "The description of the homepage"
+  },
+  "home.get-started": {
+    "message": "快速开始",
+    "description": "The label of the button to get started"
+  }
+}

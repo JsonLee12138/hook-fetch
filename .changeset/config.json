@@ -1,13 +1,14 @@
 {
-  "$schema": "https://unpkg.com/@changesets/config@2.0.0/schema.json",
+  "$schema": "https://unpkg.com/@changesets/config@3.1.1/schema.json",
   "changelog": "@changesets/cli/changelog",
   "baseBranch": "main",
   "commit": false,
   "fixed": [],
-  "linked": [["@jsonlee/core", "@jsonlee/docs"]],
+  "linked": [["hook-fetch", "hook-fetch-docs"]],
   "access": "public",
-  "updateInternalDependencies": "patch",
   "ignore": ["@jsonlee/docs"],
+  "updateInternalDependencies": "patch",
+  "prerelease": "beta",
   "privatePackages": {
     "version": true,
     "tag": false

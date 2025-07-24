@@ -2,46 +2,98 @@
 sidebar_position: 1
 ---
 
-# Tutorial Intro
+# Hook-Fetch 🚀
 
-Let's discover **Docusaurus in less than 5 minutes**.
+欢迎使用 Hook-Fetch！这是一个基于原生 fetch API 的现代化 HTTP 请求库，提供了简洁的语法、丰富的功能和强大的插件系统。
 
-## Getting Started
+## 特性
 
-Get started by **creating a new site**.
+- 🚀 **现代化设计** - 基于原生 fetch API，支持 Promise 和 async/await
+- 🔌 **插件系统** - 强大的插件架构，支持自定义扩展
+- 🌊 **流式处理** - 完美支持 SSE (Server-Sent Events) 和流式数据
+- 🎯 **TypeScript 支持** - 完整的类型定义和类型推断
+- 🔄 **请求重试** - 内置请求重试机制
+- 🛡️ **错误处理** - 完善的错误处理和异常捕获
+- 🎨 **框架集成** - 提供 React 和 Vue 的 Hook 支持
+- 📦 **轻量级** - 小巧的体积，无额外依赖
+- 🔧 **高度可配置** - 灵活的配置选项，满足各种需求
 
-Or **try Docusaurus immediately** with **[docusaurus.new](https://docusaurus.new)**.
+## 快速开始
 
-### What you'll need
-
-- [Node.js](https://nodejs.org/en/download/) version 18.0 or above:
-  - When installing Node.js, you are recommended to check all checkboxes related to dependencies.
-
-## Generate a new site
-
-Generate a new Docusaurus site using the **classic template**.
-
-The classic template will automatically be added to your project after you run the command:
-
-```bash
-npm init docusaurus@latest my-website classic
-```
-
-You can type this command into Command Prompt, Powershell, Terminal, or any other integrated terminal of your code editor.
-
-The command also installs all necessary dependencies you need to run Docusaurus.
-
-## Start your site
-
-Run the development server:
+### 安装
 
 ```bash
-cd my-website
-npm run start
+# 使用 npm
+npm install hook-fetch
+
+# 使用 yarn
+yarn add hook-fetch
+
+# 使用 pnpm
+pnpm add hook-fetch
 ```
 
-The `cd` command changes the directory you're working with. In order to work with your newly created Docusaurus site, you'll need to navigate the terminal there.
+### 基础使用
 
-The `npm run start` command builds your website locally and serves it through a development server, ready for you to view at http://localhost:3000/.
+```typescript
+import hookFetch from 'hook-fetch';
 
-Open `docs/intro.md` (this page) and edit some lines: the site **reloads automatically** and displays your changes.
+// 发起 GET 请求
+const response = await hookFetch('https://api.example.com/users').json();
+console.log(response);
+
+// 发起 POST 请求
+const newUser = await hookFetch('https://api.example.com/users', {
+  method: 'POST',
+  data: { name: 'John', email: 'john@example.com' }
+}).json();
+```
+
+### 创建实例
+
+```typescript
+// 创建配置好的实例
+const api = hookFetch.create({
+  baseURL: 'https://api.example.com',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer your-token'
+  },
+  timeout: 5000
+});
+
+// 使用实例
+const users = await api.get('/users').json();
+```
+
+## 为什么选择 Hook-Fetch？
+
+### 相比其他库的优势
+
+- **相比 Axios**: 更轻量，基于现代 fetch API，更好的 TypeScript 支持
+- **相比原生 fetch**: 更简洁的 API，内置错误处理和重试机制
+- **相比其他 fetch 库**: 独特的插件系统和流式处理支持
+
+### 适用场景
+
+- 现代 Web 应用开发
+- 需要处理流式数据的场景
+- 对包体积敏感的项目
+- 需要高度定制化的请求处理
+- React/Vue 项目中的数据获取
+
+## 下一步
+
+- [快速开始](/docs/getting-started) - 学习基本用法
+- [API 参考](/docs/api-reference) - 查看完整的 API 文档
+- [插件系统](/docs/plugins) - 了解如何使用和开发插件
+- [框架集成](/docs/framework-integration) - React 和 Vue 的集成指南
+- [最佳实践](/docs/best-practices) - 推荐的使用模式和技巧
+
+## 社区和支持
+
+- [GitHub 仓库](https://github.com/JsonLee12138/hook-fetch)
+- [问题反馈](https://github.com/JsonLee12138/hook-fetch/issues)
+- [贡献指南](https://github.com/JsonLee12138/hook-fetch/blob/main/CONTRIBUTING.md)
+
+让我们开始探索 Hook-Fetch 的强大功能吧！

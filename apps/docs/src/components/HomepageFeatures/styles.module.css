@@ -5,7 +5,45 @@
   width: 100%;
 }
 
-.featureSvg {
-  height: 200px;
-  width: 200px;
+.featureIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 1rem;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  transition: all 0.3s ease;
+}
+
+.featureIcon:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 25px rgba(16, 185, 129, 0.3);
+}
+
+.featureIcon svg {
+  width: 32px;
+  height: 32px;
+}
+
+/* Dark mode support */
+[data-theme='dark'] .featureIcon {
+  background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+}
+
+[data-theme='dark'] .featureIcon:hover {
+  box-shadow: 0 10px 25px rgba(52, 211, 153, 0.3);
+}
+
+.feature {
+  margin-bottom: 2rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 996px) {
+  .feature {
+    margin-bottom: 3rem;
+  }
 }

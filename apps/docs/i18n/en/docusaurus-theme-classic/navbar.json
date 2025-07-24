@@ -1,0 +1,26 @@
+{
+  "title": {
+    "message": "Hook-Fetch",
+    "description": "The title in the navbar"
+  },
+  "item.label.文档": {
+    "message": "Docs",
+    "description": "Navbar item with label 文档"
+  },
+  "item.label.博客": {
+    "message": "Blog",
+    "description": "Navbar item with label 博客"
+  },
+  "item.label.更新日志": {
+    "message": "Changelog",
+    "description": "Navbar item with label 更新日志"
+  },
+  "item.label.npm": {
+    "message": "npm",
+    "description": "Navbar item with label npm"
+  },
+  "item.label.GitHub": {
+    "message": "GitHub",
+    "description": "Navbar item with label GitHub"
+  }
+}

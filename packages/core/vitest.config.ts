@@ -2,7 +2,8 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   test: {
-    environment: 'happy-dom',
+    testTimeout: 20_000,
+    environment: 'node',
     globals: true,
     coverage: {
       reporter: ['text', 'json', 'html'],
@@ -13,6 +14,6 @@ export default defineConfig({
         'types/',
         '*.config.*'
       ]
-    }
+    },
   }
 })

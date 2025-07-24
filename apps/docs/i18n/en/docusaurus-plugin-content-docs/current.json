@@ -1,0 +1,14 @@
+{
+  "version.label": {
+    "message": "Next",
+    "description": "The label for version current"
+  },
+  "sidebar.tutorialSidebar.category.示例": {
+    "message": "Examples",
+    "description": "The label for category 示例 in sidebar tutorialSidebar"
+  },
+  "sidebar.tutorialSidebar.category.参考": {
+    "message": "Reference",
+    "description": "The label for category 参考 in sidebar tutorialSidebar"
+  }
+}
