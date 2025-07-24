@@ -1,0 +1,45 @@
+{
+  "private": true,
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "lint:fix": "turbo run lint:fix",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "turbo run build --filter=@jsonlee/core && changeset publish",
+    "typecheck": "turbo run typecheck",
+    "ci:docs": "pnpm --filter=@jsonlee/docs run ci",
+    "build:docs": "pnpm --filter=@jsonlee/docs run build",
+    "dev:docs": "pnpm --filter=@jsonlee/docs run start",
+    "build:core": "pnpm --filter=@jsonlee/core run build",
+    "publish:beta": "pnpm --filter=@jsonlee/core run publish:beta",
+    "publish:release": "pnpm --filter=@jsonlee/core run publish:release",
+    "deploy:docs": "pnpm --filter=@jsonlee/docs run deploy",
+    "lint-staged": "lint-staged",
+    "cz": "cz"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.28.1",
+    "@commitlint/cli": "^19.5.0",
+    "@commitlint/config-conventional": "^19.5.0",
+    "cz-git": "^1.11.1",
+    "eslint": "^8.57.0",
+    "husky": "^9.1.7",
+    "oxlint": "^1.8.0",
+    "prettier": "^3.2.5",
+    "turbo": "^2.5.5"
+  },
+  "packageManager": "pnpm@8.15.6",
+  "engines": {
+    "node": ">=18"
+  },
+  "name": "with-rolldown",
+  "config": {
+    "commitizen": {
+      "path": "node_modules/cz-git"
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://unpkg.com/@changesets/config@2.0.0/schema.json",
+  "changelog": "@changesets/cli/changelog",
+  "baseBranch": "main",
+  "commit": false,
+  "fixed": [],
+  "linked": [["@jsonlee/core", "@jsonlee/docs"]],
+  "access": "public",
+  "updateInternalDependencies": "patch",
+  "ignore": ["@jsonlee/docs"],
+  "privatePackages": {
+    "version": true,
+    "tag": false
+  }
+}

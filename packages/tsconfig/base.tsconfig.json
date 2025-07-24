@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "esnext",
+    "lib": [
+      "ESNext"
+    ],
+    "moduleResolution": "node",
+    /* strict */
+    "strict": true,
+    "noImplicitAny": true, // 禁止隐式 any
+    "strictNullChecks": true, // 严格空值检查
+    "strictFunctionTypes": true, // 严格函数类型检查
+    "strictBindCallApply": true, // 严格 bind/call/apply 检查
+    "strictPropertyInitialization": true, // 严格属性初始化检查
+    "noImplicitReturns": true, // 函数必须有返回值
+    "noImplicitThis": true, // 禁止隐式 this
+    "alwaysStrict": true, // 总是以严格模式解析
+    /* 额外检查 */
+    "noUnusedLocals": true, // 检查未使用的局部变量
+    "noUnusedParameters": true, // 检查未使用的参数
+    "exactOptionalPropertyTypes": true, // 精确可选属性类型
+    "noImplicitOverride": true, // 需要显式 override 关键字
+    "noPropertyAccessFromIndexSignature": true, // 索引签名属性访问限制
+    "noUncheckedIndexedAccess": true, // 索引访问包含 undefined
+    /* module */
+    "esModuleInterop": true, // ES 模块互操作
+    "allowSyntheticDefaultImports": true, // 允许合成默认导入
+    "forceConsistentCasingInFileNames": true, // 强制文件名大小写一致
+    "resolveJsonModules": true, // 允许导入 JSON 模块
+    "allowUmdGlobalAccess": true, // 允许访问 UMD 全局变量
+    /* output */
+    "declaration": true, // 生成 .d.ts 文件
+    "declarationMap": false, // 生成声明文件的 source map
+    "sourceMap": false, // 生成 source map
+    // "outFile": "./dist/bundle.js", // 输出到单个文件
+    "removeComments": true, // 移除注释
+    "noEmit": true, // 不生成输出文件
+    "noEmitOnError": true, // 有错误时不生成输出
+    /* decorator */
+    "experimentalDecorators": true, // 启用装饰器
+    "emitDecoratorMetadata": true, // 生成装饰器元数据
+    "useDefineForClassFields": true, // 使用 define 语义定义类字段
+    /* 其他 */
+    // "skipLibCheck": true,        // 跳过库文件检查
+    "incremental": true,         // 增量编译
+    // "tsBuildInfoFile": ".tsbuildinfo" // 构建信息文件
+  },
+  "include": [
+    "src/**/*",
+    "lib/**/*"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

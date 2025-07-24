@@ -1,0 +1,3 @@
+{
+  "**/*.{js,mjs,cjs,jsx,ts,mts,cts,tsx}": "npx oxlint --fix"
+}
