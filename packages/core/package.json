@@ -42,7 +42,9 @@
   "main": "./dist/cjs/index.cjs",
   "module": "./dist/es/index.mjs",
   "types": "./types/index.d.ts",
+  "browser": "./dist/umd/index.js",
   "unpkg": "./dist/umd/index.js",
+  "jsdelivr": "./dist/umd/index.js",
   "exports": {
     ".": {
       "require": "./dist/cjs/index.cjs",
