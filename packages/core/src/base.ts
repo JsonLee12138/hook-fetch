@@ -2,9 +2,7 @@ import type { AnyObject, Generic } from "typescript-api-pro";
 import { type BaseOptions, type BaseRequestOptions, type DeleteOptions, type GetOptions, type HeadOptions, type HookFetchPlugin, type OptionsOptions, type PatchOptions, type PostOptions, type PutOptions, type RequestOptions, type RequestWithBodyOptions, type RequestWithParamsOptions } from "./types";
 import { HookFetchRequest, mergeHeaders } from "./utils";
 
-// TODO: 整理整个代码
-
-const _request_ = <R, P, D, E>(options: BaseRequestOptions<P, D>): HookFetchRequest<R, E> => {
+const _request_ = <R, P, D, E>(options: BaseRequestOptions<P, D, E>): HookFetchRequest<R, E> => {
   return new HookFetchRequest<R, E>(options);
 }
 
@@ -41,7 +39,7 @@ class HookFetch<R extends AnyObject = AnyObject, K extends keyof R = 'data', E =
     return this;
   }
 
-  request<T = AnyObject, P = AnyObject, D = AnyObject>(url: string, { timeout, headers, method = 'GET', params = {} as P, data, qsArrayFormat, withCredentials, extra }: RequestOptions<P, D, E> = {}) {
+  request<T = AnyObject, P = AnyObject, D = AnyObject>(url: string, { timeout, headers, method = 'GET', params = {} as P, data = {} as D, qsArrayFormat, withCredentials, extra = {} as E }: RequestOptions<P, D, E> = {}) {
     const controller = new AbortController();
     this.#queue.push(controller);
     const req = _request_<Generic<R, K, T>, P, D, E>({
@@ -56,7 +54,7 @@ class HookFetch<R extends AnyObject = AnyObject, K extends keyof R = 'data', E =
       data,
       qsArrayFormat,
       withCredentials: withCredentials ?? this.#withCredentials,
-      extra: extra as AnyObject
+      extra
     })
     req.finally(() => {
       this.#queue = this.#queue.filter(item => item !== controller);

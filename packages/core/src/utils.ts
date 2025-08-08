@@ -107,7 +107,7 @@ export const getBody = (body: AnyObject, method: RequestMethod, headers?: Header
       if (!(body instanceof FormData) && typeof body === 'object') {
         const _data = body as AnyObject;
         Object.keys(_data).forEach((key) => {
-          if (_data.prototype.hasOwnProperty.call(key)) {
+          if (_data['prototype'].hasOwnProperty.call(key)) {
             formData.append(key, _data[key]);
           }
         });
@@ -137,7 +137,7 @@ export class HookFetchRequest<T, E> implements PromiseLike<T> {
 
   constructor(options: BaseRequestOptions<unknown, unknown, E>) {
     this.#fullOptions = options;
-    const { plugins = [], controller, url, baseURL = '', params, data, qsArrayFormat = 'repeat', withCredentials, extra, method = 'GET', headers } = options;
+    const { plugins = [], controller, url, baseURL = '', params, data, qsArrayFormat = 'repeat', withCredentials = false, extra, method = 'GET', headers = {} } = options;
     this.#controller = controller ?? new AbortController();
     this.#plugins = parsePlugins(plugins);
     this.#config = {
@@ -146,7 +146,7 @@ export class HookFetchRequest<T, E> implements PromiseLike<T> {
       params,
       data,
       withCredentials,
-      extra,
+      extra: extra as E,
       method,
       headers,
       qsArrayFormat
@@ -172,7 +172,7 @@ export class HookFetchRequest<T, E> implements PromiseLike<T> {
       const options: RequestInit = {
         ...otherOptions,
         method: config.method,
-        headers: config.headers,
+        headers: config.headers as HeadersInit,
         signal: this.#controller.signal,
         credentials: config.withCredentials ? 'include' : 'omit',
         body
@@ -281,10 +281,6 @@ export class HookFetchRequest<T, E> implements PromiseLike<T> {
     return err
   }
 
-  json() {
-    return this.#then(ResponseType.JSON, this.#response.then(r => r.json()));
-  }
-
   #execFinally() {
     for (const callback of this.#finallyCallbacks) {
       callback!();
@@ -346,16 +342,20 @@ export class HookFetchRequest<T, E> implements PromiseLike<T> {
     return this.#promise.then(r => r.clone());
   }
 
+  json() {
+    return this.#then(ResponseType.JSON, this.#response.then(r => r.json())) as Promise<T>;
+  }
+
   blob() {
-    return this.#then(ResponseType.BLOB, this.#response.then(r => r.blob()));
+    return this.#then(ResponseType.BLOB, this.#response.then(r => r.blob())) as Promise<Blob>;
   }
 
   text() {
-    return this.#then(ResponseType.TEXT, this.#response.then(r => r.text()));
+    return this.#then(ResponseType.TEXT, this.#response.then(r => r.text())) as Promise<string>;
   }
 
   arrayBuffer() {
-    return this.#then(ResponseType.ARRAY_BUFFER, this.#response.then(r => r.arrayBuffer()));
+    return this.#then(ResponseType.ARRAY_BUFFER, this.#response.then(r => r.arrayBuffer())) as Promise<ArrayBuffer>;
   }
 
   #then(type: ResponseType, promise: Promise<any>) {
@@ -371,11 +371,11 @@ export class HookFetchRequest<T, E> implements PromiseLike<T> {
   }
 
   formData() {
-    return this.#then(ResponseType.FORM_DATA, this.#response.then(r => r.formData()));
+    return this.#then(ResponseType.FORM_DATA, this.#response.then(r => r.formData())) as Promise<FormData>;
   }
 
   bytes() {
-    return this.#then(ResponseType.BYTES, this.#response.then(r => r.bytes()));
+    return this.#then(ResponseType.BYTES, this.#response.then(r => r.bytes())) as Promise<Uint8Array<ArrayBufferLike>>;
   }
 
   async *stream<T>() {

@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import hookFetch, { ResponseError } from '../src/index';
 import type { HookFetchPlugin } from '../src/types';
-import type { Generic } from 'typescript-api-pro';
+import type { AnyObject, Generic } from 'typescript-api-pro';
 
 describe('test hook-fetch', () => {
   interface TodoDTO {
@@ -12,7 +12,7 @@ describe('test hook-fetch', () => {
   }
 
   test('test normal request', async () => {
-    const res = await hookFetch('https://jsonplaceholder.typicode.com/todos/1').json();
+    const res = await hookFetch<TodoDTO>('https://jsonplaceholder.typicode.com/todos/1').json();
     const result = { userId: 1, id: 1, title: 'delectus aut autem', completed: false };
     expect(res).toEqual(result);
   });
@@ -255,9 +255,19 @@ describe('test hook-fetch', () => {
     formData.append('file', file);
     formData.append('description', 'Test file upload');
     formData.append('userId', '123');
+    interface UploadVO {
+      args: AnyObject
+      files: {
+        file: string
+      }
+      form: {
+        description: string
+        userId: string
+      }
+    }
 
     // 使用支持文件上传的测试服务
-    const res = await hookFetch.upload('https://httpbin.org/post', {
+    const res = await hookFetch.upload<UploadVO>('https://httpbin.org/post', {
       file,
       description: 'Test file upload',
       userId: '123'
@@ -274,7 +284,16 @@ describe('test hook-fetch', () => {
   });
 
   test('test file upload with instance', async () => {
-    const instance = hookFetch.create({
+    interface BaseUploadVO {
+      args: AnyObject
+      files: {
+        file: string
+      }
+      form: {
+        metadata: string
+      }
+    }
+    const instance = hookFetch.create<BaseUploadVO, 'args'>({
       baseURL: 'https://httpbin.org',
       headers: {
         'Accept': 'application/json',
@@ -292,10 +311,11 @@ describe('test hook-fetch', () => {
       version: '1.0.0'
     }));
 
+
+
     const res = await instance.post('/post', formData).json();
 
     console.log('Instance file upload response:', res);
-
     expect(res.form).toBeDefined();
     expect(res.form.metadata).toBeDefined();
     expect(res.files).toBeDefined();
@@ -315,7 +335,18 @@ describe('test hook-fetch', () => {
     formData.append('image', file3);
     formData.append('title', 'Multiple files upload test');
 
-    const res = await hookFetch('https://httpbin.org/post', {
+    interface UploadVO {
+      args: AnyObject
+      files: {
+        files: string
+        image: string
+      },
+      form: {
+        title: string
+      }
+    }
+
+    const res = await hookFetch.upload<UploadVO>('https://httpbin.org/post', {
       method: 'POST',
       data: formData
     }).json();
@@ -371,7 +402,18 @@ describe('test hook-fetch', () => {
     formData.append('file', file);
     formData.append('customField', 'customValue');
 
-    const res = await hookFetch('https://httpbin.org/post', {
+    interface UploadVO {
+      args: AnyObject
+      files: {
+        file: string
+      }
+      form: {
+        customField: string
+      },
+      headers: Record<string, string>
+    }
+
+    const res = await hookFetch<UploadVO>('https://httpbin.org/post', {
       method: 'POST',
       data: formData,
       headers: {
@@ -443,7 +485,12 @@ describe('test hook-fetch', () => {
       title: 'delectus aut autem',
       completed: false,
     }
-    const res = await hookFetch.delete('https://postman-echo.com/delete', {
+
+    interface DeleteVO {
+      data: string
+    }
+
+    const res = await hookFetch.delete<DeleteVO>('https://postman-echo.com/delete', {
       data: body
     }).json();
 

@@ -6,7 +6,7 @@
   "fixed": [],
   "linked": [["hook-fetch", "hook-fetch-docs"]],
   "access": "public",
-  "ignore": ["@jsonlee/docs"],
+  "ignore": ["hook-fetch-docs"],
   "updateInternalDependencies": "patch",
   "prerelease": "beta",
   "privatePackages": {
