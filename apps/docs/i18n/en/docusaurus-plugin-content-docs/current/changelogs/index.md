@@ -8,6 +8,57 @@ sidebar_position: 1
 
 ## Version History
 
+### v2.1.0 💥
+**Release Date**: 2025-08-08
+
+#### 💔 Breaking Changes
+- Generic signature change for `HookFetch` and `hookFetch.create` from
+  `<R extends AnyObject = AnyObject, K extends keyof R = 'data', E = AnyObject>`
+  to
+  `<R extends AnyObject | null = null, K extends keyof R = never, E = AnyObject>`.
+
+  - When `R = null` (default): `json<T>()` returns `T` directly, no wrapper mapping (closer to native fetch semantics).
+  - When you need a wrapped response with key mapping: pass wrapper type and key explicitly, e.g., `hookFetch.create<ResponseVO, 'data'>(...)`. Then `json<User>()` returns `ResponseVO` where `data` is `User`.
+
+#### 🔧 Migration Guide
+- Old code:
+  ```ts
+  interface ResponseVO { code: number; message: string; data: never }
+  const api = hookFetch.create<ResponseVO>({ baseURL: '...' });
+  const res = await api.get<User>('/user').json();
+  // res.data: User
+  ```
+  New code (explicit key):
+  ```ts
+  const api = hookFetch.create<ResponseVO, 'data'>({ baseURL: '...' });
+  const res = await api.get<User>('/user').json();
+  // res.data: User
+  ```
+
+- If you do not need wrapping (return `T` directly):
+  ```ts
+  const api = hookFetch.create(); // equivalent to <null, never>
+  const user = await api.get<User>('/user').json(); // user: User
+  ```
+
+#### 🧰 Misc
+- Docs updated (README and API Reference) clarifying `R | null` and `K` usage.
+
+### v2.0.7 🛠️
+**Release Date**: 2025-08-08
+
+#### 🐛 Fixes
+- Fix missing type inference for `json`, `text`, `blob`, `arrayBuffer`, `formData`, and `bytes` methods for better return type hints.
+
+#### 🧱 Infra
+- Adjust and fix release CI/CD configuration.
+
+### v2.0.6
+**Release Date**: 2025-08-07
+
+#### 🔧 Changes
+- Adjustments related to release flow and version stability.
+
 ### v2.0.3 🎉
 **Release Date**: 2025-06-30
 

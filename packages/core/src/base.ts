@@ -6,7 +6,9 @@ const _request_ = <R, P, D, E>(options: BaseRequestOptions<P, D, E>): HookFetchR
   return new HookFetchRequest<R, E>(options);
 }
 
-class HookFetch<R extends AnyObject = AnyObject, K extends keyof R = 'data', E = AnyObject> {
+type GenericWithNull<T, R extends AnyObject | null, K extends keyof R> = R extends null ? T : Generic<Exclude<R, null>, K, T>;
+
+class HookFetch<R extends AnyObject | null = null, K extends keyof R = never, E = AnyObject> {
   #timeout: number;
   #baseURL: string;
   #commonHeaders: HeadersInit;
@@ -42,7 +44,7 @@ class HookFetch<R extends AnyObject = AnyObject, K extends keyof R = 'data', E =
   request<T = AnyObject, P = AnyObject, D = AnyObject>(url: string, { timeout, headers, method = 'GET', params = {} as P, data = {} as D, qsArrayFormat, withCredentials, extra = {} as E }: RequestOptions<P, D, E> = {}) {
     const controller = new AbortController();
     this.#queue.push(controller);
-    const req = _request_<Generic<R, K, T>, P, D, E>({
+    const req = _request_<GenericWithNull<T ,R, K>, P, D, E>({
       url,
       baseURL: this.#baseURL,
       timeout: timeout ?? this.#timeout,
@@ -179,7 +181,7 @@ export const patch = <R = AnyObject, D = AnyObject, P = AnyObject, E = AnyObject
 }
 
 type ExportDefault = typeof useRequest & {
-  create: <R extends AnyObject = AnyObject, K extends keyof R = 'data', E = AnyObject>(options: BaseOptions) => (HookFetch<R, K, E>['request'] & HookFetch<R, K, E>);
+  create: <R extends AnyObject | null = null, K extends keyof R = never, E = AnyObject>(options: BaseOptions) => (HookFetch<R, K, E>['request'] & HookFetch<R, K, E>);
   get: typeof get;
   head: typeof head;
   options: typeof options;
@@ -192,7 +194,7 @@ type ExportDefault = typeof useRequest & {
 
 const hookFetch = useRequest as ExportDefault;
 
-hookFetch.create = <R extends AnyObject = AnyObject, K extends keyof R = 'data', E = AnyObject>(options: BaseOptions) => {
+hookFetch.create = <R extends AnyObject | null = null, K extends keyof R = never, E = AnyObject>(options: BaseOptions) => {
   const context = new HookFetch<R, K, E>(options);
   const instance = context.request.bind(this);
   Object.assign(instance, HookFetch.prototype, context);

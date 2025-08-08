@@ -264,7 +264,7 @@ interface BaseResponseVO {
   message: string;
 }
 
-const request = hookFetch.create<BaseResponseVO>({
+const request = hookFetch.create<BaseResponseVO, 'data'>({
   baseURL: 'https://example.com',
   headers: {
     'Content-Type': 'application/json',

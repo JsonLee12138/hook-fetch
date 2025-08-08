@@ -375,7 +375,7 @@ interface BaseResponseVO {
   message: string;
 }
 
-const request = hookFetch.create<BaseResponseVO>({
+const request = hookFetch.create<BaseResponseVO, 'data'>({
   baseURL: 'https://example.com',
   headers: {
     'Content-Type': 'application/json',
@@ -392,7 +392,7 @@ interface User {
 
 // 在请求中使用类型
 const res = await request.get<User>('/users/1').json();
-console.log(res.data); // TypeScript提供完整类型提示
+console.log(res.data); // TypeScript 提供完整类型提示
 ```
 
 ## 完整API

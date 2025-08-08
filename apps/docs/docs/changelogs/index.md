@@ -8,6 +8,57 @@ sidebar_position: 1
 
 ## 版本历史
 
+### v2.1.0 💥
+**发布日期**: 2025-08-08
+
+#### 💔 破坏性变更
+- 泛型签名调整：`HookFetch` 与 `hookFetch.create` 的泛型从
+  `<R extends AnyObject = AnyObject, K extends keyof R = 'data', E = AnyObject>`
+  调整为
+  `<R extends AnyObject | null = null, K extends keyof R = never, E = AnyObject>`。
+
+  - 当 `R = null`（默认）时：`json<T>()` 的返回类型为 `T`，不做包裹映射（更贴近原生 fetch 的直觉）。
+  - 当你需要“包裹响应”并做键映射时：显式传入响应包裹类型和键名，例如 `hookFetch.create<ResponseVO, 'data'>(...)`，此时 `json<User>()` 的返回类型为 `ResponseVO` 且其中 `data` 为 `User`。
+
+#### 🔧 迁移指南
+- 旧代码：
+  ```ts
+  interface ResponseVO { code: number; message: string; data: never }
+  const api = hookFetch.create<ResponseVO>({ baseURL: '...' });
+  const res = await api.get<User>('/user').json();
+  // res.data: User
+  ```
+  新代码需显式指定键名：
+  ```ts
+  const api = hookFetch.create<ResponseVO, 'data'>({ baseURL: '...' });
+  const res = await api.get<User>('/user').json();
+  // res.data: User
+  ```
+
+- 若无需包裹（直接拿到 `T`）：
+  ```ts
+  const api = hookFetch.create(); // 等价于 <null, never>
+  const user = await api.get<User>('/user').json(); // user: User
+  ```
+
+#### 🧰 其他
+- 同步更新文档：README 与 API 参考已更新示例，明确 `R | null` 与 `K` 的用法。
+
+### v2.0.7 🛠️
+**发布日期**: 2025-08-08
+
+#### 🐛 修复
+- 修复 `json`、`text`、`blob`、`arrayBuffer`、`formData`、`bytes` 方法的类型推断缺失问题（更完善的返回值类型提示）。
+
+#### 🧱 基础设施
+- 调整与修复发布 CI/CD 流程相关配置。
+
+### v2.0.6
+**发布日期**: 2025-08-07
+
+#### 🔧 变更
+- 发布流程与版本稳定性相关的调整。
+
 ### v2.0.3 🎉
 **发布日期**: 2025-06-30
 

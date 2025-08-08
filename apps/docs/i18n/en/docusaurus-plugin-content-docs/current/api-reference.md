@@ -31,17 +31,18 @@ The main request function.
 const response = await hookFetch('https://api.example.com/users').json();
 ```
 
-### `hookFetch.create(options)`
+### `hookFetch.create<R extends AnyObject | null = null, K extends keyof R = never, E = AnyObject>(options)`
 
 Creates a configured Hook-Fetch instance.
 
 **Parameters:**
 - `options` (BaseOptions): Instance configuration
 
-**Returns:** `HookFetch` - Instance object
+**Returns:** `HookFetch` - Instance object with generics `<R, K, E>`
 
 **Example:**
 ```typescript
+// 1) No wrapper (default <null, never>)
 const api = hookFetch.create({
   baseURL: 'https://api.example.com',
   timeout: 5000,
@@ -49,6 +50,15 @@ const api = hookFetch.create({
     'Content-Type': 'application/json'
   }
 });
+
+// json<User>() returns User directly
+const user = await api.get<User>('/users/1').json();
+
+// 2) Wrapped response with mapped key
+interface ResponseVO { code: number; message: string; data: never }
+const wrapped = hookFetch.create<ResponseVO, 'data'>({ baseURL: 'https://api.example.com' });
+const res = await wrapped.get<User>('/users/1').json();
+// res.data is User
 ```
 
 ## Convenience Methods

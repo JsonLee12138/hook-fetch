@@ -31,17 +31,18 @@ import hookFetch, {
 const response = await hookFetch('https://api.example.com/users').json();
 ```
 
-### `hookFetch.create(options)`
+### `hookFetch.create<R extends AnyObject | null = null, K extends keyof R = never, E = AnyObject>(options)`
 
 创建一个配置好的 Hook-Fetch 实例。
 
 **参数：**
 - `options` (BaseOptions): 实例配置
 
-**返回值：** `HookFetch` - 实例对象
+**返回值：** `HookFetch` - 携带泛型 `<R, K, E>` 的实例对象
 
 **示例：**
 ```typescript
+// 1) 不包裹（默认 <null, never>）
 const api = hookFetch.create({
   baseURL: 'https://api.example.com',
   timeout: 5000,
@@ -49,6 +50,15 @@ const api = hookFetch.create({
     'Content-Type': 'application/json'
   }
 });
+
+// json<User>() 直接得到 User
+const user = await api.get<User>('/users/1').json();
+
+// 2) 需要包裹并映射键
+interface ResponseVO { code: number; message: string; data: never }
+const wrapped = hookFetch.create<ResponseVO, 'data'>({ baseURL: 'https://api.example.com' });
+const res = await wrapped.get<User>('/users/1').json();
+// res.data 为 User
 ```
 
 ## 便捷方法

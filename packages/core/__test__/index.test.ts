@@ -132,14 +132,14 @@ describe('test hook-fetch', () => {
   })
 
   test('test instance get retry', async () => {
-    const instance = hookFetch.create<TodoDTO>({
+    const instance = hookFetch.create({
       baseURL: 'https://jsonplaceholder.typicode.com',
       headers: {
         'Content-Type': 'application/json',
       },
     })
 
-    const req = instance.get('/todos/1');
+    const req = instance.get<TodoDTO>('/todos/1');
 
     req.abort();
 
