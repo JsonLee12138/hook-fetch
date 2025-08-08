@@ -25,8 +25,8 @@
     "build:umd": "vite build -c ./vite.config.umd.ts",
     "build:base": "rimraf types && vite build",
     "build": "rimraf types && rimraf dist && pnpm build:rolldown",
-    "publish:release": "pnpm changeset publish -r",
-    "publish:beta": "pnpm changeset publish --tag beta -r",
+    "publish:release": "npx changeset publish -r",
+    "publish:beta": "npx changeset publish --tag beta -r",
     "test": "vitest",
     "lint-staged": "lint-staged"
   },
