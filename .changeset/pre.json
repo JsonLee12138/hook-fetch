@@ -6,5 +6,7 @@
     "hook-fetch": "2.1.0",
     "@jsonlee/tsconfig": "0.0.0"
   },
-  "changesets": []
+  "changesets": [
+    "few-apes-attend"
+  ]
 }

@@ -1,5 +1,11 @@
 # hook-fetch
 
+## 3.0.0-beta.0
+
+### Major Changes
+
+- 4b15105: 修改changeset配置, 改用changeset进行发布
+
 ## 2.0.0
 
 ### Major Changes
