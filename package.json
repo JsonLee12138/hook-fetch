@@ -21,7 +21,7 @@
     "lint-staged": "lint-staged",
     "cz": "cz",
     "cv:beta": "pnpm changeset pre enter beta --filter=hook-fetch",
-    "tag": "changeset version && git push --follow-tags"
+    "tag": "changeset version && git add . && git commit -m 'chore(release): version packages' && git tag v$(node -p \"require('./package.json').version\") && git push --follow-tags"
   },
   "devDependencies": {
     "@changesets/cli": "^2.28.1",
