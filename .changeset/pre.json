@@ -1,0 +1,10 @@
+{
+  "mode": "pre",
+  "tag": "beta",
+  "initialVersions": {
+    "hook-fetch-docs": "0.0.0",
+    "hook-fetch": "2.1.0",
+    "@jsonlee/tsconfig": "0.0.0"
+  },
+  "changesets": []
+}

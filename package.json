@@ -15,11 +15,12 @@
     "build:docs": "pnpm --filter=hook-fetch-docs run build",
     "dev:docs": "pnpm --filter=hook-fetch-docs run start",
     "build:core": "pnpm --filter=hook-fetch run build",
-    "publish:beta": "pnpm --filter=hook-fetch run publish:beta",
-    "publish:release": "pnpm --filter=hook-fetch run publish:release",
+    "publish:beta": "pnpm changeset publish -r --filter=hook-fetch --tag beta",
+    "publish:release": "pnpm changeset publish -r --filter=hook-fetch",
     "deploy:docs": "pnpm --filter=@jsonlee/docs run deploy",
     "lint-staged": "lint-staged",
-    "cz": "cz"
+    "cz": "cz",
+    "cv:beta": "pnpm changeset pre enter beta --filter=hook-fetch"
   },
   "devDependencies": {
     "@changesets/cli": "^2.28.1",

@@ -24,16 +24,16 @@ const sidebars: SidebarsConfig = {
       type: 'category',
       label: '示例',
       items: [
-        'examples/chat-application'
+        'examples/chat-application',
       ],
     },
     {
       type: 'category',
       label: '参考',
       items: [
-        'reference/faq'
+        'reference/faq',
       ],
-    }
+    },
   ],
 
   // But you can create a sidebar manually

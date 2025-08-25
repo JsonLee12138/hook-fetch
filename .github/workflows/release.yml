@@ -46,9 +46,15 @@ jobs:
           pnpm build
 
       - name: Create Release Pull Request
-        id: create_release
+        uses: changesets/action@v1
+        with:
+          publish: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish
+        id: create_release
+        env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           if [[ "$TAG_NAME" == *beta* ]];then

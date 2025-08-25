@@ -1,0 +1,18 @@
+# hook-fetch
+
+## 2.0.0
+
+### Major Changes
+
+- 2527e03: 整理类型，支持插件的类型，支持通过reference去支持插件的引用路径提示
+- 2527e03: 新增vue和react的hooks
+- 2527e03: 修复hooks的loading状态不正常的bug
+- 2527e03: 修改架构为rolldown版本的vite，支持umd，保留sse插件的jsdoc
+
+### Minor Changes
+
+- 818e0fd: 修复json, blob, text, arrayBuffer, formData, bytes方法没有类型推断的问题
+
+### Patch Changes
+
+- 2527e03: 更新sse插件，处理一次性返回多条问题，新增json解析和trim处理功能

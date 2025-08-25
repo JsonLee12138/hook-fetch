@@ -1,14 +1,14 @@
-import type QueryString from "qs";
-import qs from "qs";
-import { omit } from "radash";
-import type { AnyObject } from "typescript-api-pro";
-import { ContentType, StatusCode } from "./enum";
-import { HookFetchPlugin, type BaseRequestOptions, type FetchPluginContext, type FetchResponseType, type RequestConfig, type RequestMethod, type RequestMethodWithBody, type RequestMethodWithParams, type StreamContext } from "./types";
-import { ResponseError } from "./error";
+import type QueryString from 'qs';
+import type { AnyObject } from 'typescript-api-pro';
+import type { BaseRequestOptions, FetchPluginContext, FetchResponseType, HookFetchPlugin, RequestConfig, RequestMethod, RequestMethodWithBody, RequestMethodWithParams, StreamContext } from './types';
+import qs from 'qs';
+import { omit } from 'radash';
+import { ContentType, StatusCode } from './enum';
+import { ResponseError } from './error';
 
-export const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+export const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-export const timeoutCallback = (controller: AbortController) => {
+export function timeoutCallback(controller: AbortController) {
   controller.abort();
 }
 
@@ -18,14 +18,14 @@ enum ResponseType {
   TEXT = 'text',
   ARRAY_BUFFER = 'arrayBuffer',
   FORM_DATA = 'formData',
-  BYTES = 'bytes'
+  BYTES = 'bytes',
 }
 
-const parsePlugins = (plugins: HookFetchPlugin[]) => {
+function parsePlugins(plugins: HookFetchPlugin[]) {
   const pluginsMap = new Map<string, HookFetchPlugin>();
-  plugins.forEach(plugin => {
+  plugins.forEach((plugin) => {
     pluginsMap.set(plugin.name, plugin);
-  })
+  });
   const pluginsArr = Array.from(pluginsMap.values()).sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0));
 
   const beforeRequestPlugins: Array<Exclude<HookFetchPlugin['beforeRequest'], undefined>> = [];
@@ -34,7 +34,7 @@ const parsePlugins = (plugins: HookFetchPlugin[]) => {
   const finallyPlugins: Array<Exclude<HookFetchPlugin['onFinally'], undefined>> = [];
   const transformStreamChunkPlugins: Array<Exclude<HookFetchPlugin['transformStreamChunk'], undefined>> = [];
   const beforeStreamPlugins: Array<Exclude<HookFetchPlugin['beforeStream'], undefined>> = [];
-  pluginsArr.forEach(plugin => {
+  pluginsArr.forEach((plugin) => {
     if (plugin.beforeRequest) {
       beforeRequestPlugins.push(plugin.beforeRequest);
     }
@@ -53,18 +53,18 @@ const parsePlugins = (plugins: HookFetchPlugin[]) => {
     if (plugin.beforeStream) {
       beforeStreamPlugins.push(plugin.beforeStream);
     }
-  })
+  });
   return {
     beforeRequestPlugins,
     afterResponsePlugins,
     errorPlugins,
     finallyPlugins,
     beforeStreamPlugins,
-    transformStreamChunkPlugins
-  }
+    transformStreamChunkPlugins,
+  };
 }
 
-export const buildUrl = (url: string, params?: AnyObject, qsArrayFormat: QueryString.IStringifyOptions['arrayFormat'] = "repeat"): string => {
+export function buildUrl(url: string, params?: AnyObject, qsArrayFormat: QueryString.IStringifyOptions['arrayFormat'] = 'repeat'): string {
   if (params) {
     const paramsStr = qs.stringify(params, { arrayFormat: qsArrayFormat });
     if (paramsStr) {
@@ -74,7 +74,7 @@ export const buildUrl = (url: string, params?: AnyObject, qsArrayFormat: QuerySt
   return url;
 }
 
-export const mergeHeaders = (_baseHeaders: HeadersInit | Headers = {}, _newHeaders: HeadersInit | Headers = {}): Headers => {
+export function mergeHeaders(_baseHeaders: HeadersInit | Headers = {}, _newHeaders: HeadersInit | Headers = {}): Headers {
   const _result = _baseHeaders instanceof Headers ? _baseHeaders : new Headers(_baseHeaders);
   const combineHeaders = (_headers: HeadersInit | Headers) => {
     if (!(_headers instanceof Headers)) {
@@ -83,7 +83,7 @@ export const mergeHeaders = (_baseHeaders: HeadersInit | Headers = {}, _newHeade
     _headers.forEach((value, key) => {
       _result.set(key, value);
     });
-  }
+  };
   combineHeaders(_newHeaders);
   return _result;
 }
@@ -91,22 +91,27 @@ export const mergeHeaders = (_baseHeaders: HeadersInit | Headers = {}, _newHeade
 const withBodyArr: RequestMethodWithBody[] = ['PATCH', 'POST', 'PUT', 'DELETE', 'OPTIONS'];
 const withoutBodyArr: RequestMethodWithParams[] = ['GET', 'HEAD'];
 
-export const getBody = (body: AnyObject, method: RequestMethod, headers?: HeadersInit, qsArrayFormat: QueryString.IStringifyOptions['arrayFormat'] = 'repeat'): BodyInit | null => {
-  if (!body) return null;
-  if (body instanceof FormData) return body;
+export function getBody(body: AnyObject, method: RequestMethod, headers?: HeadersInit, qsArrayFormat: QueryString.IStringifyOptions['arrayFormat'] = 'repeat'): BodyInit | null {
+  if (!body)
+    return null;
+  if (body instanceof FormData)
+    return body;
   let res: BodyInit | null = null;
   if (withBodyArr.includes(method.toUpperCase() as RequestMethodWithBody)) {
     const _headers_: Headers = new Headers(headers || {});
     const _contentType = _headers_.get('Content-Type') || ContentType.JSON;
     if (_contentType.includes(ContentType.JSON)) {
       res = JSON.stringify(body);
-    } else if (_contentType.includes(ContentType.FORM_URLENCODED)) {
-      res = qs.stringify(body, { arrayFormat: qsArrayFormat, });
-    } else if (_contentType.includes(ContentType.FORM_DATA)) {
+    }
+    else if (_contentType.includes(ContentType.FORM_URLENCODED)) {
+      res = qs.stringify(body, { arrayFormat: qsArrayFormat });
+    }
+    else if (_contentType.includes(ContentType.FORM_DATA)) {
       const formData = new FormData();
       if (!(body instanceof FormData) && typeof body === 'object') {
         const _data = body as AnyObject;
         Object.keys(_data).forEach((key) => {
+          // eslint-disable-next-line dot-notation
           if (_data['prototype'].hasOwnProperty.call(key)) {
             formData.append(key, _data[key]);
           }
@@ -121,16 +126,13 @@ export const getBody = (body: AnyObject, method: RequestMethod, headers?: Header
   return res;
 }
 
-
 export class HookFetchRequest<T, E> implements PromiseLike<T> {
   #plugins: ReturnType<typeof parsePlugins>;
   #controller: AbortController;
   #config: RequestConfig<unknown, unknown, E>;
   #promise: Promise<Response>;
   #isTimeout: boolean = false;
-  // eslint-disable-next-line no-explicit-any
   #executor: Promise<any> | null = null;
-  // #finallyCallbacks: Array<(() => void) | null | undefined> = [];
   #finallyCallbacks: Set<(() => void) | null | undefined> = new Set();
   #responseType: FetchResponseType = 'json';
   #fullOptions: BaseRequestOptions<unknown, unknown, E>;
@@ -149,8 +151,8 @@ export class HookFetchRequest<T, E> implements PromiseLike<T> {
       extra: extra as E,
       method,
       headers,
-      qsArrayFormat
-    }
+      qsArrayFormat,
+    };
     this.#promise = this.#init(options);
   }
 
@@ -175,20 +177,20 @@ export class HookFetchRequest<T, E> implements PromiseLike<T> {
         headers: config.headers as HeadersInit,
         signal: this.#controller.signal,
         credentials: config.withCredentials ? 'include' : 'omit',
-        body
+        body,
       };
 
       const req = fetch(_url_, options);
-      let promises: Array<Promise<Response | void>> = [req];
+      const promises: Array<Promise<Response | void>> = [req];
       let timeoutId: ReturnType<typeof setTimeout> | null = null;
       if (timeout) {
         const timeoutPromise = new Promise<void>((_) => {
           timeoutId = setTimeout(() => {
             this.#isTimeout = true;
             this.#controller?.abort();
-          }, timeout)
-        })
-        promises.push(timeoutPromise)
+          }, timeout);
+        });
+        promises.push(timeoutPromise);
       }
 
       let err: Error | null = null;
@@ -196,7 +198,7 @@ export class HookFetchRequest<T, E> implements PromiseLike<T> {
         const res = await Promise.race(promises);
         if (res) {
           if (res.ok) {
-            resolve(res)
+            resolve(res);
           }
           err = new ResponseError({
             message: 'Fail Request',
@@ -204,32 +206,36 @@ export class HookFetchRequest<T, E> implements PromiseLike<T> {
             statusText: res.statusText,
             config: this.#config,
             name: 'Fail Request',
-            response: res
-          })
-        } else {
+            response: res,
+          });
+        }
+        else {
           err = new ResponseError({
             message: 'NETWORK_ERROR',
             status: StatusCode.NETWORK_ERROR,
             statusText: 'Network Error',
             config: this.#config,
             name: 'Network Error',
-          })
+          });
         }
-      } catch (error) {
+      }
+      catch (error) {
         err = error as Error;
-      } finally {
+      }
+      finally {
         if (err) {
-          reject(err)
+          reject(err);
         }
         if (timeoutId) {
           clearTimeout(timeoutId);
         }
       }
-    })
+    });
   }
 
   async #createNormalizeError(error: unknown): Promise<ResponseError> {
-    if (error instanceof ResponseError) return error;
+    if (error instanceof ResponseError)
+      return error;
 
     if (error instanceof TypeError) {
       if (error.name === 'AbortError') {
@@ -240,37 +246,38 @@ export class HookFetchRequest<T, E> implements PromiseLike<T> {
             statusText: 'Request timeout',
             config: this.#config,
             name: 'Request timeout',
-            response: await this.#response
-          })
-        } else {
+            response: await this.#response,
+          });
+        }
+        else {
           return new ResponseError({
             message: 'Request aborted',
             status: StatusCode.ABORTED,
             statusText: 'Request aborted',
             config: this.#config,
             name: 'Request aborted',
-            response: await this.#response
-          })
+            response: await this.#response,
+          });
         }
       }
       return new ResponseError({
         message: error.message,
         status: StatusCode.NETWORK_ERROR,
-        statusText: "Unknown Request Error",
+        statusText: 'Unknown Request Error',
         config: this.#config,
         name: error.name,
-        response: await this.#response
+        response: await this.#response,
       });
     }
 
     return new ResponseError({
-      message: (error as Error)?.message ?? "Unknown Request Error",
+      message: (error as Error)?.message ?? 'Unknown Request Error',
       status: StatusCode.UNKNOWN,
-      statusText: "Unknown Request Error",
+      statusText: 'Unknown Request Error',
       config: this.#config,
       name: 'Unknown Request Error',
-      response: await this.#response
-    })
+      response: await this.#response,
+    });
   }
 
   async #normalizeError(error: unknown): Promise<ResponseError> {
@@ -278,7 +285,7 @@ export class HookFetchRequest<T, E> implements PromiseLike<T> {
     for (const plugin of this.#plugins.errorPlugins) {
       err = await plugin(err, this.#config) as ResponseError<E>;
     }
-    return err
+    return err;
   }
 
   #execFinally() {
@@ -289,8 +296,9 @@ export class HookFetchRequest<T, E> implements PromiseLike<T> {
   }
 
   get #getExecutor() {
-    if (this.#executor) return this.#executor;
-    return this.#response
+    if (this.#executor)
+      return this.#executor;
+    return this.#response;
   }
 
   async #resolve(v: T | Blob | string | ArrayBuffer | FormData | Uint8Array<ArrayBufferLike>) {
@@ -300,33 +308,33 @@ export class HookFetchRequest<T, E> implements PromiseLike<T> {
       response: await this.#response.then(r => r.clone()),
       responseType: this.#responseType,
       controller: this.#controller,
-      result: v
+      result: v,
     };
     try {
       for (const plugin of plugins) {
-        ctx = await plugin(ctx, this.#config)
+        ctx = await plugin(ctx, this.#config);
       }
       return ctx.result as T;
-    } catch (error) {
-      return Promise.reject(error)
+    }
+    catch (error) {
+      return Promise.reject(error);
     }
   }
 
-
   then<TResult1 = T, TResult2 = never>(
     onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | null | undefined,
-    onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null | undefined
+    onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null | undefined,
   ): Promise<TResult1 | TResult2> {
     return this.#getExecutor.then(
-      async (v) => onfulfilled?.call(this, await this.#resolve(v)),
-      async (e) => onrejected?.call(this, await this.#normalizeError(e))
-    ) as Promise<TResult1 | TResult2>
+      async v => onfulfilled?.call(this, await this.#resolve(v)),
+      async e => onrejected?.call(this, await this.#normalizeError(e)),
+    ) as Promise<TResult1 | TResult2>;
   }
 
   catch<TResult = never>(
-    onrejected?: ((reason: unknown) => TResult | PromiseLike<TResult>) | null | undefined
+    onrejected?: ((reason: unknown) => TResult | PromiseLike<TResult>) | null | undefined,
   ): Promise<T | TResult> {
-    return this.#getExecutor.catch(onrejected)
+    return this.#getExecutor.catch(onrejected);
   }
 
   finally(onfinally?: (() => void) | null | undefined) {
@@ -359,7 +367,7 @@ export class HookFetchRequest<T, E> implements PromiseLike<T> {
   }
 
   #then(type: ResponseType, promise: Promise<any>) {
-    this.#executor = promise.then(r => {
+    this.#executor = promise.then((r) => {
       this.#responseType = type;
       return this.#resolve(r);
     }).catch(async (e) => {
@@ -378,7 +386,7 @@ export class HookFetchRequest<T, E> implements PromiseLike<T> {
     return this.#then(ResponseType.BYTES, this.#response.then(r => r.bytes())) as Promise<Uint8Array<ArrayBufferLike>>;
   }
 
-  async *stream<T>() {
+  async* stream<T>() {
     let body = (await this.#response)?.body;
     if (!body) {
       throw new Error('Response body is null');
@@ -399,7 +407,7 @@ export class HookFetchRequest<T, E> implements PromiseLike<T> {
         let res: StreamContext = {
           source: value,
           result: value,
-          error: null
+          error: null,
         };
         try {
           for (const plugin of this.#plugins.transformStreamChunkPlugins) {
@@ -408,25 +416,29 @@ export class HookFetchRequest<T, E> implements PromiseLike<T> {
           if (res.result && (isGenerator(res.result) || isAsyncGenerator(res.result))) {
             for await (const chunk of (res.result as AsyncGenerator<any, void, unknown>
             )) {
-              let resultItem = {
+              const resultItem = {
                 source: res.source,
                 result: chunk,
-                error: null
-              }
+                error: null,
+              };
               yield resultItem as StreamContext<T>;
             }
-          } else {
+          }
+          else {
             yield res as StreamContext<T>;
           }
-        } catch (error) {
+        }
+        catch (error) {
           res.error = error;
           res.result = null;
           yield res as StreamContext<null>;
         }
       }
-    } catch (error) {
+    }
+    catch (error) {
       return this.#normalizeError(error);
-    } finally {
+    }
+    finally {
       reader.releaseLock();
       this.#execFinally();
     }
@@ -442,10 +454,10 @@ export class HookFetchRequest<T, E> implements PromiseLike<T> {
   }
 }
 
-export const isGenerator = (v: any) => {
+export function isGenerator(v: any) {
   return v[Symbol.toStringTag] === 'Generator' && typeof v.next === 'function' && typeof v.return === 'function' && typeof v.throw === 'function' && typeof v[Symbol.iterator] === 'function';
 }
 
-export const isAsyncGenerator = (v: any) => {
+export function isAsyncGenerator(v: any) {
   return v[Symbol.toStringTag] === 'AsyncGenerator' && typeof v.next === 'function' && typeof v.return === 'function' && typeof v.throw === 'function' && typeof v[Symbol.asyncIterator] === 'function';
 }
