@@ -1,5 +1,11 @@
 # hook-fetch
 
+## 2.1.1
+
+### Patch Changes
+
+- 8d4d6b6: 修复HookFetchRequest实例没有抛出的问题
+
 ## 2.1.1-beta.0
 
 ### Patch Changes
