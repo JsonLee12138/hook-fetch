@@ -1,7 +1,7 @@
-import { describe, expect, test } from 'vitest';
-import hookFetch, { ResponseError } from '../src/index';
-import type { HookFetchPlugin } from '../src/types';
 import type { AnyObject, Generic } from 'typescript-api-pro';
+import type { HookFetchPlugin } from '../src/types';
+import { describe, expect } from 'vitest';
+import hookFetch, { ResponseError } from '../src/index';
 
 describe('test hook-fetch', () => {
   interface TodoDTO {
@@ -11,28 +11,28 @@ describe('test hook-fetch', () => {
     completed: boolean;
   }
 
-  test('test normal request', async () => {
+  it('test normal request', async () => {
     const res = await hookFetch<TodoDTO>('https://jsonplaceholder.typicode.com/todos/1').json();
     const result = { userId: 1, id: 1, title: 'delectus aut autem', completed: false };
     expect(res).toEqual(result);
   });
 
-  test('test normal request retry', async () => {
+  it('test normal request retry', async () => {
     const req = hookFetch('https://jsonplaceholder.typicode.com/todos/1');
-    req.abort()
+    req.abort();
     const newReq = req.retry().json();
     const res = await newReq;
     const result = { userId: 1, id: 1, title: 'delectus aut autem', completed: false };
     expect(res).toEqual(result);
   });
 
-  test('test sse', async () => {
+  it('test sse', async () => {
     const req = hookFetch('https://sse.dev/test');
     let i = 0;
     for await (const chunk of req.stream<AllowSharedBufferSource>()) {
       const decoder = new TextDecoder('utf-8');
       const msg = decoder.decode(chunk.result as AllowSharedBufferSource, { stream: true });
-      console.log(msg)
+      console.log(msg);
       expect(typeof msg).toBe('string');
       i++;
       if (i >= 3) {
@@ -40,48 +40,48 @@ describe('test hook-fetch', () => {
         break;
       };
     }
-  })
+  });
 
-  test('test blob', async () => {
+  it('test blob', async () => {
     const req = hookFetch('https://picsum.photos/200/300');
     const contentLength = (await req.response).headers.get('content-length');
     console.log(contentLength, 'size');
 
     for await (const chunk of req.stream<AllowSharedBufferSource>()) {
-      console.log(chunk.source.length, 'stream')
+      console.log(chunk.source.length, 'stream');
     };
 
     const blob = await req.blob();
     console.log(blob);
     expect(blob instanceof Blob).toBe(true);
-  })
+  });
 
-  test('test text', async () => {
+  it('test text', async () => {
     const req = hookFetch('https://blog.chiyu.site');
     const text = await req.text();
     console.log(text);
     expect(typeof text).toBe('string');
-  })
+  });
 
-  test('test create', async () => {
+  it('test create', async () => {
     const instance = hookFetch.create({
       baseURL: 'https://jsonplaceholder.typicode.com',
       headers: {
         'Content-Type': 'application/json',
       },
-    })
+    });
 
     console.log(instance);
     expect(!!instance.request).toBe(true);
-  })
+  });
 
-  test('test instance get', async () => {
+  it('test instance get', async () => {
     const instance = hookFetch.create<TodoDTO>({
       baseURL: 'https://jsonplaceholder.typicode.com',
       headers: {
         'Content-Type': 'application/json',
       },
-    })
+    });
 
     const res = await instance.get('/todos/1').json();
 
@@ -89,9 +89,9 @@ describe('test hook-fetch', () => {
 
     const result = { userId: 1, id: 1, title: 'delectus aut autem', completed: false };
     expect(res).toEqual(result);
-  })
+  });
 
-  test('test instance default request', async () => {
+  it('test instance default request', async () => {
     interface BaseDTO {
       code: number;
       data: null;
@@ -106,16 +106,15 @@ describe('test hook-fetch', () => {
         title: 'delectus aut autem',
         completed: false,
       },
-      msg: 'ok'
-    }
+      msg: 'ok',
+    };
 
     const instance = hookFetch.create<BaseDTO, 'data'>({
       baseURL: 'https://jsonplaceholder.typicode.com',
       headers: {
         'Content-Type': 'application/json',
       },
-    })
-
+    });
 
     // console.log(instance)
     const res = await instance.post<TodoDTO>('/posts', body).json();
@@ -126,18 +125,18 @@ describe('test hook-fetch', () => {
       code: 1,
       data: { id: 1, userId: 1, title: 'delectus aut autem', completed: false },
       msg: 'ok',
-      id: 101
+      id: 101,
     };
     expect(res).toEqual(result);
-  })
+  });
 
-  test('test instance get retry', async () => {
+  it('test instance get retry', async () => {
     const instance = hookFetch.create({
       baseURL: 'https://jsonplaceholder.typicode.com',
       headers: {
         'Content-Type': 'application/json',
       },
-    })
+    });
 
     const req = instance.get<TodoDTO>('/todos/1');
 
@@ -151,15 +150,15 @@ describe('test hook-fetch', () => {
     const result = { userId: 1, id: 1, title: 'delectus aut autem', completed: false };
 
     expect(res).toEqual(result);
-  })
+  });
 
-  test('test instance get text', async () => {
+  it('test instance get text', async () => {
     const instance = hookFetch.create({
       baseURL: 'https://blog.chiyu.site',
       headers: {
         'Content-Type': 'application/json',
       },
-    })
+    });
 
     try {
       const res = await instance.get('/posts').text();
@@ -167,18 +166,19 @@ describe('test hook-fetch', () => {
       console.log(res);
 
       expect(typeof res).toEqual('string');
-    } finally {
-      console.log('ok')
     }
-  })
+    finally {
+      console.log('ok');
+    }
+  });
 
-  test('test instance sse plugin', async () => {
+  it('test instance sse plugin', async () => {
     const instance = hookFetch.create({
       baseURL: 'https://sse.dev',
       headers: {
         'Content-Type': 'application/json',
       },
-    })
+    });
 
     // 目前自带一下插件, 可在 hook-fetch/plugins 中引入, 名为 `sseTextDecoderPlugin`
     const ssePlugin = (): HookFetchPlugin => {
@@ -190,9 +190,9 @@ describe('test hook-fetch', () => {
             chunk.result = decoder.decode(chunk.result as AllowSharedBufferSource, { stream: true });
           }
           return chunk;
-        }
-      }
-    }
+        },
+      };
+    };
 
     instance.use(ssePlugin());
 
@@ -208,15 +208,15 @@ describe('test hook-fetch', () => {
         break;
       };
     }
-  })
+  });
 
-  test('test instance request plugin', async () => {
+  it('test instance request plugin', async () => {
     const instance = hookFetch.create<TodoDTO>({
       baseURL: 'https://jsonplaceholder.typicode.com',
       headers: {
         'Content-Type': 'application/json',
       },
-    })
+    });
 
     const requestPlugin = (): HookFetchPlugin<TodoDTO> => {
       return {
@@ -225,27 +225,29 @@ describe('test hook-fetch', () => {
           console.log(response, 'response');
           if (response.result?.completed) {
             return response;
-          } else {
-            throw new Error('not completed')
+          }
+          else {
+            throw new Error('not completed');
           }
         },
         async onError(error) {
-          return new Error('customError', error)
-        }
-      }
-    }
+          return new Error('customError', error);
+        },
+      };
+    };
 
     instance.use(requestPlugin());
 
     try {
       await instance.get('/todos/1').json();
-    } catch (error) {
-      console.log(error);
-      expect(error).toEqual(new Error('customError'))
     }
-  })
+    catch (error) {
+      console.log(error);
+      expect(error).toEqual(new Error('customError'));
+    }
+  });
 
-  test('test file upload with FormData', async () => {
+  it('test file upload with FormData', async () => {
     // 创建一个测试用的文件
     const fileContent = 'Hello, this is a test file content!';
     const file = new File([fileContent], 'test.txt', { type: 'text/plain' });
@@ -256,21 +258,21 @@ describe('test hook-fetch', () => {
     formData.append('description', 'Test file upload');
     formData.append('userId', '123');
     interface UploadVO {
-      args: AnyObject
+      args: AnyObject;
       files: {
-        file: string
-      }
+        file: string;
+      };
       form: {
-        description: string
-        userId: string
-      }
+        description: string;
+        userId: string;
+      };
     }
 
     // 使用支持文件上传的测试服务
     const res = await hookFetch.upload<UploadVO>('https://httpbin.org/post', {
       file,
       description: 'Test file upload',
-      userId: '123'
+      userId: '123',
     }).json();
 
     console.log('File upload response:', res);
@@ -283,20 +285,20 @@ describe('test hook-fetch', () => {
     expect(res.files.file).toBeDefined();
   });
 
-  test('test file upload with instance', async () => {
+  it('test file upload with instance', async () => {
     interface BaseUploadVO {
-      args: AnyObject
+      args: AnyObject;
       files: {
-        file: string
-      }
+        file: string;
+      };
       form: {
-        metadata: string
-      }
+        metadata: string;
+      };
     }
     const instance = hookFetch.create<BaseUploadVO, 'args'>({
       baseURL: 'https://httpbin.org',
       headers: {
-        'Accept': 'application/json',
+        Accept: 'application/json',
       },
     });
 
@@ -308,10 +310,8 @@ describe('test hook-fetch', () => {
     formData.append('file', file);
     formData.append('metadata', JSON.stringify({
       uploadTime: new Date().toISOString(),
-      version: '1.0.0'
+      version: '1.0.0',
     }));
-
-
 
     const res = await instance.post('/post', formData).json();
 
@@ -322,7 +322,7 @@ describe('test hook-fetch', () => {
     expect(res.files.file).toBeDefined();
   });
 
-  test('test multiple files upload', async () => {
+  it('test multiple files upload', async () => {
     // 创建多个测试文件
     const file1 = new File(['File 1 content'], 'file1.txt', { type: 'text/plain' });
     const file2 = new File(['File 2 content'], 'file2.txt', { type: 'text/plain' });
@@ -336,19 +336,19 @@ describe('test hook-fetch', () => {
     formData.append('title', 'Multiple files upload test');
 
     interface UploadVO {
-      args: AnyObject
+      args: AnyObject;
       files: {
-        files: string
-        image: string
-      },
+        files: string;
+        image: string;
+      };
       form: {
-        title: string
-      }
+        title: string;
+      };
     }
 
     const res = await hookFetch.upload<UploadVO>('https://httpbin.org/post', {
       method: 'POST',
-      data: formData
+      data: formData,
     }).json();
 
     console.log('Multiple files upload response:', res);
@@ -360,7 +360,7 @@ describe('test hook-fetch', () => {
     expect(res.files.image).toBeDefined();
   });
 
-  test('test file upload with progress tracking', async () => {
+  it('test file upload with progress tracking', async () => {
     const fileContent = 'Large file content for progress testing '.repeat(1000); // 创建较大的文件
     const file = new File([fileContent], 'large-file.txt', { type: 'text/plain' });
 
@@ -370,7 +370,7 @@ describe('test hook-fetch', () => {
 
     const req = hookFetch('https://httpbin.org/post', {
       method: 'POST',
-      data: formData
+      data: formData,
     });
 
     // 监听上传进度（通过流式处理）
@@ -389,13 +389,14 @@ describe('test hook-fetch', () => {
     // 由于我们中断了流，这里会抛出错误，这是预期的
     try {
       await req;
-    } catch (error) {
+    }
+    catch (error) {
       console.log('Upload was aborted as expected:', error);
       expect(error).toBeDefined();
     }
   });
 
-  test('test file upload with custom headers', async () => {
+  it('test file upload with custom headers', async () => {
     const file = new File(['Custom headers test file'], 'custom-headers.txt', { type: 'text/plain' });
 
     const formData = new FormData();
@@ -403,14 +404,14 @@ describe('test hook-fetch', () => {
     formData.append('customField', 'customValue');
 
     interface UploadVO {
-      args: AnyObject
+      args: AnyObject;
       files: {
-        file: string
-      }
+        file: string;
+      };
       form: {
-        customField: string
-      },
-      headers: Record<string, string>
+        customField: string;
+      };
+      headers: Record<string, string>;
     }
 
     const res = await hookFetch<UploadVO>('https://httpbin.org/post', {
@@ -419,8 +420,8 @@ describe('test hook-fetch', () => {
       headers: {
         'X-Custom-Header': 'custom-value',
         'Authorization': 'Bearer test-token',
-        'X-Upload-Source': 'test-suite'
-      }
+        'X-Upload-Source': 'test-suite',
+      },
     }).json();
 
     console.log('Custom headers upload response:', res);
@@ -429,11 +430,11 @@ describe('test hook-fetch', () => {
     expect(res.form.customField).toBe('customValue');
     expect(res.headers).toBeDefined();
     expect(res.headers['X-Custom-Header']).toBe('custom-value');
-    expect(res.headers['Authorization']).toBe('Bearer test-token');
+    expect(res.headers.Authorization).toBe('Bearer test-token');
     expect(res.headers['X-Upload-Source']).toBe('test-suite');
   });
 
-  test('test error', async () => {
+  it('test error', async () => {
     const jwtPlugin = (): HookFetchPlugin<any> => {
       return {
         name: 'jwt',
@@ -447,53 +448,54 @@ describe('test hook-fetch', () => {
             statusText: ctx.result.msg,
             response: ctx.response,
             config: ctx.config,
-            name: 'jwt'
-          })
+            name: 'jwt',
+          });
         },
-      }
-    }
+      };
+    };
     const instance = hookFetch.create({
       baseURL: 'http://localhost:3000',
       headers: {
         'Content-Type': 'application/json',
       },
-      plugins: [jwtPlugin()]
-    })
+      plugins: [jwtPlugin()],
+    });
     const requestPlugin = (): HookFetchPlugin<any> => {
       return {
         name: 'error',
         async onError(error) {
-          return error
-        }
-      }
-    }
+          return error;
+        },
+      };
+    };
     instance.use(requestPlugin());
     try {
       await instance.get('/api/test').json();
       throw new Error('Expected error to be thrown');
-    } catch (error) {
-      expect((error as ResponseError).status).toEqual(401)
-      expect((error as ResponseError).message).toEqual('test')
-      expect((error as ResponseError).name).toEqual('jwt')
     }
-  })
+    catch (error) {
+      expect((error as ResponseError).status).toEqual(401);
+      expect((error as ResponseError).message).toEqual('test');
+      expect((error as ResponseError).name).toEqual('jwt');
+    }
+  });
 
-  test('delete&body', async () => {
+  it('delete&body', async () => {
     const body = {
       id: 1,
       userId: 1,
       title: 'delectus aut autem',
       completed: false,
-    }
+    };
 
     interface DeleteVO {
-      data: string
+      data: string;
     }
 
     const res = await hookFetch.delete<DeleteVO>('https://postman-echo.com/delete', {
-      data: body
+      data: body,
     }).json();
 
     expect(res.data).toEqual(JSON.stringify(body));
-  })
-})
+  });
+});

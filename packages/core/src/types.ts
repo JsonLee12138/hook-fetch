@@ -64,7 +64,7 @@ export type OnFinallyHandler<E = unknown, P = unknown, D = unknown> = (res: Pick
 
 export type OnErrorHandler<E = unknown, P = unknown, D = unknown> = (error: ResponseError, config: RequestConfig<P, D, E>) => PromiseLike<Error | void | ResponseError<E>> | Error | void | ResponseError<E>;
 
-export type HookFetchPlugin<T = unknown, E = unknown, P = unknown, D = unknown> = {
+export interface HookFetchPlugin<T = unknown, E = unknown, P = unknown, D = unknown> {
   /** 插件名称 */
   name: string;
   /** 优先级 */

@@ -126,7 +126,7 @@ export function getBody(body: AnyObject, method: RequestMethod, headers?: Header
   return res;
 }
 
-export class HookFetchRequest<T, E> implements PromiseLike<T> {
+export class HookFetchRequest<T = unknown, E = unknown> implements PromiseLike<T> {
   #plugins: ReturnType<typeof parsePlugins>;
   #controller: AbortController;
   #config: RequestConfig<unknown, unknown, E>;

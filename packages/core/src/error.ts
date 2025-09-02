@@ -1,4 +1,4 @@
-import type { RequestConfig } from "./types";
+import type { RequestConfig } from './types';
 
 export interface ResponseErrorOptions<E = unknown> {
   name?: string;
@@ -30,18 +30,23 @@ export class ResponseError<E = unknown> extends Error {
   get message() {
     return this.#message;
   }
+
   get status() {
     return this.#status;
   }
+
   get statusText() {
     return this.#statusText;
   }
+
   get response() {
     return this.#response;
   }
+
   get config() {
     return this.#config;
   }
+
   get name() {
     return this.#name;
   }

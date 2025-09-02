@@ -14,7 +14,7 @@ export enum StatusCode {
   ABORTED = 499,
   NETWORK_ERROR = 599,
   BODY_NULL = 502,
-  UNKNOWN = 601
+  UNKNOWN = 601,
 }
 
 export enum Method {
