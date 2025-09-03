@@ -1,5 +1,11 @@
 # hook-fetch
 
+## 2.1.2
+
+### Patch Changes
+
+- 修复抛出的HookFetchRequest类型不支持泛型的问题
+
 ## 2.1.1
 
 ### Patch Changes

@@ -5,5 +5,5 @@ export * from './base';
 export * from './enum';
 export * from './error';
 export * from './types';
-export type HookFetchRequest = _HookFetchRequest_;
+export type HookFetchRequest<T = unknown, E = unknown> = _HookFetchRequest_<T, E>;
 export default hookFetch;
