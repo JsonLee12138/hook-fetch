@@ -12,5 +12,6 @@ export default antfu({
   },
   rules: {
     'no-console': 'warn',
+    'dot-notation': 'off',
   },
 });

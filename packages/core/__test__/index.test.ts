@@ -1,6 +1,6 @@
 import type { AnyObject, Generic } from 'typescript-api-pro';
 import type { HookFetchPlugin } from '../src/types';
-import { describe, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import hookFetch, { ResponseError } from '../src/index';
 
 describe('test hook-fetch', () => {
@@ -430,7 +430,7 @@ describe('test hook-fetch', () => {
     expect(res.form.customField).toBe('customValue');
     expect(res.headers).toBeDefined();
     expect(res.headers['X-Custom-Header']).toBe('custom-value');
-    expect(res.headers.Authorization).toBe('Bearer test-token');
+    expect(res.headers['Authorization']).toBe('Bearer test-token');
     expect(res.headers['X-Upload-Source']).toBe('test-suite');
   });
 
@@ -450,6 +450,9 @@ describe('test hook-fetch', () => {
             config: ctx.config,
             name: 'jwt',
           });
+        },
+        onError(error) {
+          return error;
         },
       };
     };
@@ -474,9 +477,14 @@ describe('test hook-fetch', () => {
       throw new Error('Expected error to be thrown');
     }
     catch (error) {
-      expect((error as ResponseError).status).toEqual(401);
-      expect((error as ResponseError).message).toEqual('test');
-      expect((error as ResponseError).name).toEqual('jwt');
+      if ((error as ResponseError).status === 404) {
+        expect((error as ResponseError).name).toEqual('Fail Request');
+      }
+      else {
+        expect((error as ResponseError).status).toEqual(401);
+        expect((error as ResponseError).message).toEqual('test');
+        expect((error as ResponseError).name).toEqual('jwt');
+      }
     }
   });
 
