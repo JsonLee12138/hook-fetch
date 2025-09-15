@@ -111,7 +111,6 @@ export function getBody(body: AnyObject, method: RequestMethod, headers?: Header
       if (!(body instanceof FormData) && typeof body === 'object') {
         const _data = body as AnyObject;
         Object.keys(_data).forEach((key) => {
-          // eslint-disable-next-line dot-notation
           if (_data['prototype'].hasOwnProperty.call(key)) {
             formData.append(key, _data[key]);
           }
@@ -305,7 +304,7 @@ export class HookFetchRequest<T = unknown, E = unknown> implements PromiseLike<T
     const plugins = this.#plugins.afterResponsePlugins;
     let ctx: FetchPluginContext = {
       config: this.#config,
-      response: await this.#response.then(r => r.clone()),
+      response: await this.#response,
       responseType: this.#responseType,
       controller: this.#controller,
       result: v,
