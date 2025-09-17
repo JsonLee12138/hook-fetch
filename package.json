@@ -21,7 +21,8 @@
     "lint-staged": "lint-staged",
     "cz": "cz",
     "cv:beta": "pnpm changeset pre enter beta --filter=hook-fetch",
-    "tag": "changeset version && git add . && git commit -m 'chore(release): version packages' && deno run -A scripts/tag.ts && git push --follow-tags"
+    "tag": "changeset version && git add . && git commit -m 'chore(release): version packages' && deno run -A scripts/tag.ts && git push --follow-tags",
+    "push:tag": "git push --follow-tags"
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.7",
