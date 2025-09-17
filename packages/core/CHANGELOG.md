@@ -1,5 +1,11 @@
 # hook-fetch
 
+## 2.1.3
+
+### Patch Changes
+
+- 修复stream方法的错误不会走plugin的错误生命周期的bug
+
 ## 2.1.2
 
 ### Patch Changes

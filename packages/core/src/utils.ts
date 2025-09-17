@@ -207,6 +207,7 @@ export class HookFetchRequest<T = unknown, E = unknown> implements PromiseLike<T
             name: 'Fail Request',
             response: res,
           });
+          // reject(await this.#normalizeError(err));
         }
         else {
           err = new ResponseError({
@@ -284,6 +285,7 @@ export class HookFetchRequest<T = unknown, E = unknown> implements PromiseLike<T
     for (const plugin of this.#plugins.errorPlugins) {
       err = await plugin(err, this.#config) as ResponseError<E>;
     }
+    (err as any).__normalized = true;
     return err;
   }
 
@@ -346,7 +348,9 @@ export class HookFetchRequest<T = unknown, E = unknown> implements PromiseLike<T
   }
 
   get #response() {
-    return this.#promise.then(r => r.clone());
+    return this.#promise.then(r => r.clone()).catch(async (e)=> {
+      throw await this.#normalizeError(e);
+    });
   }
 
   json() {
@@ -369,10 +373,15 @@ export class HookFetchRequest<T = unknown, E = unknown> implements PromiseLike<T
     this.#executor = promise.then((r) => {
       this.#responseType = type;
       return this.#resolve(r);
-    }).catch(async (e) => {
-      this.#responseType = type;
-      throw await this.#normalizeError(e);
-    }).finally(this.#execFinally.bind(this));
+    })
+      .catch(async (e) => {
+        this.#responseType = type;
+        if((e as any).__normalized){
+          throw e;
+        }
+        throw await this.#normalizeError(e);
+      })
+      .finally(this.#execFinally.bind(this));
 
     return this.#executor;
   }

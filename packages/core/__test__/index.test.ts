@@ -1,15 +1,35 @@
 import type { AnyObject, Generic } from 'typescript-api-pro';
 import type { HookFetchPlugin } from '../src/types';
-import { describe, expect, it } from 'vitest';
+import type { TestServer } from './util';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import hookFetch, { ResponseError } from '../src/index';
+import { startTestSseServer } from './util';
+
+interface TodoDTO {
+  userId: number;
+  id: number;
+  title: string;
+  completed: boolean;
+}
 
 describe('test hook-fetch', () => {
-  interface TodoDTO {
-    userId: number;
-    id: number;
-    title: string;
-    completed: boolean;
-  }
+  let server: TestServer;
+
+  beforeAll(async () => {
+    server = await startTestSseServer(9999, (app) => {
+      app.get('/api/test', (req, res) => {
+        res.json({
+          code: 401,
+          message: 'test',
+          msg: 'test',
+        });
+      });
+    });
+  });
+
+  afterAll(async () => {
+    await server.close();
+  });
 
   it('test normal request', async () => {
     const res = await hookFetch<TodoDTO>('https://jsonplaceholder.typicode.com/todos/1').json();
@@ -457,7 +477,7 @@ describe('test hook-fetch', () => {
       };
     };
     const instance = hookFetch.create({
-      baseURL: 'http://localhost:3000',
+      baseURL: server.baseURL,
       headers: {
         'Content-Type': 'application/json',
       },
