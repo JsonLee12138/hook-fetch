@@ -160,8 +160,24 @@ export class HookFetchRequest<T = unknown, E = unknown> implements PromiseLike<T
     return new Promise<Response>(async (resolve, reject) => {
       let config = this.#config;
       const { beforeRequestPlugins } = this.#plugins;
+      let err = null;
       for (const plugin of beforeRequestPlugins) {
-        config = (await plugin(config)) as RequestConfig<unknown, unknown, E>;
+        try {
+          config = (await plugin(config)) as RequestConfig<unknown, unknown, E>;
+        }
+        catch (error) {
+          err = new ResponseError({
+            message: (error as Error)?.message ?? 'Unknown Request Error in beforeRequest',
+            status: (error as ResponseError)?.status ?? StatusCode.UNKNOWN,
+            statusText: (error as ResponseError)?.statusText ?? 'Unknown Request Error in beforeRequest',
+            config: this.#config,
+            name: (error as Error)?.name ?? 'Unknown Request Error in beforeRequest',
+          });
+          break;
+        }
+      }
+      if (err) {
+        return reject(err);
       }
 
       const _url_ = buildUrl(config.baseURL + config.url, config.params as AnyObject, config.qsArrayFormat);
@@ -192,7 +208,6 @@ export class HookFetchRequest<T = unknown, E = unknown> implements PromiseLike<T
         promises.push(timeoutPromise);
       }
 
-      let err: Error | null = null;
       try {
         const res = await Promise.race(promises);
         if (res) {
@@ -207,7 +222,6 @@ export class HookFetchRequest<T = unknown, E = unknown> implements PromiseLike<T
             name: 'Fail Request',
             response: res,
           });
-          // reject(await this.#normalizeError(err));
         }
         else {
           err = new ResponseError({
@@ -236,7 +250,6 @@ export class HookFetchRequest<T = unknown, E = unknown> implements PromiseLike<T
   async #createNormalizeError(error: unknown): Promise<ResponseError> {
     if (error instanceof ResponseError)
       return error;
-
     if (error instanceof TypeError) {
       if (error.name === 'AbortError') {
         if (this.#isTimeout) {
@@ -348,7 +361,7 @@ export class HookFetchRequest<T = unknown, E = unknown> implements PromiseLike<T
   }
 
   get #response() {
-    return this.#promise.then(r => r.clone()).catch(async (e)=> {
+    return this.#promise.then(r => r.clone()).catch(async (e) => {
       throw await this.#normalizeError(e);
     });
   }
@@ -376,7 +389,7 @@ export class HookFetchRequest<T = unknown, E = unknown> implements PromiseLike<T
     })
       .catch(async (e) => {
         this.#responseType = type;
-        if((e as any).__normalized){
+        if ((e as any).__normalized) {
           throw e;
         }
         throw await this.#normalizeError(e);

@@ -1,4 +1,5 @@
-import type { ResponseError } from '../src/index';
+import type { AnyObject } from 'typescript-api-pro';
+import type { HookFetchPlugin, ResponseError } from '../src/index';
 import type { TestServer } from './util';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import hookFetch from '../src/index';
@@ -25,6 +26,12 @@ describe('sSE server + hook-fetch integration', () => {
       app.post('/sse-error', (_, res) => {
         res.status(401);
         res.end();
+      });
+      app.post('/test-json', (_, res) => {
+        res.json({
+          id: 1,
+          text: 'hello 1',
+        });
       });
     });
   });
@@ -109,5 +116,55 @@ describe('sSE server + hook-fetch integration', () => {
     catch (error) {
       expect((error as ResponseError).status).toBe(401);
     }
+  });
+  it('test dedupe plugin', async () => {
+    const dedupePlugin = (): HookFetchPlugin => {
+      const pendingRequests = new Map();
+      const getRequestKey = (url: string, method: string, params: AnyObject, data: AnyObject) => {
+        return `${method}:${url}:${JSON.stringify(params)}:${JSON.stringify(data)}`;
+      };
+
+      return {
+        name: 'dedupe',
+        async beforeRequest(config) {
+          const key = getRequestKey(
+            config.url,
+            config.method,
+            config.params as AnyObject,
+            config.data as AnyObject,
+          );
+
+          if (pendingRequests.has(key)) {
+            // 返回已存在的请求
+            pendingRequests.delete(key);
+            throw new Error('already exists');
+          }
+          pendingRequests.set(key, config);
+          return config;
+        },
+        async afterResponse(context) {
+          const { config } = context;
+          const key = getRequestKey(
+            config.url,
+            config.method,
+            config.params as AnyObject,
+            config.data as AnyObject,
+          );
+          pendingRequests.delete(key);
+          return context;
+        },
+      };
+    };
+    const request = hookFetch.create({
+      baseURL: server.baseURL,
+      headers: { 'Content-Type': 'application/json' },
+    });
+    request.use(dedupePlugin());
+    const req = request.post('/test-json');
+    const req2 = request.post('/test-json');
+    const [res1, res2] = await Promise.allSettled([req.json(), req2.json()]);
+    expect(res1.status).toBe('fulfilled');
+    expect(res2.status).toBe('rejected');
+    expect(((res2 as PromiseRejectedResult).reason as ResponseError).message).toBe('already exists');
   });
 });

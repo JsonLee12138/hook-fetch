@@ -1,5 +1,11 @@
 # hook-fetch
 
+## 2.1.4
+
+### Patch Changes
+
+- 修复beforeRequest中不能抛错的问题
+
 ## 2.1.3
 
 ### Patch Changes
@@ -31,75 +37,96 @@
 - 4b15105: 修改changeset配置, 改用changeset进行发布
 
 ## v2.1.0 💥
+
 **发布日期**: 2025-08-08
 
 #### 💔 破坏性变更
+
 - 泛型签名调整：`HookFetch` 与 `hookFetch.create` 的泛型从
   `<R extends AnyObject = AnyObject, K extends keyof R = 'data', E = AnyObject>`
   调整为
   `<R extends AnyObject | null = null, K extends keyof R = never, E = AnyObject>`。
-
   - 当 `R = null`（默认）时：`json<T>()` 的返回类型为 `T`，不做包裹映射（更贴近原生 fetch 的直觉）。
   - 当你需要“包裹响应”并做键映射时：显式传入响应包裹类型和键名，例如 `hookFetch.create<ResponseVO, 'data'>(...)`，此时 `json<User>()` 的返回类型为 `ResponseVO` 且其中 `data` 为 `User`。
 
 #### 🔧 迁移指南
+
 - 旧代码：
+
   ```ts
-  interface ResponseVO { code: number; message: string; data: never }
-  const api = hookFetch.create<ResponseVO>({ baseURL: '...' });
-  const res = await api.get<User>('/user').json();
+  interface ResponseVO {
+    code: number;
+    message: string;
+    data: never;
+  }
+  const api = hookFetch.create<ResponseVO>({ baseURL: "..." });
+  const res = await api.get<User>("/user").json();
   // res.data: User
   ```
+
   新代码需显式指定键名：
+
   ```ts
-  const api = hookFetch.create<ResponseVO, 'data'>({ baseURL: '...' });
-  const res = await api.get<User>('/user').json();
+  const api = hookFetch.create<ResponseVO, "data">({ baseURL: "..." });
+  const res = await api.get<User>("/user").json();
   // res.data: User
   ```
 
 - 若无需包裹（直接拿到 `T`）：
   ```ts
   const api = hookFetch.create(); // 等价于 <null, never>
-  const user = await api.get<User>('/user').json(); // user: User
+  const user = await api.get<User>("/user").json(); // user: User
   ```
 
 #### 🧰 其他
+
 - 同步更新文档：README 与 API 参考已更新示例，明确 `R | null` 与 `K` 的用法。
 
 ### v2.0.7 🛠️
+
 **发布日期**: 2025-08-08
 
 #### 🐛 修复
+
 - 修复 `json`、`text`、`blob`、`arrayBuffer`、`formData`、`bytes` 方法的类型推断缺失问题（更完善的返回值类型提示）。
 
 #### 🧱 基础设施
+
 - 调整与修复发布 CI/CD 流程相关配置。
 
 ### v2.0.6
+
 **发布日期**: 2025-08-07
 
 #### 🔧 变更
+
 - 发布流程与版本稳定性相关的调整。
 
 ### v2.0.3 🎉
+
 **发布日期**: 2025-06-30
 
 #### 💔 破坏性变更
+
 - **移除默认JSON解析**: 不再自动解析JSON响应，需要显式调用 `.json()` 方法
 - **更明确的响应处理**: 提供更明确的响应数据处理方式，避免隐式行为
 
 #### 🔧 API 调整
+
 - 所有请求方法现在需要显式调用响应处理方法（如 `.json()`, `.text()` 等）
 - 提高了API的明确性和可预测性
 
 #### 📚 文档更新
+
 - 更新了所有示例代码，明确显示 `.json()` 调用
 - 改进了响应处理的文档说明
 
 ### v1.0.x
+
 **发布日期**: 2025-04
 
 #### 🎯 首次发布
+
 - 基于原生 fetch API 的现代化 HTTP 请求库
 - **自动JSON解析**: 默认自动解析JSON响应
 - **完整插件系统**: 支持 `beforeRequest`, `afterResponse`, `beforeStream`, `transformStreamChunk`, `onError`, `onFinally` 生命周期钩子
@@ -116,6 +143,7 @@
 - **VSCode 智能提示**: 提供专门的类型声明文件
 
 ### 即将发布
+
 - 更多内置插件
 - 更丰富的插件生态
 - 更多框架集成支持
