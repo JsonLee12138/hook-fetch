@@ -1,10 +1,17 @@
-# Hook-Fetch 🚀
+<div align="center">
+   <a href="https://jsonlee12138.github.io/hook-fetch/"><img src="https://jsonlee12138.github.io/hook-fetch/img/logo.png" /></a><br>
+</div>
+<h1 align="center" style="margin-bottom: 0;">Hook-Fetch</h1>
+<div align="center">
+
+[![Build status](https://img.shields.io/github/actions/workflow/status/axios/axios/ci.yml?branch=v1.x&label=Release&logo=github&style=flat-square)](https://github.com/JsonLee12138/hook-fetch/actions/workflows/release.yml) [![install size](https://packagephobia.com/badge?p=hook-fetch)](https://packagephobia.com/result?p=hook-fetch) [![npm bundle size](https://img.shields.io/bundlephobia/minzip/hook-fetch?style=flat-square)](https://bundlephobia.com/package/hook-fetch@latest) [![npm downloads](https://img.shields.io/npm/dm/hook-fetch.svg?style=flat-square)](https://npm-stat.com/charts.html?package=hook-fetch) [![Discord](https://img.shields.io/badge/-Discord-5865F2?style=flat&logo=discord&logoColor=white)](https://discord.com/invite/666U6JTCQY)
 
 **[English document](https://github.com/JsonLee12138/hook-fetch/blob/main/README.en.md)**
 
-## 介绍
-
 Hook-Fetch 是一个强大的基于原生 fetch API 的请求库，提供了更简洁的语法、更丰富的功能和更灵活的插件系统。它支持请求重试、流式数据处理、中断请求等特性，并且采用Promise链式调用风格，使API请求变得更加简单和可控。
+
+</div>
+<br />
 
 ## 安装
 
@@ -149,7 +156,7 @@ Hook-Fetch 提供了强大的插件系统，可以在请求生命周期的各个
 ```typescript
 // 自定义插件示例：SSE文本解码插件
 // 当前只是示例, 建议使用当前库提供的`sseTextDecoderPlugin`插件, 那里做了更完善的处理
-const ssePlugin = () => {
+function ssePlugin() {
   const decoder = new TextDecoder('utf-8');
   return {
     name: 'sse',
@@ -159,8 +166,8 @@ const ssePlugin = () => {
       }
       return chunk;
     }
-  }
-};
+  };
+}
 
 // 注册插件
 api.use(ssePlugin());
@@ -176,7 +183,7 @@ for await (const chunk of req.stream<string>()) {
 
 ```typescript
 // 完整的插件示例，展示各个生命周期的使用
-const examplePlugin = () => {
+function examplePlugin() {
   return {
     name: 'example',
     priority: 1, // 优先级，数字越小优先级越高
@@ -194,17 +201,18 @@ const examplePlugin = () => {
       // 可以处理响应数据, context.result 是已经过 json() 等方法处理后的结果
       if (context.responseType === 'json') {
         // 例如，根据后端的业务码判断请求是否真正成功
-        if(context.result.code === 200){
+        if (context.result.code === 200) {
           // 业务成功，直接返回 context
-          return context
-        }else{
+          return context;
+        }
+        else {
           // 业务失败，主动抛出一个 ResponseError，它将在 onError 钩子中被捕获
           throw new ResponseError({
             message: context.result.message, // 使用后端的错误信息
-            status: context.result.code,     // 使用后端的业务码作为状态
-            response: context.response,      // 原始 Response 对象
+            status: context.result.code, // 使用后端的业务码作为状态
+            response: context.response, // 原始 Response 对象
             config: context.config,
-            name: 'BusinessError'            // 自定义错误名称
+            name: 'BusinessError' // 自定义错误名称
           });
         }
       }
@@ -233,7 +241,8 @@ const examplePlugin = () => {
       if (error.name === 'BusinessError') {
         // 处理自定义的业务错误
         console.error(`业务错误: ${error.message}`);
-      } else if (error.status === 401) {
+      }
+      else if (error.status === 401) {
         // 处理未授权错误
         console.error('登录已过期，请重新登录');
         // window.location.href = '/login';
@@ -248,14 +257,14 @@ const examplePlugin = () => {
       console.log(`Request to ${config.url} completed`);
     }
   };
-};
+}
 ```
 
 #### 业务场景封装示例
 
 ```typescript
 // 创建一个业务请求实例
-const createRequest = () => {
+function createRequest() {
   // 创建基础实例
   const request = hookFetch.create({
     baseURL: 'https://api.example.com',
@@ -322,24 +331,24 @@ const createRequest = () => {
   return {
     // 用户相关接口
     user: {
-          // 获取用户信息
-    getInfo: () => request.get('/user/info').json(),
-    // 更新用户信息
-    updateInfo: (data) => request.put('/user/info', data).json(),
-    // 修改密码
-    changePassword: (data) => request.post('/user/password', data).json()
+      // 获取用户信息
+      getInfo: () => request.get('/user/info').json(),
+      // 更新用户信息
+      updateInfo: data => request.put('/user/info', data).json(),
+      // 修改密码
+      changePassword: data => request.post('/user/password', data).json()
     },
     // 订单相关接口
     order: {
       // 获取订单列表
-      getList: (params) => request.get('/orders', params).json(),
+      getList: params => request.get('/orders', params).json(),
       // 创建订单
-      create: (data) => request.post('/orders', data).json(),
+      create: data => request.post('/orders', data).json(),
       // 取消订单
-      cancel: (id) => request.post(`/orders/${id}/cancel`).json()
+      cancel: id => request.post(`/orders/${id}/cancel`).json()
     }
   };
-};
+}
 
 // 使用示例
 const api = createRequest();
@@ -355,6 +364,7 @@ const order = await api.order.create({
 ```
 
 插件钩子函数：
+
 - `beforeRequest`: 请求发送前处理配置，可以返回新的配置或直接修改配置
 - `afterResponse`: 响应接收后处理数据，可以返回新的响应或直接修改响应
 - `beforeStream`: 流式请求开始时的处理，用于初始化或转换流
@@ -466,14 +476,13 @@ interface HookFetchPlugin<T = unknown, E = unknown, P = unknown, D = unknown> {
 }
 ```
 
-
 ## Vue Hooks
 
 Hook-Fetch 提供了 Vue 组合式 API 的支持，可以更方便地在 Vue 组件中使用：
 
 ```typescript
-import { useHookFetch } from 'hook-fetch/vue';
 import hookFetch from 'hook-fetch';
+import { useHookFetch } from 'hook-fetch/vue';
 
 // 创建请求实例
 const api = hookFetch.create({
@@ -586,6 +595,7 @@ const YourComponent = () => {
 ```
 
 ### vscode提示插件的引用路径
+
 ```typescript
 // 在 src 中创建文件 hook-fetch.d.ts, 内容如下
 /// <reference types="hook-fetch/plugins" />
@@ -601,10 +611,12 @@ const YourComponent = () => {
 4. 插件按照优先级顺序执行
 
 ## 预计开发内容
+
 - `umd` 支持
 - 更多的插件支持
 
 ## 📝 贡献指南
+
 欢迎提交`issue`或`pull request`，共同完善`Hook-Fetch`。
 
 ## 📄 许可证

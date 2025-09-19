@@ -1,10 +1,17 @@
-# Hook-Fetch 🚀
+<div align="center">
+   <a href="https://jsonlee12138.github.io/hook-fetch/"><img src="https://jsonlee12138.github.io/hook-fetch/img/logo.png" /></a><br>
+</div>
+<h1 align="center" style="margin-bottom: 0;">Hook-Fetch</h1>
+<div align="center">
+
+[![Build status](https://img.shields.io/github/actions/workflow/status/axios/axios/ci.yml?branch=v1.x&label=Release&logo=github&style=flat-square)](https://github.com/JsonLee12138/hook-fetch/actions/workflows/release.yml) [![install size](https://packagephobia.com/badge?p=hook-fetch)](https://packagephobia.com/result?p=hook-fetch) [![npm bundle size](https://img.shields.io/bundlephobia/minzip/hook-fetch?style=flat-square)](https://bundlephobia.com/package/hook-fetch@latest) [![npm downloads](https://img.shields.io/npm/dm/hook-fetch.svg?style=flat-square)](https://npm-stat.com/charts.html?package=hook-fetch) [![Discord](https://img.shields.io/badge/-Discord-5865F2?style=flat&logo=discord&logoColor=white)](https://discord.com/invite/666U6JTCQY)
 
 **[中文文档](https://github.com/JsonLee12138/hook-fetch/blob/main/README.md)**
 
-## Introduction
-
 Hook-Fetch is a powerful request library based on the native fetch API, offering a simpler syntax, richer features, and a more flexible plugin system. It supports request retries, streaming data processing, request cancellation, and more. With its Promise-based chaining style, API requests become simpler and more controllable.
+
+</div>
+<br />
 
 ## Installation
 
@@ -149,7 +156,7 @@ Hook-Fetch offers a robust plugin system allowing intervention at various stages
 ```typescript
 // Custom plugin example: SSE text decoding plugin
 // This is just an example. It's recommended to use the provided `sseTextDecoderPlugin` which has more comprehensive handling
-const ssePlugin = () => {
+function ssePlugin() {
   const decoder = new TextDecoder('utf-8');
   return {
     name: 'sse',
@@ -159,8 +166,8 @@ const ssePlugin = () => {
       }
       return chunk;
     }
-  }
-};
+  };
+}
 
 // Register the plugin
 api.use(ssePlugin());
@@ -176,7 +183,7 @@ for await (const chunk of req.stream<string>()) {
 
 ```typescript
 // Complete plugin example showing the usage of each lifecycle hook
-const examplePlugin = () => {
+function examplePlugin() {
   return {
     name: 'example',
     priority: 1, // Priority, lower numbers have higher priority
@@ -194,17 +201,18 @@ const examplePlugin = () => {
       // Can process response data. context.result is the result after being processed by methods like json()
       if (context.responseType === 'json') {
         // For example, determine if the request is truly successful based on the backend's business code
-        if(context.result.code === 200){
+        if (context.result.code === 200) {
           // Business success, return context directly
-          return context
-        }else{
+          return context;
+        }
+        else {
           // Business failure, actively throw a ResponseError, which will be caught in the onError hook
           throw new ResponseError({
             message: context.result.message, // Use the error message from the backend
-            status: context.result.code,     // Use the business code as the status
-            response: context.response,      // Original Response object
+            status: context.result.code, // Use the business code as the status
+            response: context.response, // Original Response object
             config: context.config,
-            name: 'BusinessError'            // Custom error name
+            name: 'BusinessError' // Custom error name
           });
         }
       }
@@ -233,7 +241,8 @@ const examplePlugin = () => {
       if (error.name === 'BusinessError') {
         // Handle custom business errors
         console.error(`Business Error: ${error.message}`);
-      } else if (error.status === 401) {
+      }
+      else if (error.status === 401) {
         // Handle unauthorized error
         console.error('Login has expired, please log in again');
         // window.location.href = '/login';
@@ -248,7 +257,7 @@ const examplePlugin = () => {
       console.log(`Request to ${config.url} completed`);
     }
   };
-};
+}
 ```
 
 All lifecycle hooks support both synchronous and asynchronous operations. They can return either a Promise or a direct value. Each hook function receives the current configuration object (config), which can be used to make decisions and handle different request scenarios.
@@ -355,17 +364,13 @@ interface HookFetchPlugin<T = unknown, E = unknown, P = unknown, D = unknown> {
 }
 ```
 
-
-
-
-
 ## Vue Hooks
 
 Hook-Fetch provides Vue Composition API support, making it easier to use in Vue components:
 
 ```typescript
-import { useHookFetch } from 'hook-fetch/vue';
 import hookFetch from 'hook-fetch';
+import { useHookFetch } from 'hook-fetch/vue';
 
 // Create request instance
 const api = hookFetch.create({
@@ -478,6 +483,7 @@ const YourComponent = () => {
 ```
 
 ### vscode hint plugin reference path
+
 ```typescript
 // Create a file hook-fetch.d.ts in src with the following content
 /// <reference types="hook-fetch/plugins" />
@@ -493,10 +499,12 @@ const YourComponent = () => {
 4. Plugins execute in order of priority.
 
 ## Upcoming Features
+
 - `umd` support
 - More plugin support
 
 ## 📝 Contribution Guide
+
 Feel free to submit `issues` or `pull requests` to help improve `Hook-Fetch`.
 
 ## 📄 License

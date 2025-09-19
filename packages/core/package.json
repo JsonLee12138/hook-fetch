@@ -18,7 +18,7 @@
     "hook-fetch-plugin-response-transform",
     "hook-fetch-plugin-request-transform"
   ],
-  "version": "2.1.4",
+  "version": "2.1.5",
   "scripts": {
     "dev": "vite",
     "build:rolldown": "rolldown -c ./rolldown.config.ts",
@@ -37,6 +37,7 @@
     "!dist/**/*.map",
     "README.md",
     "LICENSE",
+    "CHANGELOG.md",
     "README.en.md"
   ],
   "main": "./dist/cjs/index.cjs",
