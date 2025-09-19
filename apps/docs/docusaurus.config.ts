@@ -7,7 +7,7 @@ import { themes as prismThemes } from 'prism-react-renderer';
 const config: Config = {
   title: 'Hook-Fetch',
   tagline: '基于原生 fetch API 的现代化 HTTP 请求库',
-  // favicon: 'img/favicon.ico',
+  favicon: 'img/favicon.ico',
 
   // Future flags, see https://docusaurus.io/docs/api/docusaurus-config#future
   future: {
@@ -21,7 +21,7 @@ const config: Config = {
   baseUrl: '/hook-fetch/',
 
   // GitHub Pages 配置
-  trailingSlash: true,  // 修复 GitHub Pages 警告
+  trailingSlash: true, // 修复 GitHub Pages 警告
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
@@ -43,11 +43,11 @@ const config: Config = {
         direction: 'ltr',
         htmlLang: 'zh-CN',
       },
-      en: {
+      'en': {
         label: 'English',
         direction: 'ltr',
         htmlLang: 'en-US',
-        path: 'en'
+        path: 'en',
       },
     },
   },
@@ -172,10 +172,10 @@ const config: Config = {
 
     navbar: {
       title: 'Hook-Fetch',
-      // logo: {
-      //   alt: 'Hook-Fetch Logo',
-      //   src: 'img/logo.svg',
-      // },
+      logo: {
+        alt: 'Hook-Fetch Logo',
+        src: 'img/logo.svg',
+      },
       items: [
         {
           type: 'docSidebar',
