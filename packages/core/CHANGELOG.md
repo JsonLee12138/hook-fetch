@@ -1,5 +1,11 @@
 # hook-fetch
 
+## 2.1.6
+
+### Patch Changes
+
+- 修复错误异常问题
+
 ## 2.1.5
 
 ### Patch Changes

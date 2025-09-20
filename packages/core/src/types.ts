@@ -60,7 +60,7 @@ export type BeforeStreamHandler<E = unknown, P = unknown, D = unknown> = (body: 
 
 export type TransformStreamChunkHandler<E = unknown, P = unknown, D = unknown> = (chunk: StreamContext<any>, config: RequestConfig<P, D, E>) => StreamContext | PromiseLike<StreamContext>;
 
-export type OnFinallyHandler<E = unknown, P = unknown, D = unknown> = (res: Pick<FetchPluginContext<unknown, E, P, D>, 'config' | 'response'>) => void | PromiseLike<void>;
+export type OnFinallyHandler<E = unknown, P = unknown, D = unknown> = (res: Pick<FetchPluginContext<unknown, E, P, D>, 'config'>) => void | PromiseLike<void>;
 
 export type OnErrorHandler<E = unknown, P = unknown, D = unknown> = (error: ResponseError, config: RequestConfig<P, D, E>) => PromiseLike<Error | void | ResponseError<E>> | Error | void | ResponseError<E>;
 

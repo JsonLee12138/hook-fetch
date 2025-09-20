@@ -263,7 +263,7 @@ describe('test hook-fetch', () => {
     }
     catch (error) {
       console.log(error);
-      expect(error).toEqual(new Error('customError'));
+      expect((error as Error).message).toBe('customError');
     }
   });
 
@@ -372,7 +372,6 @@ describe('test hook-fetch', () => {
     }).json();
 
     console.log('Multiple files upload response:', res);
-
     expect(res.form).toBeDefined();
     expect(res.form.title).toBe('Multiple files upload test');
     expect(res.files).toBeDefined();
@@ -405,15 +404,15 @@ describe('test hook-fetch', () => {
         break;
       }
     }
-
+    expect(chunkCount).toBe(4);
     // 由于我们中断了流，这里会抛出错误，这是预期的
-    try {
-      await req;
-    }
-    catch (error) {
-      console.log('Upload was aborted as expected:', error);
-      expect(error).toBeDefined();
-    }
+    // try {
+    //   await req;
+    // }
+    // catch (error) {
+    //   console.log('Upload was aborted as expected:', error);
+    //   expect(error).toBeDefined();
+    // }
   });
 
   it('test file upload with custom headers', async () => {

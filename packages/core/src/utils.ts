@@ -129,7 +129,7 @@ export class HookFetchRequest<T = unknown, E = unknown> implements PromiseLike<T
   #plugins: ReturnType<typeof parsePlugins>;
   #controller: AbortController;
   #config: RequestConfig<unknown, unknown, E>;
-  #promise: Promise<Response>;
+  #promise: Promise<Response> | null = null;
   #isTimeout: boolean = false;
   #executor: Promise<any> | null = null;
   #finallyCallbacks: Set<(() => void) | null | undefined> = new Set();
@@ -166,17 +166,12 @@ export class HookFetchRequest<T = unknown, E = unknown> implements PromiseLike<T
           config = (await plugin(config)) as RequestConfig<unknown, unknown, E>;
         }
         catch (error) {
-          err = new ResponseError({
-            message: (error as Error)?.message ?? 'Unknown Request Error in beforeRequest',
-            status: (error as ResponseError)?.status ?? StatusCode.UNKNOWN,
-            statusText: (error as ResponseError)?.statusText ?? 'Unknown Request Error in beforeRequest',
-            config: this.#config,
-            name: (error as Error)?.name ?? 'Unknown Request Error in beforeRequest',
-          });
+          err = error;
           break;
         }
       }
       if (err) {
+        this.#promise = null;
         return reject(err);
       }
 
@@ -234,7 +229,8 @@ export class HookFetchRequest<T = unknown, E = unknown> implements PromiseLike<T
         }
       }
       catch (error) {
-        err = error as Error;
+        err = error;
+        this.#promise = null;
       }
       finally {
         if (err) {
@@ -250,6 +246,13 @@ export class HookFetchRequest<T = unknown, E = unknown> implements PromiseLike<T
   async #createNormalizeError(error: unknown): Promise<ResponseError> {
     if (error instanceof ResponseError)
       return error;
+    let response: Response | undefined = void 0;
+    if (!this.#promise) {
+      response = void 0;
+    }
+    else {
+      response = await this.#response as Response;
+    }
     if (error instanceof TypeError) {
       if (error.name === 'AbortError') {
         if (this.#isTimeout) {
@@ -259,7 +262,7 @@ export class HookFetchRequest<T = unknown, E = unknown> implements PromiseLike<T
             statusText: 'Request timeout',
             config: this.#config,
             name: 'Request timeout',
-            response: await this.#response,
+            response: response as Response,
           });
         }
         else {
@@ -269,7 +272,7 @@ export class HookFetchRequest<T = unknown, E = unknown> implements PromiseLike<T
             statusText: 'Request aborted',
             config: this.#config,
             name: 'Request aborted',
-            response: await this.#response,
+            response: response as Response,
           });
         }
       }
@@ -279,7 +282,7 @@ export class HookFetchRequest<T = unknown, E = unknown> implements PromiseLike<T
         statusText: 'Unknown Request Error',
         config: this.#config,
         name: error.name,
-        response: await this.#response,
+        response: response as Response,
       });
     }
 
@@ -289,7 +292,7 @@ export class HookFetchRequest<T = unknown, E = unknown> implements PromiseLike<T
       statusText: 'Unknown Request Error',
       config: this.#config,
       name: 'Unknown Request Error',
-      response: await this.#response,
+      response: response as Response,
     });
   }
 
@@ -306,6 +309,11 @@ export class HookFetchRequest<T = unknown, E = unknown> implements PromiseLike<T
     for (const callback of this.#finallyCallbacks) {
       callback!();
     }
+    this.#plugins.finallyPlugins.forEach((plugin) => {
+      plugin({
+        config: this.#config,
+      });
+    });
     this.#finallyCallbacks.clear();
   }
 
@@ -361,21 +369,24 @@ export class HookFetchRequest<T = unknown, E = unknown> implements PromiseLike<T
   }
 
   get #response() {
+    if (!this.#promise) {
+      return Promise.reject(new Error('Response is null'));
+    }
     return this.#promise.then(r => r.clone()).catch(async (e) => {
       throw await this.#normalizeError(e);
     });
   }
 
   json() {
-    return this.#then(ResponseType.JSON, this.#response.then(r => r.json())) as Promise<T>;
+    return this.#then(ResponseType.JSON, this.#response?.then(r => r.json())) as Promise<T>;
   }
 
   blob() {
-    return this.#then(ResponseType.BLOB, this.#response.then(r => r.blob())) as Promise<Blob>;
+    return this.#then(ResponseType.BLOB, this.#response?.then(r => r.blob())) as Promise<Blob>;
   }
 
   text() {
-    return this.#then(ResponseType.TEXT, this.#response.then(r => r.text())) as Promise<string>;
+    return this.#then(ResponseType.TEXT, this.#response?.then(r => r.text())) as Promise<string>;
   }
 
   arrayBuffer() {
