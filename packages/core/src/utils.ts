@@ -163,7 +163,10 @@ export class HookFetchRequest<T = unknown, E = unknown> implements PromiseLike<T
       let err = null;
       for (const plugin of beforeRequestPlugins) {
         try {
-          config = (await plugin(config)) as RequestConfig<unknown, unknown, E>;
+          config = (await plugin(config))
+          if(config instanceof Response){
+            resolve(config)
+          }
         }
         catch (error) {
           err = error;
