@@ -18,7 +18,8 @@ export interface RequestConfig<P, D, E = AnyObject> extends Omit<RequestInit, 'b
   withCredentials?: boolean;
   extra?: E;
   method: RequestMethod;
-  qsArrayFormat?: QueryString.IStringifyOptions['arrayFormat'];
+  // qsArrayFormat?: QueryString.IStringifyOptions['arrayFormat'];
+  qsConfig?: QueryString.IStringifyOptions;
 }
 
 // 下方 request 的 option
@@ -29,7 +30,8 @@ export type BaseRequestOptions<P, D, E = AnyObject> = Partial<{
   data: D;
   controller: AbortController;
   extra: E;
-  qsArrayFormat: QueryString.IStringifyOptions['arrayFormat'];
+  // qsArrayFormat: QueryString.IStringifyOptions['arrayFormat'];
+  qsConfig?: QueryString.IStringifyOptions;
   withCredentials: boolean;
   method: RequestMethod;
 }> & Omit<RequestInit, 'body' | 'method'> & {
@@ -84,6 +86,8 @@ export interface OptionProps {
   headers: HeadersInit;
   plugins: Array<HookFetchPlugin<any, any, any, any>>;
   withCredentials: boolean;
+  extra: AnyObject;
+  qsConfig: QueryString.IStringifyOptions;
 }
 
 export type BaseOptions = Partial<OptionProps>;

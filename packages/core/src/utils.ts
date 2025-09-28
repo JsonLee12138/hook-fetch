@@ -64,9 +64,11 @@ function parsePlugins(plugins: HookFetchPlugin[]) {
   };
 }
 
-export function buildUrl(url: string, params?: AnyObject, qsArrayFormat: QueryString.IStringifyOptions['arrayFormat'] = 'repeat'): string {
+export function buildUrl(url: string, params?: AnyObject, qsConfig: QueryString.IStringifyOptions = {
+  arrayFormat: 'repeat',
+}): string {
   if (params) {
-    const paramsStr = qs.stringify(params, { arrayFormat: qsArrayFormat });
+    const paramsStr = qs.stringify(params, qsConfig);
     if (paramsStr) {
       url = url.includes('?') ? `${url}&${paramsStr}` : `${url}?${paramsStr}`;
     }
@@ -91,7 +93,9 @@ export function mergeHeaders(_baseHeaders: HeadersInit | Headers = {}, _newHeade
 const withBodyArr: RequestMethodWithBody[] = ['PATCH', 'POST', 'PUT', 'DELETE', 'OPTIONS'];
 const withoutBodyArr: RequestMethodWithParams[] = ['GET', 'HEAD'];
 
-export function getBody(body: AnyObject, method: RequestMethod, headers?: HeadersInit, qsArrayFormat: QueryString.IStringifyOptions['arrayFormat'] = 'repeat'): BodyInit | null {
+export function getBody(body: AnyObject, method: RequestMethod, headers?: HeadersInit, qsConfig: QueryString.IStringifyOptions = {
+  arrayFormat: 'repeat',
+}): BodyInit | null {
   if (!body)
     return null;
   if (body instanceof FormData)
@@ -104,7 +108,7 @@ export function getBody(body: AnyObject, method: RequestMethod, headers?: Header
       res = JSON.stringify(body);
     }
     else if (_contentType.includes(ContentType.FORM_URLENCODED)) {
-      res = qs.stringify(body, { arrayFormat: qsArrayFormat });
+      res = qs.stringify(body, qsConfig);
     }
     else if (_contentType.includes(ContentType.FORM_DATA)) {
       const formData = new FormData();
@@ -125,6 +129,9 @@ export function getBody(body: AnyObject, method: RequestMethod, headers?: Header
   return res;
 }
 
+const DEFAULT_QS_CONFIG: QueryString.IStringifyOptions = {
+  arrayFormat: 'repeat',
+};
 export class HookFetchRequest<T = unknown, E = unknown> implements PromiseLike<T> {
   #plugins: ReturnType<typeof parsePlugins>;
   #controller: AbortController;
@@ -138,7 +145,7 @@ export class HookFetchRequest<T = unknown, E = unknown> implements PromiseLike<T
 
   constructor(options: BaseRequestOptions<unknown, unknown, E>) {
     this.#fullOptions = options;
-    const { plugins = [], controller, url, baseURL = '', params, data, qsArrayFormat = 'repeat', withCredentials = false, extra, method = 'GET', headers = {} } = options;
+    const { plugins = [], controller, url, baseURL = '', params, data, qsConfig = {}, withCredentials = false, extra, method = 'GET', headers = {} } = options;
     this.#controller = controller ?? new AbortController();
     this.#plugins = parsePlugins(plugins);
     this.#config = {
@@ -150,7 +157,7 @@ export class HookFetchRequest<T = unknown, E = unknown> implements PromiseLike<T
       extra: extra as E,
       method,
       headers,
-      qsArrayFormat,
+      qsConfig: Object.assign(DEFAULT_QS_CONFIG, qsConfig),
     };
     this.#promise = this.#init(options);
   }
@@ -175,9 +182,9 @@ export class HookFetchRequest<T = unknown, E = unknown> implements PromiseLike<T
         return reject(err);
       }
 
-      const _url_ = buildUrl(config.baseURL + config.url, config.params as AnyObject, config.qsArrayFormat);
+      const _url_ = buildUrl(config.baseURL + config.url, config.params as AnyObject, config.qsConfig);
 
-      const body = getBody(config.data as AnyObject, config.method, config.headers, config.qsArrayFormat);
+      const body = getBody(config.data as AnyObject, config.method, config.headers, config.qsConfig);
 
       const otherOptions = omit(config ?? {}, ['baseURL', 'data', 'extra', 'headers', 'method', 'params', 'url', 'withCredentials']);
 

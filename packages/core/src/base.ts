@@ -1,3 +1,4 @@
+import type QueryString from 'qs';
 import type { AnyObject, Generic } from 'typescript-api-pro';
 import type { BaseOptions, BaseRequestOptions, DeleteOptions, GetOptions, HeadOptions, HookFetchPlugin, OptionsOptions, PatchOptions, PostOptions, PutOptions, RequestOptions, RequestWithBodyOptions, RequestWithParamsOptions } from './types';
 import { HookFetchRequest, mergeHeaders } from './utils';
@@ -15,13 +16,15 @@ class HookFetch<R extends AnyObject | null = null, K extends keyof R = never, E 
   #queue: Array<AbortController> = [];
   #plugins: Array<HookFetchPlugin<any, any, any, any>> = [];
   #withCredentials: boolean;
+  #qsConfig: QueryString.IStringifyOptions;
 
-  constructor({ timeout = 0, baseURL = '', headers = {}, plugins = [], withCredentials = false }: BaseOptions) {
+  constructor({ timeout = 0, baseURL = '', headers = {}, plugins = [], withCredentials = false, qsConfig = {} }: BaseOptions) {
     this.#timeout = timeout;
     this.#baseURL = baseURL;
     this.#commonHeaders = headers;
     this.#plugins = plugins;
     this.#withCredentials = withCredentials;
+    this.#qsConfig = qsConfig;
     this.request = this.request.bind(this);
     this.get = this.get.bind(this);
     this.head = this.head.bind(this);
@@ -39,7 +42,7 @@ class HookFetch<R extends AnyObject | null = null, K extends keyof R = never, E 
     return this;
   }
 
-  request<T = AnyObject, P = AnyObject, D = AnyObject>(url: string, { timeout, headers, method = 'GET', params = {} as P, data = {} as D, qsArrayFormat, withCredentials, extra = {} as E }: RequestOptions<P, D, E> = {}) {
+  request<T = AnyObject, P = AnyObject, D = AnyObject>(url: string, { timeout, headers, method = 'GET', params = {} as P, data = {} as D, qsConfig = {}, withCredentials, extra = {} as E }: RequestOptions<P, D, E> = {}) {
     const controller = new AbortController();
     this.#queue.push(controller);
     const req = _request_<GenericWithNull<T, R, K>, P, D, E>({
@@ -52,7 +55,8 @@ class HookFetch<R extends AnyObject | null = null, K extends keyof R = never, E 
       method,
       params,
       data,
-      qsArrayFormat,
+      // qsArrayFormat,
+      qsConfig: Object.assign(this.#qsConfig, qsConfig),
       withCredentials: withCredentials ?? this.#withCredentials,
       extra,
     });

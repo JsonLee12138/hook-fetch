@@ -1,5 +1,16 @@
 # hook-fetch
 
+## 3.0.0
+
+### Major Changes
+
+- ### 💥 Breaking Changes
+  - 移除旧有的 `qsArrayFormat` 配置字段，现改为通过 `qsConfig` 提供完整的 `qs.stringify` 选项；依赖该字段的代码需迁移到新 API。
+
+  ### 更新内容
+  - 新增 `qsConfig` 全局配置，允许在 `hookFetch` create 阶段自定义传给 `qs.stringify` 的参数，默认仍为 `arrayFormat: 'repeat'`。
+  - 各类请求方法接收 `RequestOptions.qsConfig`，可在单次调用时覆盖全局设置，影响 URL 拼接与 `application/x-www-form-urlencoded` 体序列化。
+
 ## 2.1.6
 
 ### Patch Changes
