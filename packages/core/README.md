@@ -6,7 +6,7 @@
 
 [![Build status](https://img.shields.io/github/actions/workflow/status/axios/axios/ci.yml?branch=v1.x&label=Release&logo=github&style=flat-square)](https://github.com/JsonLee12138/hook-fetch/actions/workflows/release.yml) [![install size](https://packagephobia.com/badge?p=hook-fetch)](https://packagephobia.com/result?p=hook-fetch) [![npm bundle size](https://img.shields.io/bundlephobia/minzip/hook-fetch?style=flat-square)](https://bundlephobia.com/package/hook-fetch@latest) [![npm downloads](https://img.shields.io/npm/dm/hook-fetch.svg?style=flat-square)](https://npm-stat.com/charts.html?package=hook-fetch) [![Discord](https://img.shields.io/badge/-Discord-5865F2?style=flat&logo=discord&logoColor=white)](https://discord.com/invite/666U6JTCQY)
 
-**[English document](https://github.com/JsonLee12138/hook-fetch/blob/main/README.en.md)**
+**[DeepWiki](https://deepwiki.com/JsonLee12138/hook-fetch)** **·** **[English document](https://github.com/JsonLee12138/hook-fetch/blob/main/README.en.md)**
 
 Hook-Fetch 是一个强大的基于原生 fetch API 的请求库，提供了更简洁的语法、更丰富的功能和更灵活的插件系统。它支持请求重试、流式数据处理、中断请求等特性，并且采用Promise链式调用风格，使API请求变得更加简单和可控。
 

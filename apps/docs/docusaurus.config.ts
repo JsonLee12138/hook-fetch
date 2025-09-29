@@ -204,6 +204,11 @@ const config: Config = {
           label: 'GitHub',
           position: 'right',
         },
+        {
+          href: 'https://deepwiki.com/JsonLee12138/hook-fetch',
+          label: 'DeepWiki',
+          position: 'right',
+        },
       ],
     },
     footer: {

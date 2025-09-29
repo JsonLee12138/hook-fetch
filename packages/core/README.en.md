@@ -6,7 +6,7 @@
 
 [![Build status](https://img.shields.io/github/actions/workflow/status/axios/axios/ci.yml?branch=v1.x&label=Release&logo=github&style=flat-square)](https://github.com/JsonLee12138/hook-fetch/actions/workflows/release.yml) [![install size](https://packagephobia.com/badge?p=hook-fetch)](https://packagephobia.com/result?p=hook-fetch) [![npm bundle size](https://img.shields.io/bundlephobia/minzip/hook-fetch?style=flat-square)](https://bundlephobia.com/package/hook-fetch@latest) [![npm downloads](https://img.shields.io/npm/dm/hook-fetch.svg?style=flat-square)](https://npm-stat.com/charts.html?package=hook-fetch) [![Discord](https://img.shields.io/badge/-Discord-5865F2?style=flat&logo=discord&logoColor=white)](https://discord.com/invite/666U6JTCQY)
 
-**[中文文档](https://github.com/JsonLee12138/hook-fetch/blob/main/README.md)**
+**[DeepWiki](https://deepwiki.com/JsonLee12138/hook-fetch)** **·** **[中文文档](https://github.com/JsonLee12138/hook-fetch/blob/main/README.md)**
 
 Hook-Fetch is a powerful request library based on the native fetch API, offering a simpler syntax, richer features, and a more flexible plugin system. It supports request retries, streaming data processing, request cancellation, and more. With its Promise-based chaining style, API requests become simpler and more controllable.
 
