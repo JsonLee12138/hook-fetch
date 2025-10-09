@@ -1,5 +1,16 @@
 # hook-fetch
 
+## 2.2.1
+
+### Patch Changes
+
+- 修改beforeRequest逻辑， 使其支持中断请求直接返回值
+
+  **_主要用途：_**
+  - 缓存请求
+
+  example：[cache.test.ts](https://github.com/JsonLee12138/hook-fetch/blob/main/packages/core/__test__/cache.test.ts)
+
 ## 2.2.0
 
 ### Minor Changes

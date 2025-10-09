@@ -18,6 +18,7 @@ export interface RequestConfig<P, D, E = AnyObject> extends Omit<RequestInit, 'b
   withCredentials?: boolean;
   extra?: E;
   method: RequestMethod;
+  resolve?: (() => any) | null;
   // qsArrayFormat?: QueryString.IStringifyOptions['arrayFormat'];
   qsConfig?: QueryString.IStringifyOptions;
 }

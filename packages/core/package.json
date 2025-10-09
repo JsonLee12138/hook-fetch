@@ -18,7 +18,7 @@
     "hook-fetch-plugin-response-transform",
     "hook-fetch-plugin-request-transform"
   ],
-  "version": "2.2.0",
+  "version": "2.2.1",
   "scripts": {
     "dev": "vite",
     "build:rolldown": "rolldown -c ./rolldown.config.ts",
