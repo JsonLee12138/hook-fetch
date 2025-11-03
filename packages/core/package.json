@@ -18,7 +18,7 @@
     "hook-fetch-plugin-response-transform",
     "hook-fetch-plugin-request-transform"
   ],
-  "version": "2.2.1",
+  "version": "2.2.2",
   "scripts": {
     "dev": "vite",
     "build:rolldown": "rolldown -c ./rolldown.config.ts",
@@ -91,9 +91,12 @@
     "@types/express": "^5.0.3",
     "@types/qs": "^6.9.18",
     "@types/react": "^19.1.7",
+    "@vitejs/plugin-react": "^5.1.0",
+    "@vitejs/plugin-vue": "^6.0.1",
     "cz-git": "^1.11.1",
     "dotenv": "^17.1.0",
     "express": "^5.1.0",
+    "happy-dom": "^20.0.10",
     "husky": "^9.1.7",
     "lint-staged": "^13.2.0",
     "oxlint": "^0.16.3",

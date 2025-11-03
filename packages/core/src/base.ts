@@ -42,26 +42,31 @@ class HookFetch<R extends AnyObject | null = null, K extends keyof R = never, E 
     return this;
   }
 
-  request<T = AnyObject, P = AnyObject, D = AnyObject>(url: string, { timeout, headers, method = 'GET', params = {} as P, data = {} as D, qsConfig = {}, withCredentials, extra = {} as E }: RequestOptions<P, D, E> = {}) {
+  request<T = AnyObject, P = AnyObject, D = AnyObject>(url: string, { timeout, headers, method = 'GET', params = {} as P, data = {} as D, qsConfig = {}, withCredentials, extra = {} as E, plugins = [] }: RequestOptions<P, D, E> = {}) {
     const controller = new AbortController();
     this.#queue.push(controller);
+    // eslint-disable-next-line ts/no-this-alias
+    const ctx = this;
+    const wrapperPlugin: HookFetchPlugin = {
+      name: 'hook-fetch-inner-wrapper',
+      priority: Number.MAX_SAFE_INTEGER,
+      onFinally() {
+        ctx.#queue = ctx.#queue.filter(item => item !== controller);
+      },
+    };
     const req = _request_<GenericWithNull<T, R, K>, P, D, E>({
       url,
       baseURL: this.#baseURL,
       timeout: timeout ?? this.#timeout,
-      plugins: this.#plugins,
+      plugins: [...this.#plugins, ...plugins, wrapperPlugin],
       headers: mergeHeaders(this.#commonHeaders, headers),
       controller,
       method,
       params,
       data,
-      // qsArrayFormat,
       qsConfig: Object.assign(this.#qsConfig, qsConfig),
       withCredentials: withCredentials ?? this.#withCredentials,
       extra,
-    });
-    req.finally(() => {
-      this.#queue = this.#queue.filter(item => item !== controller);
     });
     return req;
   }

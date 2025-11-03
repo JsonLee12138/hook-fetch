@@ -93,7 +93,7 @@ export interface OptionProps {
 
 export type BaseOptions = Partial<OptionProps>;
 
-export type RequestOptions<P = AnyObject, D = AnyObject, E = AnyObject> = Omit<BaseRequestOptions<P, D, E>, 'url' | 'plugins' | 'baseURL' | 'controller'>;
+export type RequestOptions<P = AnyObject, D = AnyObject, E = AnyObject> = Omit<BaseRequestOptions<P, D, E>, 'url' | 'baseURL' | 'controller'>;
 
 /**
  * 已废除, 请改用 RequestOptions

@@ -1,5 +1,12 @@
 # hook-fetch
 
+## 2.2.2
+
+### Patch Changes
+
+- 1. 修复 vue 和 react 的 hooks 状态管理异常 bug
+  2. 允许使用的时候临时传入插件
+
 ## 2.2.1
 
 ### Patch Changes

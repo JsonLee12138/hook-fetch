@@ -134,6 +134,7 @@ const DEFAULT_QS_CONFIG: QueryString.IStringifyOptions = {
 };
 export class HookFetchRequest<T = unknown, E = unknown> implements PromiseLike<T> {
   #plugins: ReturnType<typeof parsePlugins>;
+  #sourcePlugins: HookFetchPlugin[];
   #controller: AbortController;
   #config: RequestConfig<unknown, unknown, E>;
   #promise: Promise<Response> | null = null;
@@ -147,6 +148,7 @@ export class HookFetchRequest<T = unknown, E = unknown> implements PromiseLike<T
     this.#fullOptions = options;
     const { plugins = [], controller, url, baseURL = '', params, data, qsConfig = {}, withCredentials = false, extra, method = 'GET', headers = {} } = options;
     this.#controller = controller ?? new AbortController();
+    this.#sourcePlugins = plugins;
     this.#plugins = parsePlugins(plugins);
     this.#config = {
       url,
@@ -330,7 +332,12 @@ export class HookFetchRequest<T = unknown, E = unknown> implements PromiseLike<T
         config: this.#config,
       });
     });
+
     this.#finallyCallbacks.clear();
+
+    if (this.#plugins.finallyPlugins.length !== this.#sourcePlugins?.length) {
+      this.#plugins = parsePlugins(this.#sourcePlugins);
+    }
   }
 
   get #getExecutor() {
@@ -432,6 +439,15 @@ export class HookFetchRequest<T = unknown, E = unknown> implements PromiseLike<T
 
   bytes() {
     return this.#then(ResponseType.BYTES, this.#response.then(r => r.bytes())) as Promise<Uint8Array<ArrayBufferLike>>;
+  }
+
+  /**
+   * 因为是后注入, 因此beforeRequest不会执行, 在onFinally后会清理掉当前plugins, 印错只能作为临时插件使用
+   * @param plugins - 注入的插件
+   */
+  __injectPlugins__(plugins: HookFetchPlugin<any, any, any, any>[]) {
+    const newPlugins = [...this.#sourcePlugins, ...plugins];
+    this.#plugins = parsePlugins(newPlugins);
   }
 
   async* stream<T>() {

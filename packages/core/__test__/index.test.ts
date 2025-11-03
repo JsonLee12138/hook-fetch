@@ -242,7 +242,7 @@ describe('test hook-fetch', () => {
       return {
         name: 'request',
         async afterResponse(response) {
-          console.log(response, 'response');
+          // console.log(response, 'response');
           if (response.result?.completed) {
             return response;
           }
@@ -253,16 +253,19 @@ describe('test hook-fetch', () => {
         async onError(error) {
           return new Error('customError', error);
         },
+        onFinally() {
+          console.log('request plugin finally');
+        },
       };
     };
 
     instance.use(requestPlugin());
 
     try {
-      await instance.get('/todos/1').json();
+      await instance.get('/todos/1', { }).json();
     }
     catch (error) {
-      console.log(error);
+      // console.log(error);
       expect((error as Error).message).toBe('customError');
     }
   });

@@ -7,6 +7,19 @@ export interface TestServer {
 
 export function startTestSseServer(port: number, handlers: (_app: express.Application) => void): Promise<TestServer> {
   const app = express();
+  app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.header('Access-Control-Allow-Credentials', 'true');
+
+    // 处理 OPTIONS 预检请求
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(200);
+    }
+
+    next();
+  });
   handlers(app);
 
   return new Promise((resolve) => {

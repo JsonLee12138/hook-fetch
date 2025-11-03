@@ -2,20 +2,21 @@ import { defineConfig, loadEnv } from 'vite';
 import dts from 'vite-plugin-dts';
 
 export default defineConfig(({ mode }) => {
+  // eslint-disable-next-line node/prefer-global/process
   loadEnv(mode, process.cwd());
   return {
     plugins: [dts({
       outDir: 'types',
-      copyDtsFiles: false
+      copyDtsFiles: false,
     })],
     build: {
       lib: {
         entry: {
-          index: './src/index.ts',
+          'index': './src/index.ts',
           'plugins/index': './src/plugins/index.ts',
           'plugins/sse': './src/plugins/sse.ts',
           'vue/index': './src/vue/index.ts',
-          'react/index': './src/react/index.ts'
+          'react/index': './src/react/index.ts',
         },
         name: 'hook-fetch',
         fileName: (format, entryName) => {
@@ -35,15 +36,15 @@ export default defineConfig(({ mode }) => {
           }
           return `${format}/${entryName}.${fileType}`;
         },
-        formats: ['es', 'cjs']
+        formats: ['es', 'cjs'],
       },
       rollupOptions: {
-        external: ['vue', 'vue/jsx-runtime', 'react']
+        external: ['vue', 'vue/jsx-runtime', 'react'],
       },
       minify: 'oxc',
       outDir: './dist',
       sourcemap: false,
       emptyOutDir: true,
-    }
-  }
-})
+    },
+  };
+});
