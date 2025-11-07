@@ -115,6 +115,126 @@ for await (const chunk of api.get('/sse-endpoint').stream()) {
 }
 ```
 
+### Request Deduplication Plugin (Not Recommended)
+
+:::warning Official Not Recommended
+While we provide a request deduplication plugin, **we do not officially recommend using it in production environments**. Deduplication logic adds system complexity and may lead to unexpected behavior. We recommend preventing duplicate requests at the application level through design, such as:
+
+- Disable buttons to prevent repeated clicks
+- Use debounce/throttle for user input handling
+- Use request state management to avoid concurrent requests
+
+Since many developers have this scenario requirement, we provide this plugin as a temporary solution, but please use it with caution.
+:::
+
+The request deduplication plugin prevents concurrent identical requests, allowing subsequent identical requests to execute only after the first request completes:
+
+```typescript
+import { dedupePlugin, isDedupeError } from 'hook-fetch/plugins/dedup';
+
+const api = hookFetch.create({
+  baseURL: 'https://api.example.com',
+  plugins: [dedupePlugin({})]
+});
+
+// Make multiple concurrent identical requests
+const promises = [
+  api.get('/users/1').json(),
+  api.get('/users/1').json(), // Will be deduplicated, throws DedupeError
+  api.get('/users/1').json(), // Will be deduplicated, throws DedupeError
+];
+
+const results = await Promise.allSettled(promises);
+
+// Check if it's a deduplication error
+results.forEach((result, index) => {
+  if (result.status === 'rejected' && isDedupeError(result.reason)) {
+    console.log(`Request ${index + 1} was deduplicated`);
+  }
+  else if (result.status === 'fulfilled') {
+    console.log(`Request ${index + 1} succeeded:`, result.value);
+  }
+});
+```
+
+**Plugin Configuration Options:**
+
+```typescript
+interface DedupePluginOptions {
+  // No configuration options in current version
+}
+```
+
+**Deduplication Rules:**
+
+The deduplication plugin generates a unique identifier for requests based on the following parameter combination:
+
+- URL
+- HTTP method (GET, POST, etc.)
+- URL parameters (params)
+- Request body data (data)
+
+When a request with the same identifier is in progress, subsequent requests will throw a `DedupeError`.
+
+**Disable Deduplication for Specific Requests:**
+
+You can disable deduplication for specific requests using the `extra.dedupeAble` option:
+
+```typescript
+// This request will not be deduplicated
+const response = await api.get('/users/1', {}, {
+  extra: { dedupeAble: false }
+}).json();
+```
+
+**Deduplication Behavior:**
+
+```typescript
+const api = hookFetch.create({
+  plugins: [dedupePlugin({})]
+});
+
+// ✅ Concurrent identical requests will be deduplicated
+Promise.all([
+  api.get('/users/1').json(), // Executes normally
+  api.get('/users/1').json(), // Deduplicated, throws error
+]);
+
+// ✅ Sequential requests will not be deduplicated
+await api.get('/users/1').json(); // First request
+await api.get('/users/1').json(); // Second request, executes normally
+
+// ✅ Requests with different parameters will not be deduplicated
+Promise.all([
+  api.get('/users/1', { params: { page: 1 } }).json(), // Executes normally
+  api.get('/users/1', { params: { page: 2 } }).json(), // Executes normally
+]);
+
+// ✅ Requests with different HTTP methods will not be deduplicated
+Promise.all([
+  api.get('/users/1').json(), // Executes normally
+  api.post('/users/1').json(), // Executes normally
+]);
+```
+
+**Error Handling:**
+
+```typescript
+try {
+  const response = await api.get('/users/1').json();
+}
+catch (error) {
+  if (isDedupeError(error)) {
+    // Handle deduplication error
+    console.log('Duplicate request detected');
+  }
+  else {
+    // Handle other errors
+    console.error('Request failed:', error);
+  }
+}
+```
+
 ## Custom Plugin Examples
 
 ### 1. Authentication Plugin
@@ -207,6 +327,9 @@ Cache request responses:
 
 ```typescript
 // Memory cache plugin with configurable TTL
+// Note: Cache plugin differs from deduplication plugin
+// - Cache plugin: Stores response results to avoid repeated requests and improve performance
+// - Deduplication plugin: Prevents concurrent identical requests without caching results
 function cachePlugin(options = {}) {
   const defaultOptions = {
     ttl: 5 * 60 * 1000, // Default 5 minutes

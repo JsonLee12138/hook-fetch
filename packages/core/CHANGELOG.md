@@ -1,5 +1,25 @@
 # hook-fetch
 
+## 2.2.3
+
+### Patch Changes
+
+- 新增请求去重插件并改进错误处理
+
+  ## 新增功能
+  - **请求去重插件 (dedupePlugin)**: 新增 `dedupePlugin` 用于防止并发的相同请求。插件会根据 URL、HTTP 方法、参数和请求体数据生成唯一标识,当检测到相同标识的请求正在进行时,后续请求会抛出 `DedupeError`
+    - 提供 `isDedupeError` 辅助函数用于判断错误类型
+    - 支持通过 `extra.dedupeAble` 选项禁用特定请求的去重功能
+    - ⚠️ 官方不推荐在生产环境中使用,建议通过应用层设计(如禁用按钮、防抖节流、状态管理)来避免重复请求
+
+  ## 改进
+  - **类型定义完善**: 在 `RequestConfig`、`BaseRequestOptions` 和 `OptionProps` 中添加 `extra` 字段支持,允许传递额外的请求配置
+  - **错误处理优化**: 改进 React 和 Vue hooks 的错误处理逻辑,过滤 `AbortError` 和 JSON 解析错误,避免触发不必要的错误回调
+
+  ## 文档更新
+  - 添加请求去重插件的完整文档和使用示例
+  - 更新中英文文档
+
 ## 2.2.2
 
 ### Patch Changes

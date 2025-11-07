@@ -115,6 +115,126 @@ for await (const chunk of api.get('/sse-endpoint').stream()) {
 }
 ```
 
+### 请求去重插件 (不推荐)
+
+:::warning 官方不推荐使用
+虽然我们提供了请求去重插件,但**官方并不推荐在生产环境中使用**。去重逻辑会增加系统复杂度,可能导致意外的行为。建议在应用层面通过设计来避免重复请求,例如:
+
+- 禁用按钮防止重复点击
+- 使用防抖/节流处理用户输入
+- 使用请求状态管理避免并发请求
+
+由于很多开发者有这个场景需求,我们提供了该插件作为临时解决方案,但请谨慎使用。
+:::
+
+请求去重插件用于防止并发的相同请求,仅当第一个请求完成后才允许后续相同请求执行:
+
+```typescript
+import { dedupePlugin, isDedupeError } from 'hook-fetch/plugins/dedupe';
+
+const api = hookFetch.create({
+  baseURL: 'https://api.example.com',
+  plugins: [dedupePlugin({})]
+});
+
+// 发起多个并发的相同请求
+const promises = [
+  api.get('/users/1').json(),
+  api.get('/users/1').json(), // 会被去重,抛出 DedupeError
+  api.get('/users/1').json(), // 会被去重,抛出 DedupeError
+];
+
+const results = await Promise.allSettled(promises);
+
+// 检查是否是去重错误
+results.forEach((result, index) => {
+  if (result.status === 'rejected' && isDedupeError(result.reason)) {
+    console.log(`请求 ${index + 1} 被去重`);
+  }
+  else if (result.status === 'fulfilled') {
+    console.log(`请求 ${index + 1} 成功:`, result.value);
+  }
+});
+```
+
+**插件配置选项:**
+
+```typescript
+interface DedupePluginOptions {
+  // 当前版本暂无配置选项
+}
+```
+
+**去重规则:**
+
+去重插件通过以下参数组合生成请求的唯一标识:
+
+- URL
+- HTTP 方法 (GET, POST 等)
+- URL 参数 (params)
+- 请求体数据 (data)
+
+当检测到相同标识的请求正在进行时,后续请求会抛出 `DedupeError`。
+
+**禁用特定请求的去重:**
+
+可以通过 `extra.dedupeAble` 选项禁用特定请求的去重功能:
+
+```typescript
+// 该请求不会被去重
+const response = await api.get('/users/1', {}, {
+  extra: { dedupeAble: false }
+}).json();
+```
+
+**去重行为说明:**
+
+```typescript
+const api = hookFetch.create({
+  plugins: [dedupePlugin({})]
+});
+
+// ✅ 并发相同请求会被去重
+Promise.all([
+  api.get('/users/1').json(), // 正常执行
+  api.get('/users/1').json(), // 被去重,抛出错误
+]);
+
+// ✅ 顺序请求不会被去重
+await api.get('/users/1').json(); // 第一个请求
+await api.get('/users/1').json(); // 第二个请求,正常执行
+
+// ✅ 不同参数的请求不会被去重
+Promise.all([
+  api.get('/users/1', { params: { page: 1 } }).json(), // 正常执行
+  api.get('/users/1', { params: { page: 2 } }).json(), // 正常执行
+]);
+
+// ✅ 不同 HTTP 方法的请求不会被去重
+Promise.all([
+  api.get('/users/1').json(), // 正常执行
+  api.post('/users/1').json(), // 正常执行
+]);
+```
+
+**错误处理:**
+
+```typescript
+try {
+  const response = await api.get('/users/1').json();
+}
+catch (error) {
+  if (isDedupeError(error)) {
+    // 处理去重错误
+    console.log('检测到重复请求');
+  }
+  else {
+    // 处理其他错误
+    console.error('请求失败:', error);
+  }
+}
+```
+
 ## 自定义插件示例
 
 ### 1. 认证插件
@@ -208,6 +328,9 @@ function retryPlugin(maxRetries = 3, delay = 1000) {
 
 ```typescript
 // 内存缓存插件，通过插件参数配置 TTL
+// 注意：缓存插件与去重插件功能不同
+// - 缓存插件: 存储响应结果，避免重复请求，提高性能
+// - 去重插件: 防止并发相同请求，不缓存结果
 function cachePlugin(options = {}) {
   const defaultOptions = {
     ttl: 5 * 60 * 1000, // 默认 5 分钟

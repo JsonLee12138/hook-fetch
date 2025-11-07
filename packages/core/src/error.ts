@@ -12,10 +12,10 @@ export interface ResponseErrorOptions<E = unknown> {
 export class ResponseError<E = unknown> extends Error {
   #message: string;
   #name: string;
-  #status?: number;
-  #statusText?: string;
-  #response?: Response;
-  #config?: RequestConfig<unknown, unknown, E>;
+  #status?: number | undefined;
+  #statusText?: string | undefined;
+  #response?: Response | undefined;
+  #config?: RequestConfig<unknown, unknown, E> | undefined;
 
   constructor({ message, status, statusText, response, config, name }: ResponseErrorOptions<E>) {
     super(message);
@@ -27,7 +27,7 @@ export class ResponseError<E = unknown> extends Error {
     this.#name = name ?? message;
   }
 
-  get message() {
+  override get message() {
     return this.#message;
   }
 
@@ -47,7 +47,7 @@ export class ResponseError<E = unknown> extends Error {
     return this.#config;
   }
 
-  get name() {
+  override get name() {
     return this.#name;
   }
 }

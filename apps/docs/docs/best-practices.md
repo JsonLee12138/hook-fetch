@@ -310,39 +310,85 @@ export function cachePlugin(options = {}) {
 
 ### 请求去重
 
+:::warning 官方不推荐使用
+虽然我们提供了请求去重插件,但**官方并不推荐在生产环境中使用**。去重逻辑会增加系统复杂度,可能导致意外的行为。建议在应用层面通过设计来避免重复请求:
+
+- 禁用按钮防止重复点击
+- 使用防抖/节流处理用户输入
+- 使用请求状态管理避免并发请求
+
+如果确实需要使用去重功能,请使用官方提供的插件,但请谨慎使用。
+:::
+
 ```typescript
-// src/api/plugins/dedupe.ts
-export function dedupePlugin() {
-  const pendingRequests = new Map();
+// 使用官方去重插件
+import { dedupePlugin, isDedupeError } from 'hook-fetch/plugins/dedupe';
 
-  const getRequestKey = (url: string, method: string, params: any, data: any) => {
-    return `${method}:${url}:${JSON.stringify(params)}:${JSON.stringify(data)}`;
-  };
+const api = hookFetch.create({
+  baseURL: 'https://api.example.com',
+  plugins: [dedupePlugin()]
+});
 
-  return {
-    name: 'dedupe',
-    async beforeRequest(config) {
-      const key = getRequestKey(config.url, config.method, config.params, config.data);
+// 并发相同请求会被去重
+try {
+  const promises = [
+    api.get('/users/1').json(),
+    api.get('/users/1').json(), // 会被去重
+  ];
 
-      if (pendingRequests.has(key)) {
-        // 如果已有相同请求正在进行，抛出错误阻止重复请求
-        pendingRequests.delete(key);
-        throw new Error('重复请求已被阻止');
-      }
+  const results = await Promise.allSettled(promises);
+  results.forEach((result, index) => {
+    if (result.status === 'rejected' && isDedupeError(result.reason)) {
+      console.log(`请求 ${index + 1} 被去重`);
+    }
+    else if (result.status === 'fulfilled') {
+      console.log(`请求 ${index + 1} 成功:`, result.value);
+    }
+  });
+}
+catch (error) {
+  if (isDedupeError(error)) {
+    console.log('检测到重复请求');
+  }
+}
 
-      // 标记请求为进行中
-      pendingRequests.set(key, config);
-      return config;
-    },
-    async afterResponse(context) {
-      const { config } = context;
-      const key = getRequestKey(config.url, config.method, config.params, config.data);
+// 禁用特定请求的去重
+const response = await api.get('/users/1', {}, {
+  extra: { dedupeAble: false }
+}).json();
+```
 
-      // 请求完成后清理
-      pendingRequests.delete(key);
-      return context;
+**更好的替代方案：**
+
+```typescript
+// 推荐：使用防抖避免重复提交
+import { debounce } from 'lodash-es';
+
+const handleSubmit = debounce(async (data) => {
+  await api.post('/users', data).json();
+}, 300);
+
+// 推荐：使用按钮禁用状态
+function UserForm() {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (data) => {
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+    try {
+      await api.post('/users', data).json();
+    }
+    finally {
+      setIsSubmitting(false);
     }
   };
+
+  return (
+    <button disabled={isSubmitting} onClick={handleSubmit}>
+      {isSubmitting ? '提交中...' : '提交'}
+    </button>
+  );
 }
 ```
 
@@ -764,7 +810,8 @@ export const productionApi = hookFetch.create({
     authPlugin(),
     retryPlugin({ maxRetries: config.retryAttempts }),
     cachePlugin({ ttl: 10 * 60 * 1000 }), // 10分钟缓存
-    dedupePlugin(),
+    // 注意：去重插件不推荐在生产环境使用，建议在应用层面处理
+    // dedupePlugin(), // 不推荐
     errorHandlerPlugin(),
     ...(config.debug ? [loggerPlugin()] : []) // 只在调试模式下启用日志
   ]

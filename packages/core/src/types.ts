@@ -65,7 +65,7 @@ export type TransformStreamChunkHandler<E = unknown, P = unknown, D = unknown> =
 
 export type OnFinallyHandler<E = unknown, P = unknown, D = unknown> = (res: Pick<FetchPluginContext<unknown, E, P, D>, 'config'>) => void | PromiseLike<void>;
 
-export type OnErrorHandler<E = unknown, P = unknown, D = unknown> = (error: ResponseError, config: RequestConfig<P, D, E>) => PromiseLike<Error | void | ResponseError<E>> | Error | void | ResponseError<E>;
+export type OnErrorHandler<E = unknown, P = unknown, D = unknown> = (error: ResponseError<E>, config: RequestConfig<P, D, E>) => PromiseLike<Error | void | ResponseError<E>> | Error | void | ResponseError<E>;
 
 export interface HookFetchPlugin<T = unknown, E = unknown, P = unknown, D = unknown> {
   /** 插件名称 */

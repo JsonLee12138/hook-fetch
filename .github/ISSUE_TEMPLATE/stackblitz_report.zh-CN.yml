@@ -1,0 +1,81 @@
+name: 🐛 Bug 反馈
+description: 创建问题报告帮助我们改进
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢您报告问题 :pray:。
+
+        此问题跟踪器用于报告在 `hook-fetch` 中发现的错误 (https://github.com/JsonLee12138/hook-fetch)。
+        如果您在实现某些功能时遇到困难并有疑问，请在 `hook-fetch` 的 Discussions 标签页中发布问题：https://github.com/JsonLee12138/hook-fetch/discussions
+
+        在提交新的 bug/问题之前，请检查以下链接，看看是否已经有解决方案或相关问题：
+         - `hook-fetch` Issues 标签页：https://github.com/JsonLee12138/hook-fetch/issues?q=is%3Aissue+is%3Aopen+sort%3Aupdated-desc
+         - `hook-fetch` 已关闭的 issues 标签页：https://github.com/JsonLee12138/hook-fetch/issues?q=is%3Aissue+sort%3Aupdated-desc+is%3Aclosed
+         - `hook-fetch` Discussions 标签页：https://github.com/JsonLee12138/hook-fetch/discussions
+
+        您填写的信息越详细，社区就能更好地帮助您。
+  - type: textarea
+    id: description
+    attributes:
+      label: 描述 bug
+      description: 请清晰、简洁地描述您遇到的问题。
+    validations:
+      required: true
+  - type: input
+    id: link
+    attributes:
+      label: 您的示例网站或应用
+      description: |
+        当 bug 发生时，您正在使用哪个网站或应用？
+        注意：
+        - 请通过我们预配置的 Stackblitz 项目（[示例](https://stackblitz.com/~/github.com/JsonLee12138/hook-fetch-demo)）提供链接，或提供可以重现问题的代码仓库链接。
+        - 如果我们能运行您的代码，并且它除了 `hook-fetch` npm 包/依赖项之外没有其他依赖项，您的 bug 可能会更快得到修复。
+        - 要创建可共享的代码示例，您可以使用 Stackblitz。请不要使用 localhost URL。
+        - 请阅读这些提供最小示例的技巧：https://stackoverflow.com/help/mcve。
+      placeholder: 重现问题的 URL
+  - type: textarea
+    id: steps
+    attributes:
+      label: 重现 Bug 或问题的步骤
+      description: 描述我们需要采取哪些步骤来重现此行为。
+      placeholder: |
+        1. 前往 '...'
+        2. 点击 '....'
+        3. 向下滚动到 '....'
+        4. 看到错误
+  - type: textarea
+    id: expected
+    attributes:
+      label: 预期行为
+      description: 请清晰、简洁地描述您期望发生的情况。
+      placeholder: |
+        作为用户，我期望 ___ 行为，但我看到的是 ___
+  - type: textarea
+    id: screenshots_or_videos
+    attributes:
+      label: 截图或视频
+      description: |
+        如果适用，请添加截图或视频来帮助解释您的问题。
+        有关支持的图像/文件类型和文件大小限制的更多信息，请参考
+        以下链接：https://docs.github.com/en/github/writing-on-github/working-with-advanced-formatting/attaching-files
+      placeholder: |
+        您可以将视频或图像文件拖到此编辑器中 ↓
+  - type: textarea
+    id: platform
+    attributes:
+      label: 平台信息
+      value: |
+        - hook-fetch 版本：[例如 1.0.0]
+        - 框架：[例如 React, Vue, Angular]
+        - 框架版本：[例如 1.0.0]
+        - 操作系统：[例如 macOS, Windows, Linux]
+        - 浏览器：[例如 Chrome, Safari, Firefox]
+        - 浏览器版本：[例如 91.1]
+        - 打包工具：[例如 vite]
+        - 打包工具版本：[例如 7.0.0]
+  - type: textarea
+    id: additional
+    attributes:
+      label: 其他信息
+      description: 在此添加有关该问题的任何其他信息。

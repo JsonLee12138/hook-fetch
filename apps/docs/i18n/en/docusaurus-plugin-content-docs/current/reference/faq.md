@@ -392,38 +392,67 @@ function cachePlugin(options = {}) {
 
 ### How do I implement request deduplication?
 
+While we provide an official deduplication plugin, **we do not recommend using it in production**. Better approaches are to prevent duplicate requests at the application level:
+
 ```typescript
-function deduplicationPlugin() {
-  const pendingRequests = new Map();
+// Recommended approach 1: Use button disabled state
+function SubmitButton() {
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const getRequestKey = (url: string, method: string, params: any, data: any) => {
-    return `${method}:${url}:${JSON.stringify(params)}:${JSON.stringify(data)}`;
-  };
+  const handleSubmit = async () => {
+    if (isSubmitting) return;
 
-  return {
-    name: 'deduplication',
-    async beforeRequest(config) {
-      const key = getRequestKey(config.url, config.method, config.params, config.data);
-
-      if (pendingRequests.has(key)) {
-        // Prevent duplicate requests by throwing error
-        pendingRequests.delete(key);
-        throw new Error('Duplicate request blocked');
-      }
-
-      // Mark request as pending
-      pendingRequests.set(key, config);
-      return config;
-    },
-    async afterResponse(context) {
-      const { config } = context;
-      const key = getRequestKey(config.url, config.method, config.params, config.data);
-
-      // Clean up after request completes
-      pendingRequests.delete(key);
-      return context;
+    setIsSubmitting(true);
+    try {
+      await api.post('/submit', data).json();
+    }
+    finally {
+      setIsSubmitting(false);
     }
   };
+
+  return (
+    <button disabled={isSubmitting} onClick={handleSubmit}>
+      {isSubmitting ? 'Submitting...' : 'Submit'}
+    </button>
+  );
+}
+
+// Recommended approach 2: Use debouncing
+import { debounce } from 'lodash-es';
+
+const handleSearch = debounce(async (query) => {
+  await api.get('/search', { q: query }).json();
+}, 300);
+```
+
+If you really need the deduplication plugin (not recommended):
+
+```typescript
+import { dedupePlugin, isDedupeError } from 'hook-fetch/plugins/dedupe';
+
+const api = hookFetch.create({
+  plugins: [dedupePlugin({})]
+});
+
+// Concurrent identical requests will be deduplicated
+try {
+  const promises = [
+    api.get('/users/1').json(),
+    api.get('/users/1').json(), // Will be deduplicated
+  ];
+
+  const results = await Promise.allSettled(promises);
+  results.forEach((result, index) => {
+    if (result.status === 'rejected' && isDedupeError(result.reason)) {
+      console.log(`Request ${index + 1} was deduplicated`);
+    }
+  });
+}
+catch (error) {
+  if (isDedupeError(error)) {
+    console.log('Duplicate request detected');
+  }
 }
 ```
 

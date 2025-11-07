@@ -16,7 +16,7 @@ interface UseHookFetchOptions<Q extends (...args: any[]) => any> {
  * @param {(e: Error) => any} [options.onError] - Error callback function | 错误回调函数
  * @returns {object} Hook fetch utilities object | Hook fetch 工具对象
  * @property {Function} request - Request function | 请求函数
- * @property {Function} stream - Get response as stream | 获取流响应
+ * @property {Function<T>} stream - Get response as stream | 获取流响应
  * @property {Function} text - Get response as text | 获取文本响应
  * @property {Function} blob - Get response as blob | 获取二进制响应
  * @property {Function} arrayBufferData - Get response as array buffer | 获取二进制缓冲区响应
@@ -45,12 +45,18 @@ export function useHookFetch<Q extends (...args: any[]) => any>({
       return instance.current;
     }
     instance.current = request(...args);
+    if (!instance.current || !('__injectPlugins__' in instance.current)) {
+      throw new Error('Instance is not a HookFetchRequest');
+    }
     instance.current?.__injectPlugins__([reactPlugin]);
     return instance;
   };
 
   const setInstance = (...args: Parameters<Q>) => {
     instance.current = request(...args);
+    if (!instance.current || !('__injectPlugins__' in instance.current)) {
+      throw new Error('Instance is not a HookFetchRequest');
+    }
     instance.current?.__injectPlugins__([reactPlugin]);
     setLoading(true);
     instance.current?.catch((e) => {
@@ -61,9 +67,6 @@ export function useHookFetch<Q extends (...args: any[]) => any>({
       }
       setLoading(false);
     });
-    // instance.current?.finally(() => {
-    //   setLoading(false);
-    // });
     return instance;
   };
 
@@ -72,11 +75,9 @@ export function useHookFetch<Q extends (...args: any[]) => any>({
     return instance.current!.text();
   };
 
-  const stream = (...args: Parameters<Q>) => {
-    // console.log('stream', args);
+  const stream = <T = unknown>(...args: Parameters<Q>) => {
     setInstance(...args);
-    console.error('stream1', instance.current);
-    return instance.current!.stream();
+    return instance.current!.stream<T>();
   };
 
   const blob = (...args: Parameters<Q>) => {

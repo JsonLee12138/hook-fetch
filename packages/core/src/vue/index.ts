@@ -16,7 +16,7 @@ interface UseHookFetchOptions<Q extends (...args: any[]) => any> {
  * @param {(e: Error) => any} [options.onError] - Error callback function | 错误回调函数
  * @returns {object} Hook fetch utilities object | Hook fetch 工具对象
  * @property {Function} request - Request function | 请求函数
- * @property {Function} stream - Get response as stream | 获取流响应
+ * @property {Function<T>} stream - Get response as stream | 获取流响应
  * @property {Function} text - Get response as text | 获取文本响应
  * @property {Function} blob - Get response as blob | 获取二进制响应
  * @property {Function} arrayBufferData - Get response as array buffer | 获取二进制缓冲区响应
@@ -44,12 +44,18 @@ export function useHookFetch<Q extends (...args: any[]) => any>({
       return instance;
     }
     instance = request(...args);
+    if (!instance || !('__injectPlugins__' in instance)) {
+      throw new Error('Instance is not a HookFetchRequest');
+    }
     instance?.__injectPlugins__([vuePlugin]);
     return instance;
   };
 
   const setInstance = (...args: Parameters<Q>) => {
     instance = request(...args);
+    if (!instance || !('__injectPlugins__' in instance)) {
+      throw new Error('Instance is not a HookFetchRequest');
+    }
     instance?.__injectPlugins__([vuePlugin]);
     loading.value = true;
     instance?.catch((e) => {
@@ -60,9 +66,6 @@ export function useHookFetch<Q extends (...args: any[]) => any>({
         }
       }
     });
-    // instance?.finally(() => {
-    //   loading.value = false;
-    // });
     return instance;
   };
 
@@ -71,9 +74,9 @@ export function useHookFetch<Q extends (...args: any[]) => any>({
     return instance!.text();
   };
 
-  const stream = (...args: Parameters<Q>) => {
+  const stream = <T = unknown>(...args: Parameters<Q>) => {
     setInstance(...args);
-    return instance!.stream();
+    return instance!.stream<T>();
   };
 
   const blob = (...args: Parameters<Q>) => {

@@ -263,40 +263,67 @@ const loadUser = async () => {
 
 ### Q: 如何避免重复请求？
 
-**A:** 使用去重插件：
+**A:** 虽然我们提供了官方去重插件，但**不推荐在生产环境中使用**。更好的做法是在应用层面避免重复请求：
 
 ```typescript
-function dedupePlugin() {
-  const pendingRequests = new Map();
+// 推荐方式 1：使用按钮禁用状态
+function SubmitButton() {
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const getRequestKey = (url: string, method: string, params: any, data: any) => {
-    return `${method}:${url}:${JSON.stringify(params)}:${JSON.stringify(data)}`;
-  };
+  const handleSubmit = async () => {
+    if (isSubmitting) return;
 
-  return {
-    name: 'dedupe',
-    async beforeRequest(config) {
-      const key = getRequestKey(config.url, config.method, config.params, config.data);
-
-      if (pendingRequests.has(key)) {
-        // 如果已有相同请求正在进行，抛出错误阻止重复请求
-        pendingRequests.delete(key);
-        throw new Error('重复请求已被阻止');
-      }
-
-      // 标记请求为进行中
-      pendingRequests.set(key, config);
-      return config;
-    },
-    async afterResponse(context) {
-      const { config } = context;
-      const key = getRequestKey(config.url, config.method, config.params, config.data);
-
-      // 请求完成后清理
-      pendingRequests.delete(key);
-      return context;
+    setIsSubmitting(true);
+    try {
+      await api.post('/submit', data).json();
+    }
+    finally {
+      setIsSubmitting(false);
     }
   };
+
+  return (
+    <button disabled={isSubmitting} onClick={handleSubmit}>
+      {isSubmitting ? '提交中...' : '提交'}
+    </button>
+  );
+}
+
+// 推荐方式 2：使用防抖
+import { debounce } from 'lodash-es';
+
+const handleSearch = debounce(async (query) => {
+  await api.get('/search', { q: query }).json();
+}, 300);
+```
+
+如果确实需要使用去重插件（不推荐）：
+
+```typescript
+import { dedupePlugin, isDedupeError } from 'hook-fetch/plugins/dedupe';
+
+const api = hookFetch.create({
+  plugins: [dedupePlugin()]
+});
+
+// 并发相同请求会被去重
+try {
+  const promises = [
+    api.get('/users/1').json(),
+    api.get('/users/1').json(), // 会被去重
+  ];
+
+  const results = await Promise.allSettled(promises);
+  results.forEach((result, index) => {
+    if (result.status === 'rejected' && isDedupeError(result.reason)) {
+      console.log(`请求 ${index + 1} 被去重`);
+    }
+  });
+}
+catch (error) {
+  if (isDedupeError(error)) {
+    console.log('检测到重复请求');
+  }
 }
 ```
 
