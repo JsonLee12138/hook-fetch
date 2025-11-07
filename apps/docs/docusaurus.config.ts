@@ -205,6 +205,11 @@ const config: Config = {
           position: 'right',
         },
         {
+          href: 'https://stackblitz.com/~/github.com/JsonLee12138/hook-fetch-demo',
+          label: 'Demo',
+          position: 'right',
+        },
+        {
           href: 'https://deepwiki.com/JsonLee12138/hook-fetch',
           label: 'DeepWiki',
           position: 'right',
@@ -266,6 +271,14 @@ const config: Config = {
             {
               label: 'npm',
               href: 'https://www.npmjs.com/package/hook-fetch',
+            },
+            {
+              label: 'Demo',
+              href: 'https://stackblitz.com/~/github.com/JsonLee12138/hook-fetch-demo',
+            },
+            {
+              label: 'DeepWiki',
+              href: 'https://deepwiki.com/JsonLee12138/hook-fetch',
             },
           ],
         },
