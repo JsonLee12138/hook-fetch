@@ -101,10 +101,10 @@ import { sseTextDecoderPlugin } from 'hook-fetch/plugins/sse';
 const api = hookFetch.create({
   plugins: [
     sseTextDecoderPlugin({
-      json: true,                 // Auto-parse JSON
-      prefix: 'data: ',          // Remove prefix
-      splitSeparator: '\n\n',    // Event separator
-      doneSymbol: '[DONE]'       // End marker
+      json: true, // Auto-parse JSON
+      prefix: 'data: ', // Remove prefix
+      splitSeparator: '\n\n', // Event separator
+      doneSymbol: '[DONE]' // End marker
     })
   ]
 });
@@ -122,18 +122,20 @@ for await (const chunk of api.get('/sse-endpoint').stream()) {
 Automatically add authentication headers:
 
 ```typescript
-const authPlugin = (getToken: () => string) => ({
-  name: 'auth',
-  priority: 1,
-  async beforeRequest(config) {
-    const token = getToken();
-    if (token) {
-      config.headers = new Headers(config.headers);
-      config.headers.set('Authorization', `Bearer ${token}`);
+function authPlugin(getToken: () => string) {
+  return {
+    name: 'auth',
+    priority: 1,
+    async beforeRequest(config) {
+      const token = getToken();
+      if (token) {
+        config.headers = new Headers(config.headers);
+        config.headers.set('Authorization', `Bearer ${token}`);
+      }
+      return config;
     }
-    return config;
-  }
-});
+  };
+}
 
 // Usage
 const api = hookFetch.create({
@@ -146,84 +148,132 @@ const api = hookFetch.create({
 Log requests and responses:
 
 ```typescript
-const loggerPlugin = () => ({
-  name: 'logger',
-  async beforeRequest(config) {
-    console.log(`[${config.method}] ${config.url}`);
-    return config;
-  },
-  async afterResponse(context, config) {
-    console.log(`[${config.method}] ${config.url} - ${context.response.status}`);
-    return context;
-  },
-  async onError(error, config) {
-    console.error(`[${config.method}] ${config.url} - Error:`, error.message);
-    return error;
-  }
-});
+function loggerPlugin() {
+  return {
+    name: 'logger',
+    async beforeRequest(config) {
+      console.log(`[${config.method}] ${config.url}`);
+      return config;
+    },
+    async afterResponse(context, config) {
+      console.log(`[${config.method}] ${config.url} - ${context.response.status}`);
+      return context;
+    },
+    async onError(error) {
+      console.error('Error:', error.message);
+      return error;
+    }
+  };
+}
 ```
 
 ### 3. Retry Plugin
 
-Automatically retry failed requests:
+Handle retry logic with manual retry() method:
 
 ```typescript
-const retryPlugin = (maxRetries = 3, delay = 1000) => ({
-  name: 'retry',
-  async onError(error, config) {
-    const retryCount = config.extra?.retryCount || 0;
+// Note: Retry should be implemented at application level using retry() method
+function retryPlugin(maxRetries = 3, delay = 1000) {
+  return {
+    name: 'retry',
+    async onError(error, config) {
+      const retryCount = config.extra?.retryCount || 0;
 
-    if (retryCount < maxRetries && error.response?.status >= 500) {
-      // Delay before retry
-      await new Promise(resolve => setTimeout(resolve, delay));
+      if (retryCount < maxRetries && error.response?.status >= 500) {
+        console.log(`Retry request (${retryCount + 1}/${maxRetries})`);
+        // Delay suggestion for manual retry
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
 
-      // Increment retry count
-      config.extra = { ...config.extra, retryCount: retryCount + 1 };
-
-      // Make new request
-      const newRequest = hookFetch(config.url, config);
-      return newRequest;
+      return error;
     }
+  };
+}
 
-    return error;
-  }
-});
+// Usage example:
+// const req = api.get('/endpoint');
+// try {
+//   const data = await req.json();
+// } catch (error) {
+//   // Manual retry
+//   const retryReq = req.retry();
+//   const data = await retryReq.json();
+// }
 ```
 
 ### 4. Cache Plugin
 
-Cache GET request responses:
+Cache request responses:
 
 ```typescript
-const cachePlugin = (ttl = 5 * 60 * 1000) => {
+// Memory cache plugin with configurable TTL
+function cachePlugin(options = {}) {
+  const defaultOptions = {
+    ttl: 5 * 60 * 1000, // Default 5 minutes
+  };
+  const config = { ...defaultOptions, ...options };
   const cache = new Map();
+
+  const getRequestKey = (url: string, method: string, params: any, data: any) => {
+    return `${url}::${method}::${JSON.stringify(params)}::${JSON.stringify(data)}`;
+  };
 
   return {
     name: 'cache',
-    async beforeRequest(config) {
-      if (config.method === 'GET') {
-        const key = `${config.url}?${new URLSearchParams(config.params).toString()}`;
-        const cached = cache.get(key);
+    async beforeRequest(requestConfig) {
+      const key = getRequestKey(
+        requestConfig.url,
+        requestConfig.method,
+        requestConfig.params,
+        requestConfig.data
+      );
+      const cached = cache.get(key);
 
-        if (cached && Date.now() - cached.timestamp < ttl) {
-          // Return cached response
-          return Promise.resolve(cached.response);
+      if (cached) {
+        // Check if cache is expired
+        if (cached.timestamp + config.ttl > Date.now()) {
+          // Return cached data using resolve property
+          return {
+            ...requestConfig,
+            resolve: () => new Response(JSON.stringify(cached.data), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' }
+            })
+          };
+        }
+        else {
+          // Cache expired, delete it
+          cache.delete(key);
         }
       }
-      return config;
+
+      return requestConfig;
     },
-    async afterResponse(context, config) {
-      if (config.method === 'GET') {
-        const key = `${config.url}?${new URLSearchParams(config.params).toString()}`;
-        cache.set(key, {
-          response: context.result,
-          timestamp: Date.now()
-        });
-      }
+    async afterResponse(context, requestConfig) {
+      const key = getRequestKey(
+        requestConfig.url,
+        requestConfig.method,
+        requestConfig.params,
+        requestConfig.data
+      );
+
+      // Cache response data
+      cache.set(key, {
+        data: context.result,
+        timestamp: Date.now()
+      });
+
       return context;
     }
   };
-};
+}
+
+// Usage example
+const api = hookFetch.create({
+  plugins: [cachePlugin({ ttl: 10 * 1000 })] // 10 seconds cache
+});
+
+await api.get('/users/1').json();
 ```
 
 ### 5. Response Transform Plugin
@@ -231,20 +281,23 @@ const cachePlugin = (ttl = 5 * 60 * 1000) => {
 Transform response data format:
 
 ```typescript
-const responseTransformPlugin = () => ({
-  name: 'response-transform',
-  async afterResponse(context, config) {
-    if (context.responseType === 'json' && context.result) {
+function responseTransformPlugin() {
+  return {
+    name: 'response-transform',
+    async afterResponse(context, config) {
+      if (context.responseType === 'json' && context.result) {
       // Transform API response format
-      if (context.result.code === 200) {
-        context.result = context.result.data;
-      } else {
-        throw new Error(context.result.message);
+        if (context.result.code === 200) {
+          context.result = context.result.data;
+        }
+        else {
+          throw new Error(context.result.message);
+        }
       }
+      return context;
     }
-    return context;
-  }
-});
+  };
+}
 ```
 
 ## Advanced Plugin Development
@@ -252,7 +305,7 @@ const responseTransformPlugin = () => ({
 ### Plugin with State
 
 ```typescript
-const statisticsPlugin = () => {
+function statisticsPlugin() {
   let requestCount = 0;
   let errorCount = 0;
 
@@ -272,27 +325,29 @@ const statisticsPlugin = () => {
       return { requestCount, errorCount };
     }
   };
-};
+}
 ```
 
 ### Async Plugin Operations
 
 ```typescript
-const asyncPlugin = () => ({
-  name: 'async-plugin',
-  async beforeRequest(config) {
+function asyncPlugin() {
+  return {
+    name: 'async-plugin',
+    async beforeRequest(config) {
     // Async operation
-    const signature = await generateSignature(config);
-    config.headers = new Headers(config.headers);
-    config.headers.set('X-Signature', signature);
-    return config;
-  },
-  async afterResponse(context, config) {
+      const signature = await generateSignature(config);
+      config.headers = new Headers(config.headers);
+      config.headers.set('X-Signature', signature);
+      return config;
+    },
+    async afterResponse(context, config) {
     // Async response processing
-    await logToAnalytics(config.url, context.response.status);
-    return context;
-  }
-});
+      await logToAnalytics(config.url, context.response.status);
+      return context;
+    }
+  };
+}
 ```
 
 ## Plugin Best Practices
@@ -302,18 +357,21 @@ const asyncPlugin = () => ({
 Always handle errors gracefully in plugins:
 
 ```typescript
-const safePlugin = () => ({
-  name: 'safe-plugin',
-  async beforeRequest(config) {
-    try {
+function safePlugin() {
+  return {
+    name: 'safe-plugin',
+    async beforeRequest(config) {
+      try {
       // Plugin logic
-      return config;
-    } catch (error) {
-      console.error('Plugin error:', error);
-      return config; // Return original config on error
+        return config;
+      }
+      catch (error) {
+        console.error('Plugin error:', error);
+        return config; // Return original config on error
+      }
     }
-  }
-});
+  };
+}
 ```
 
 ### 2. Performance Considerations
@@ -321,17 +379,19 @@ const safePlugin = () => ({
 Avoid blocking operations in plugins:
 
 ```typescript
-const performantPlugin = () => ({
-  name: 'performant-plugin',
-  async beforeRequest(config) {
+function performantPlugin() {
+  return {
+    name: 'performant-plugin',
+    async beforeRequest(config) {
     // Use non-blocking operations
-    setImmediate(() => {
+      setImmediate(() => {
       // Background task
-      updateMetrics(config);
-    });
-    return config;
-  }
-});
+        updateMetrics(config);
+      });
+      return config;
+    }
+  };
+}
 ```
 
 ### 3. Plugin Composition
@@ -339,12 +399,14 @@ const performantPlugin = () => ({
 Create reusable plugin factories:
 
 ```typescript
-const createApiPlugin = (options: ApiPluginOptions) => ({
-  name: 'api-plugin',
-  ...createAuthBehavior(options.auth),
-  ...createRetryBehavior(options.retry),
-  ...createCacheBehavior(options.cache)
-});
+function createApiPlugin(options: ApiPluginOptions) {
+  return {
+    name: 'api-plugin',
+    ...createAuthBehavior(options.auth),
+    ...createRetryBehavior(options.retry),
+    ...createCacheBehavior(options.cache)
+  };
+}
 ```
 
 ## Hook Functions Reference

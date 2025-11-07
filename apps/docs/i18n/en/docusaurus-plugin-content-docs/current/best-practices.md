@@ -13,8 +13,11 @@ This guide covers recommended practices and patterns for using Hook-Fetch effect
 ```typescript
 // api/client.ts
 import hookFetch from 'hook-fetch';
+// api/users.ts
+import { apiClient } from './client';
 import { authPlugin } from './plugins/auth';
 import { loggerPlugin } from './plugins/logger';
+
 import { retryPlugin } from './plugins/retry';
 
 export const apiClient = hookFetch.create({
@@ -29,9 +32,6 @@ export const apiClient = hookFetch.create({
     retryPlugin({ maxRetries: 3 })
   ]
 });
-
-// api/users.ts
-import { apiClient } from './client';
 
 export interface User {
   id: string;
@@ -58,7 +58,8 @@ export class UserService {
     try {
       const response = await userApi.getUser(id).json();
       return response.data;
-    } catch (error) {
+    }
+    catch (error) {
       throw new Error(`Failed to fetch user: ${error.message}`);
     }
   }
@@ -67,7 +68,8 @@ export class UserService {
     try {
       const response = await userApi.createUser(userData).json();
       return response.data;
-    } catch (error) {
+    }
+    catch (error) {
       throw new Error(`Failed to create user: ${error.message}`);
     }
   }
@@ -82,34 +84,36 @@ export class UserService {
 // plugins/errorHandler.ts
 import { HookFetchPlugin } from 'hook-fetch';
 
-export const errorHandlerPlugin = (): HookFetchPlugin => ({
-  name: 'error-handler',
-  priority: 1,
-  async onError(error, config) {
+export function errorHandlerPlugin(): HookFetchPlugin {
+  return {
+    name: 'error-handler',
+    priority: 1,
+    async onError(error, config) {
     // Log error
-    console.error(`API Error [${config.method}] ${config.url}:`, error);
+      console.error(`API Error [${config.method}] ${config.url}:`, error);
 
-    // Handle specific error types
-    if (error.response?.status === 401) {
+      // Handle specific error types
+      if (error.response?.status === 401) {
       // Handle unauthorized
-      window.location.href = '/login';
-      return;
-    }
+        window.location.href = '/login';
+        return;
+      }
 
-    if (error.response?.status === 403) {
+      if (error.response?.status === 403) {
       // Handle forbidden
-      throw new Error('Access denied');
-    }
+        throw new Error('Access denied');
+      }
 
-    if (error.response?.status >= 500) {
+      if (error.response?.status >= 500) {
       // Handle server errors
-      throw new Error('Server error occurred');
-    }
+        throw new Error('Server error occurred');
+      }
 
-    // Re-throw for other errors
-    throw error;
-  }
-});
+      // Re-throw for other errors
+      throw error;
+    }
+  };
+}
 ```
 
 ### Typed Error Handling
@@ -134,20 +138,22 @@ export class ApiException extends Error {
 }
 
 // plugins/typedErrorHandler.ts
-export const typedErrorHandlerPlugin = (): HookFetchPlugin => ({
-  name: 'typed-error-handler',
-  async onError(error, config) {
-    if (error.response) {
-      const errorData = await error.response.json();
-      throw new ApiException(
-        errorData.code || 'UNKNOWN_ERROR',
-        errorData.message || 'An error occurred',
-        errorData.details
-      );
+export function typedErrorHandlerPlugin(): HookFetchPlugin {
+  return {
+    name: 'typed-error-handler',
+    async onError(error, config) {
+      if (error.response) {
+        const errorData = await error.response.json();
+        throw new ApiException(
+          errorData.code || 'UNKNOWN_ERROR',
+          errorData.message || 'An error occurred',
+          errorData.details
+        );
+      }
+      throw error;
     }
-    throw error;
-  }
-});
+  };
+}
 ```
 
 ## Performance Optimization
@@ -158,28 +164,30 @@ export const typedErrorHandlerPlugin = (): HookFetchPlugin => ({
 // utils/requestDeduplication.ts
 const pendingRequests = new Map<string, Promise<any>>();
 
-export const deduplicationPlugin = (): HookFetchPlugin => ({
-  name: 'deduplication',
-  async beforeRequest(config) {
-    if (config.method === 'GET') {
-      const key = `${config.url}?${JSON.stringify(config.params)}`;
+export function deduplicationPlugin(): HookFetchPlugin {
+  return {
+    name: 'deduplication',
+    async beforeRequest(config) {
+      if (config.method === 'GET') {
+        const key = `${config.url}?${JSON.stringify(config.params)}`;
 
-      if (pendingRequests.has(key)) {
-        return pendingRequests.get(key);
+        if (pendingRequests.has(key)) {
+          return pendingRequests.get(key);
+        }
+
+        const requestPromise = fetch(config.url, config);
+        pendingRequests.set(key, requestPromise);
+
+        requestPromise.finally(() => {
+          pendingRequests.delete(key);
+        });
+
+        return requestPromise;
       }
-
-      const requestPromise = fetch(config.url, config);
-      pendingRequests.set(key, requestPromise);
-
-      requestPromise.finally(() => {
-        pendingRequests.delete(key);
-      });
-
-      return requestPromise;
+      return config;
     }
-    return config;
-  }
-});
+  };
+}
 ```
 
 ### Caching Strategy
@@ -192,7 +200,7 @@ interface CacheEntry {
   ttl: number;
 }
 
-export const cachePlugin = (defaultTtl = 5 * 60 * 1000): HookFetchPlugin => {
+export function cachePlugin(defaultTtl = 5 * 60 * 1000): HookFetchPlugin {
   const cache = new Map<string, CacheEntry>();
 
   return {
@@ -222,7 +230,7 @@ export const cachePlugin = (defaultTtl = 5 * 60 * 1000): HookFetchPlugin => {
       return context;
     }
   };
-};
+}
 ```
 
 ## Security
@@ -231,78 +239,68 @@ export const cachePlugin = (defaultTtl = 5 * 60 * 1000): HookFetchPlugin => {
 
 ```typescript
 // plugins/auth.ts
-export const authPlugin = (): HookFetchPlugin => ({
-  name: 'auth',
-  priority: 1,
-  async beforeRequest(config) {
-    const token = localStorage.getItem('accessToken');
+export function authPlugin(): HookFetchPlugin {
+  return {
+    name: 'auth',
+    priority: 1,
+    async beforeRequest(config) {
+      const token = localStorage.getItem('accessToken');
 
-    if (token) {
-      config.headers = new Headers(config.headers);
-      config.headers.set('Authorization', `Bearer ${token}`);
-    }
+      if (token) {
+        config.headers = new Headers(config.headers);
+        config.headers.set('Authorization', `Bearer ${token}`);
+      }
 
-    return config;
-  },
-  async onError(error, config) {
-    if (error.response?.status === 401) {
-      // Token expired, try to refresh
-      try {
-        const refreshToken = localStorage.getItem('refreshToken');
-        if (refreshToken) {
-          const response = await fetch('/auth/refresh', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ refreshToken })
-          });
-
-          if (response.ok) {
-            const { accessToken } = await response.json();
-            localStorage.setItem('accessToken', accessToken);
-
-            // Retry original request
-            config.headers.set('Authorization', `Bearer ${accessToken}`);
-            return hookFetch(config.url, config);
-          }
-        }
-      } catch (refreshError) {
-        // Refresh failed, redirect to login
+      return config;
+    },
+    async onError(error) {
+      if (error.response?.status === 401) {
+        // Token expired, notify application to handle
+        console.error('Authentication failed, please login again');
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
-        window.location.href = '/login';
+
+        // Use event system to notify application layer
+        // This is better than directly modifying window.location in plugin
+        window.dispatchEvent(new CustomEvent('auth:logout'));
+
+        // Or redirect directly (not recommended in plugins)
+        // window.location.href = '/login';
       }
+      return error;
     }
-    return error;
-  }
-});
+  };
+}
 ```
 
 ### Request Signing
 
 ```typescript
 // plugins/requestSigning.ts
-import { createHmac } from 'crypto';
+import { createHmac } from 'node:crypto';
 
-export const requestSigningPlugin = (secretKey: string): HookFetchPlugin => ({
-  name: 'request-signing',
-  async beforeRequest(config) {
-    const timestamp = Date.now().toString();
-    const method = config.method.toUpperCase();
-    const url = config.url;
-    const body = config.data ? JSON.stringify(config.data) : '';
+export function requestSigningPlugin(secretKey: string): HookFetchPlugin {
+  return {
+    name: 'request-signing',
+    async beforeRequest(config) {
+      const timestamp = Date.now().toString();
+      const method = config.method.toUpperCase();
+      const url = config.url;
+      const body = config.data ? JSON.stringify(config.data) : '';
 
-    const stringToSign = `${method}\n${url}\n${timestamp}\n${body}`;
-    const signature = createHmac('sha256', secretKey)
-      .update(stringToSign)
-      .digest('hex');
+      const stringToSign = `${method}\n${url}\n${timestamp}\n${body}`;
+      const signature = createHmac('sha256', secretKey)
+        .update(stringToSign)
+        .digest('hex');
 
-    config.headers = new Headers(config.headers);
-    config.headers.set('X-Timestamp', timestamp);
-    config.headers.set('X-Signature', signature);
+      config.headers = new Headers(config.headers);
+      config.headers.set('X-Timestamp', timestamp);
+      config.headers.set('X-Signature', signature);
 
-    return config;
-  }
-});
+      return config;
+    }
+  };
+}
 ```
 
 ## Testing
@@ -313,6 +311,10 @@ export const requestSigningPlugin = (secretKey: string): HookFetchPlugin => ({
 // __tests__/mocks/api.ts
 import { jest } from '@jest/globals';
 
+// __tests__/UserService.test.ts
+import { UserService } from '../services/UserService';
+import { mockApiClient } from './mocks/api';
+
 export const mockApiClient = {
   get: jest.fn(),
   post: jest.fn(),
@@ -320,10 +322,6 @@ export const mockApiClient = {
   delete: jest.fn(),
   use: jest.fn()
 };
-
-// __tests__/UserService.test.ts
-import { UserService } from '../services/UserService';
-import { mockApiClient } from './mocks/api';
 
 jest.mock('../api/client', () => ({
   apiClient: mockApiClient
@@ -359,10 +357,10 @@ describe('UserService', () => {
 ### Integration Testing
 
 ```typescript
+import { rest } from 'msw';
+import { setupServer } from 'msw/node';
 // __tests__/integration/api.test.ts
 import { apiClient } from '../api/client';
-import { setupServer } from 'msw/node';
-import { rest } from 'msw';
 
 const server = setupServer(
   rest.get('/users/:id', (req, res, ctx) => {
@@ -451,8 +449,10 @@ export async function fetchWithRetry<T>(
   for (let i = 0; i < maxRetries; i++) {
     try {
       return await requestFn();
-    } catch (error) {
-      if (i === maxRetries - 1) throw error;
+    }
+    catch (error) {
+      if (i === maxRetries - 1)
+        throw error;
       await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
     }
   }
@@ -473,6 +473,9 @@ const user = await fetchWithRetry(
 
 ```typescript
 // config/api.ts
+// client.ts
+import { apiConfig } from './config/api';
+
 interface ApiConfig {
   baseURL: string;
   timeout: number;
@@ -496,9 +499,6 @@ const configs: Record<string, ApiConfig> = {
 };
 
 export const apiConfig = configs[process.env.NODE_ENV] || configs.development;
-
-// client.ts
-import { apiConfig } from './config/api';
 
 export const apiClient = hookFetch.create({
   baseURL: apiConfig.baseURL,

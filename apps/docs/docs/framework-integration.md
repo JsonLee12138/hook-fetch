@@ -11,8 +11,8 @@ Hook-Fetch 为主流前端框架提供了专门的集成支持，让您能够更
 ### 安装和导入
 
 ```typescript
-import { useHookFetch } from 'hook-fetch/react';
 import hookFetch from 'hook-fetch';
+import { useHookFetch } from 'hook-fetch/react';
 ```
 
 ### useHookFetch Hook
@@ -21,7 +21,7 @@ import hookFetch from 'hook-fetch';
 
 ```typescript
 interface UseHookFetchOptions<Q> {
-  request: Q;                    // 请求函数
+  request: Q; // 请求函数
   onError?: (error: Error) => void; // 错误处理回调
 }
 ```
@@ -77,6 +77,7 @@ function UserProfile({ userId }: { userId: string }) {
 ```typescript
 import React, { useState, useEffect } from 'react';
 import { useHookFetch } from 'hook-fetch/react';
+import hookFetch from 'hook-fetch';
 import { sseTextDecoderPlugin } from 'hook-fetch/plugins/sse';
 
 const chatApi = hookFetch.create({
@@ -173,6 +174,7 @@ function StreamingChat() {
 ```typescript
 import React, { useState, useEffect } from 'react';
 import { useHookFetch } from 'hook-fetch/react';
+import hookFetch from 'hook-fetch';
 import { sseTextDecoderPlugin } from 'hook-fetch/plugins/sse';
 
 const monitoringApi = hookFetch.create({
@@ -280,6 +282,7 @@ function SystemMonitor() {
 ```typescript
 import React, { useState } from 'react';
 import { useHookFetch } from 'hook-fetch/react';
+import hookFetch from 'hook-fetch';
 
 function FileUpload() {
   const [file, setFile] = useState<File | null>(null);
@@ -354,8 +357,8 @@ function FileUpload() {
 ### 安装和导入
 
 ```typescript
-import { useHookFetch } from 'hook-fetch/vue';
 import hookFetch from 'hook-fetch';
+import { useHookFetch } from 'hook-fetch/vue';
 ```
 
 ### useHookFetch 组合式函数
@@ -364,7 +367,7 @@ Vue 版本的 `useHookFetch` 提供了响应式的状态管理。
 
 ```typescript
 interface UseHookFetchOptions<Q> {
-  request: Q;                    // 请求函数
+  request: Q; // 请求函数
   onError?: (error: Error) => void; // 错误处理回调
 }
 ```
@@ -447,6 +450,7 @@ const loadUser = async () => {
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useHookFetch } from 'hook-fetch/vue';
+import hookFetch from 'hook-fetch';
 import { sseTextDecoderPlugin } from 'hook-fetch/plugins/sse';
 
 const chatApi = hookFetch.create({
@@ -556,6 +560,7 @@ const sendMessage = async () => {
 <script setup lang="ts">
 import { ref, reactive } from 'vue';
 import { useHookFetch } from 'hook-fetch/vue';
+import hookFetch from 'hook-fetch';
 import { sseTextDecoderPlugin } from 'hook-fetch/plugins/sse';
 
 const monitoringApi = hookFetch.create({
@@ -652,9 +657,9 @@ export function useApi() {
 ### 状态管理集成
 
 ```typescript
+import { useHookFetch } from 'hook-fetch/react';
 // 与 Redux 集成
 import { useDispatch } from 'react-redux';
-import { useHookFetch } from 'hook-fetch/react';
 
 export function useApiWithRedux() {
   const dispatch = useDispatch();
@@ -671,7 +676,8 @@ export function useApiWithRedux() {
     try {
       const user = await request(`/users/${id}`).json();
       dispatch({ type: 'FETCH_USER_SUCCESS', payload: user });
-    } catch (error) {
+    }
+    catch (error) {
       dispatch({ type: 'FETCH_USER_ERROR', payload: error.message });
     }
   };

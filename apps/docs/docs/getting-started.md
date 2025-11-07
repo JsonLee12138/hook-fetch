@@ -155,15 +155,18 @@ const bytesData = await request.bytes();
 ```typescript
 try {
   const response = await api.get('/posts/999').json();
-} catch (error) {
+}
+catch (error) {
   if (error.response) {
     // 服务器响应了错误状态码
     console.log('Error status:', error.response.status);
     console.log('Error data:', error.response.data);
-  } else if (error.request) {
+  }
+  else if (error.request) {
     // 请求已发送但没有收到响应
     console.log('No response received');
-  } else {
+  }
+  else {
     // 其他错误
     console.log('Error:', error.message);
   }
@@ -182,7 +185,7 @@ const api = hookFetch.create({
 
 // 单个请求超时
 const response = await api.get('/posts', {}, {
-  timeout: 10000 // 10秒
+  timeout: 10000 // 10秒，第三个参数是 options
 }).json();
 ```
 
@@ -197,7 +200,7 @@ const api = hookFetch.create({
   }
 });
 
-// 单个请求头
+// 单个请求的自定义请求头
 const response = await api.get('/posts', {}, {
   headers: {
     'X-Custom-Header': 'custom-value'
@@ -226,7 +229,8 @@ setTimeout(() => {
 
 try {
   const response = await request.json();
-} catch (error) {
+}
+catch (error) {
   if (error.name === 'AbortError') {
     console.log('Request was aborted');
   }
@@ -241,7 +245,8 @@ const request = api.get('/unstable-endpoint');
 // 如果请求失败，可以重试
 try {
   const response = await request.json();
-} catch (error) {
+}
+catch (error) {
   // 重试请求
   const retryRequest = request.retry();
   const response = await retryRequest.json();

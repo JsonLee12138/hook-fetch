@@ -50,13 +50,14 @@ const api = hookFetch.create({
 // 1. try-catch
 try {
   const data = await api.get('/users').json();
-} catch (error) {
+}
+catch (error) {
   console.error('Request failed:', error);
 }
 
 // 2. catch 方法
 const data = await api.get('/users')
-  .catch(error => {
+  .catch((error) => {
     console.error('Request failed:', error);
     return { users: [] }; // 默认值
   })
@@ -128,7 +129,8 @@ try {
   for await (const chunk of request.stream()) {
     console.log(chunk.result);
   }
-} catch (error) {
+}
+catch (error) {
   if (error.name === 'AbortError') {
     console.log('Stream was aborted');
   }
@@ -142,20 +144,22 @@ try {
 **A:** 插件是一个包含钩子函数的对象：
 
 ```typescript
-const myPlugin = () => ({
-  name: 'my-plugin',
-  priority: 1, // 可选，数字越小优先级越高
-  async beforeRequest(config) {
+function myPlugin() {
+  return {
+    name: 'my-plugin',
+    priority: 1, // 可选，数字越小优先级越高
+    async beforeRequest(config) {
     // 请求前处理
-    console.log('Before request:', config.url);
-    return config;
-  },
-  async afterResponse(context, config) {
+      console.log('Before request:', config.url);
+      return config;
+    },
+    async afterResponse(context, config) {
     // 响应后处理
-    console.log('After response:', context.response.status);
-    return context;
-  }
-});
+      console.log('After response:', context.response.status);
+      return context;
+    }
+  };
+}
 
 api.use(myPlugin());
 ```
@@ -176,22 +180,26 @@ api.use(myPlugin());
 **A:** 使用 `config.extra` 字段：
 
 ```typescript
-const plugin1 = () => ({
-  name: 'plugin1',
-  async beforeRequest(config) {
-    config.extra = { ...config.extra, startTime: Date.now() };
-    return config;
-  }
-});
+function plugin1() {
+  return {
+    name: 'plugin1',
+    async beforeRequest(config) {
+      config.extra = { ...config.extra, startTime: Date.now() };
+      return config;
+    }
+  };
+}
 
-const plugin2 = () => ({
-  name: 'plugin2',
-  async afterResponse(context, config) {
-    const duration = Date.now() - config.extra.startTime;
-    console.log(`Request took ${duration}ms`);
-    return context;
-  }
-});
+function plugin2() {
+  return {
+    name: 'plugin2',
+    async afterResponse(context, config) {
+      const duration = Date.now() - config.extra.startTime;
+      console.log(`Request took ${duration}ms`);
+      return context;
+    }
+  };
+}
 ```
 
 ## 框架集成
@@ -258,29 +266,38 @@ const loadUser = async () => {
 **A:** 使用去重插件：
 
 ```typescript
-const dedupePlugin = () => {
+function dedupePlugin() {
   const pendingRequests = new Map();
+
+  const getRequestKey = (url: string, method: string, params: any, data: any) => {
+    return `${method}:${url}:${JSON.stringify(params)}:${JSON.stringify(data)}`;
+  };
 
   return {
     name: 'dedupe',
     async beforeRequest(config) {
-      const key = `${config.method}:${config.url}`;
+      const key = getRequestKey(config.url, config.method, config.params, config.data);
 
       if (pendingRequests.has(key)) {
-        return pendingRequests.get(key);
+        // 如果已有相同请求正在进行，抛出错误阻止重复请求
+        pendingRequests.delete(key);
+        throw new Error('重复请求已被阻止');
       }
 
-      const request = hookFetch(config.url, config);
-      pendingRequests.set(key, request);
+      // 标记请求为进行中
+      pendingRequests.set(key, config);
+      return config;
+    },
+    async afterResponse(context) {
+      const { config } = context;
+      const key = getRequestKey(config.url, config.method, config.params, config.data);
 
-      request.finally(() => {
-        pendingRequests.delete(key);
-      });
-
-      return request;
+      // 请求完成后清理
+      pendingRequests.delete(key);
+      return context;
     }
   };
-};
+}
 ```
 
 ### Q: 如何实现请求缓存？
@@ -288,30 +305,54 @@ const dedupePlugin = () => {
 **A:** 创建缓存插件：
 
 ```typescript
-const cachePlugin = (ttl = 5 * 60 * 1000) => {
+function cachePlugin(options = {}) {
+  const defaultOptions = {
+    ttl: 5 * 60 * 1000, // 5分钟
+  };
+  const config = { ...defaultOptions, ...options };
   const cache = new Map();
+
+  const getRequestKey = (url: string, method: string, params: any, data: any) => {
+    return `${url}::${method}::${JSON.stringify(params)}::${JSON.stringify(data)}`;
+  };
 
   return {
     name: 'cache',
-    async beforeRequest(config) {
-      if (config.method !== 'GET') return config;
+    async beforeRequest(requestConfig) {
+      if (requestConfig.method !== 'GET')
+        return requestConfig;
 
-      const key = `${config.url}?${JSON.stringify(config.params)}`;
+      const key = getRequestKey(
+        requestConfig.url,
+        requestConfig.method,
+        requestConfig.params,
+        requestConfig.data
+      );
       const cached = cache.get(key);
 
-      if (cached && Date.now() - cached.timestamp < ttl) {
-        throw new Response(JSON.stringify(cached.data), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' }
-        });
+      if (cached && Date.now() - cached.timestamp < config.ttl) {
+        // 返回缓存数据
+        return {
+          ...requestConfig,
+          resolve: () => new Response(JSON.stringify(cached.data), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+          })
+        };
       }
 
-      return config;
+      return requestConfig;
     },
-    async afterResponse(context, config) {
-      if (config.method !== 'GET') return context;
+    async afterResponse(context, requestConfig) {
+      if (requestConfig.method !== 'GET')
+        return context;
 
-      const key = `${config.url}?${JSON.stringify(config.params)}`;
+      const key = getRequestKey(
+        requestConfig.url,
+        requestConfig.method,
+        requestConfig.params,
+        requestConfig.data
+      );
       cache.set(key, {
         data: context.result,
         timestamp: Date.now()
@@ -320,7 +361,7 @@ const cachePlugin = (ttl = 5 * 60 * 1000) => {
       return context;
     }
   };
-};
+}
 ```
 
 ### Q: 如何优化大量并发请求？
@@ -339,7 +380,8 @@ class BatchRequestManager {
 
       if (this.queue.length >= this.batchSize) {
         this.processBatch();
-      } else {
+      }
+      else {
         setTimeout(() => this.processBatch(), this.delay);
       }
     });
@@ -356,11 +398,13 @@ class BatchRequestManager {
       response.results.forEach((result, index) => {
         if (result.success) {
           batch[index].resolve(result.data);
-        } else {
+        }
+        else {
           batch[index].reject(new Error(result.error));
         }
       });
-    } catch (error) {
+    }
+    catch (error) {
       batch.forEach(({ reject }) => reject(error));
     }
   }
@@ -374,21 +418,23 @@ class BatchRequestManager {
 **A:** 使用日志插件：
 
 ```typescript
-const loggerPlugin = () => ({
-  name: 'logger',
-  async beforeRequest(config) {
-    console.log(`→ ${config.method} ${config.url}`, config);
-    return config;
-  },
-  async afterResponse(context, config) {
-    console.log(`← ${config.method} ${config.url}`, context.response.status);
-    return context;
-  },
-  async onError(error, config) {
-    console.error(`✗ ${config.method} ${config.url}`, error);
-    return error;
-  }
-});
+function loggerPlugin() {
+  return {
+    name: 'logger',
+    async beforeRequest(config) {
+      console.log(`→ ${config.method} ${config.url}`, config);
+      return config;
+    },
+    async afterResponse(context, config) {
+      console.log(`← ${config.method} ${config.url}`, context.response.status);
+      return context;
+    },
+    async onError(error, config) {
+      console.error(`✗ ${config.method} ${config.url}`, error);
+      return error;
+    }
+  };
+}
 ```
 
 ### Q: 如何在测试中模拟请求？
@@ -509,7 +555,7 @@ const data = response.data;
 const data = await hookFetch('/users', { params: { page: 1 } }).json();
 
 // Axios 拦截器
-axios.interceptors.request.use(config => {
+axios.interceptors.request.use((config) => {
   config.headers.Authorization = `Bearer ${token}`;
   return config;
 });

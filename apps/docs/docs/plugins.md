@@ -101,10 +101,10 @@ import { sseTextDecoderPlugin } from 'hook-fetch/plugins/sse';
 const api = hookFetch.create({
   plugins: [
     sseTextDecoderPlugin({
-      json: true,                 // 自动解析 JSON
+      json: true, // 自动解析 JSON
       prefix: 'data: ',
-      splitSeparator: '\n\n',    // 事件分隔符
-      doneSymbol: '[DONE]'       // 结束标记
+      splitSeparator: '\n\n', // 事件分隔符
+      doneSymbol: '[DONE]' // 结束标记
     })
   ]
 });
@@ -122,18 +122,20 @@ for await (const chunk of api.get('/sse-endpoint').stream()) {
 自动添加认证头：
 
 ```typescript
-const authPlugin = (getToken: () => string) => ({
-  name: 'auth',
-  priority: 1,
-  async beforeRequest(config) {
-    const token = getToken();
-    if (token) {
-      config.headers = new Headers(config.headers);
-      config.headers.set('Authorization', `Bearer ${token}`);
+function authPlugin(getToken: () => string) {
+  return {
+    name: 'auth',
+    priority: 1,
+    async beforeRequest(config) {
+      const token = getToken();
+      if (token) {
+        config.headers = new Headers(config.headers);
+        config.headers.set('Authorization', `Bearer ${token}`);
+      }
+      return config;
     }
-    return config;
-  }
-});
+  };
+}
 
 // 使用
 const api = hookFetch.create({
@@ -146,21 +148,23 @@ const api = hookFetch.create({
 记录请求和响应：
 
 ```typescript
-const loggerPlugin = () => ({
-  name: 'logger',
-  async beforeRequest(config) {
-    console.log(`[${config.method}] ${config.url}`);
-    return config;
-  },
-  async afterResponse(context, config) {
-    console.log(`[${config.method}] ${config.url} - ${context.response.status}`);
-    return context;
-  },
-  async onError(error, config) {
-    console.error(`[${config.method}] ${config.url} - Error:`, error.message);
-    return error;
-  }
-});
+function loggerPlugin() {
+  return {
+    name: 'logger',
+    async beforeRequest(config) {
+      console.log(`[${config.method}] ${config.url}`);
+      return config;
+    },
+    async afterResponse(context, config) {
+      console.log(`[${config.method}] ${config.url} - ${context.response.status}`);
+      return context;
+    },
+    async onError(error) {
+      console.error(`Error:`, error.message);
+      return error;
+    }
+  };
+}
 ```
 
 ### 3. 重试插件
@@ -168,65 +172,116 @@ const loggerPlugin = () => ({
 自动重试失败的请求：
 
 ```typescript
-const retryPlugin = (maxRetries = 3, delay = 1000) => ({
-  name: 'retry',
-  async onError(error, config) {
-    const retryCount = config.extra?.retryCount || 0;
+// 注意：重试插件应该在请求失败后手动调用 retry() 方法
+// 或者使用 beforeRequest 钩子来配置重试逻辑
+function retryPlugin(maxRetries = 3, delay = 1000) {
+  return {
+    name: 'retry',
+    async onError(error, config) {
+      const retryCount = config.extra?.retryCount || 0;
 
-    if (retryCount < maxRetries && error.response?.status >= 500) {
-      // 延迟后重试
-      await new Promise(resolve => setTimeout(resolve, delay));
+      if (retryCount < maxRetries && error.response?.status >= 500) {
+        console.log(`重试请求 (${retryCount + 1}/${maxRetries})`);
+        // 延迟后可以让调用者使用 retry() 方法重试
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
 
-      // 增加重试计数
-      config.extra = { ...config.extra, retryCount: retryCount + 1 };
-
-      // 重新发起请求
-      const newRequest = hookFetch(config.url, config);
-      return newRequest;
+      return error;
     }
+  };
+}
 
-    return error;
-  }
-});
+// 使用示例：
+// const req = api.get('/endpoint');
+// try {
+//   const data = await req.json();
+// } catch (error) {
+//   // 手动重试
+//   const retryReq = req.retry();
+//   const data = await retryReq.json();
+// }
 ```
 
 ### 4. 缓存插件
 
-缓存 GET 请求的响应：
+缓存请求的响应：
 
 ```typescript
-const cachePlugin = (ttl = 5 * 60 * 1000) => {
+// 内存缓存插件，通过插件参数配置 TTL
+function cachePlugin(options = {}) {
+  const defaultOptions = {
+    ttl: 5 * 60 * 1000, // 默认 5 分钟
+  };
+  const config = { ...defaultOptions, ...options };
   const cache = new Map();
+
+  const getRequestKey = (url: string, method: string, params: any, data: any) => {
+    return `${url}::${method}::${JSON.stringify(params)}::${JSON.stringify(data)}`;
+  };
 
   return {
     name: 'cache',
-    async beforeRequest(config) {
-      if (config.method === 'GET') {
-        const key = `${config.url}?${new URLSearchParams(config.params).toString()}`;
-        const cached = cache.get(key);
+    async beforeRequest(requestConfig) {
+      const key = getRequestKey(
+        requestConfig.url,
+        requestConfig.method,
+        requestConfig.params,
+        requestConfig.data
+      );
+      const cached = cache.get(key);
 
-        if (cached && Date.now() - cached.timestamp < ttl) {
-          // 返回缓存的响应
-          throw new Response(JSON.stringify(cached.data), {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' }
-          });
+      if (cached) {
+        // 检查缓存是否过期
+        if (cached.timestamp + config.ttl > Date.now()) {
+          // 返回缓存数据，使用 resolve 属性
+          return {
+            ...requestConfig,
+            resolve: () => new Response(JSON.stringify(cached.data), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' }
+            })
+          };
+        }
+        else {
+          // 缓存已过期，删除缓存
+          cache.delete(key);
         }
       }
-      return config;
+
+      return requestConfig;
     },
-    async afterResponse(context, config) {
-      if (config.method === 'GET' && context.response.ok) {
-        const key = `${config.url}?${new URLSearchParams(config.params).toString()}`;
-        cache.set(key, {
-          data: context.result,
-          timestamp: Date.now()
-        });
-      }
+    async afterResponse(context, requestConfig) {
+      const key = getRequestKey(
+        requestConfig.url,
+        requestConfig.method,
+        requestConfig.params,
+        requestConfig.data
+      );
+
+      // 缓存响应数据
+      cache.set(key, {
+        data: context.result,
+        timestamp: Date.now()
+      });
+
       return context;
     }
   };
-};
+}
+
+// 使用示例：使用默认 5 分钟缓存
+const api = hookFetch.create({
+  plugins: [cachePlugin()]
+});
+
+await api.get('/users/1').json();
+
+// 自定义 TTL（10 秒）
+const fastCacheApi = hookFetch.create({
+  plugins: [cachePlugin({ ttl: 10 * 1000 })]
+});
+
+await fastCacheApi.get('/users/1').json();
 ```
 
 ### 5. 流式数据转换插件
@@ -234,43 +289,58 @@ const cachePlugin = (ttl = 5 * 60 * 1000) => {
 转换流式数据：
 
 ```typescript
-const streamTransformPlugin = () => ({
-  name: 'stream-transform',
-  async transformStreamChunk(chunk, config) {
-    if (!chunk.error && typeof chunk.result === 'string') {
-      try {
+function streamTransformPlugin() {
+  return {
+    name: 'stream-transform',
+    async transformStreamChunk(chunk, config) {
+      if (!chunk.error && typeof chunk.result === 'string') {
+        try {
         // 尝试解析 JSON
-        chunk.result = JSON.parse(chunk.result);
-      } catch {
+          chunk.result = JSON.parse(chunk.result);
+        }
+        catch {
         // 如果不是 JSON，保持原样
+        }
       }
+      return chunk;
     }
-    return chunk;
-  }
-});
+  };
+}
 ```
 
 ### 6. 错误转换插件
 
-统一错误格式：
+转换和丰富错误信息：
 
 ```typescript
-const errorTransformPlugin = () => ({
-  name: 'error-transform',
-  async onError(error, config) {
-    if (error.response) {
-      const errorData = await error.response.json().catch(() => ({}));
+function errorTransformPlugin() {
+  return {
+    name: 'error-transform',
+    async onError(error) {
+      // error 是 ResponseError 实例，已包含完整的错误信息
+      console.error('请求失败:', {
+        message: error.message,
+        status: error.status,
+        statusText: error.statusText,
+        url: error.config?.url,
+        method: error.config?.method
+      });
 
-      // 创建统一的错误对象
-      const customError = new Error(errorData.message || 'Request failed');
-      customError.code = errorData.code || error.response.status;
-      customError.details = errorData.details;
+      // 可以根据 status 返回不同的友好提示
+      if (error.status === 404) {
+        error.message = '请求的资源不存在';
+      }
+      else if (error.status === 403) {
+        error.message = '没有权限访问该资源';
+      }
+      else if (error.status && error.status >= 500) {
+        error.message = '服务器错误，请稍后重试';
+      }
 
-      return customError;
+      return error;
     }
-    return error;
-  }
-});
+  };
+}
 ```
 
 ## 插件开发最佳实践
@@ -283,19 +353,30 @@ const errorTransformPlugin = () => ({
 
 ### 2. 错误处理
 
+插件中的错误会自动被框架捕获，无需在每个插件中单独 try-catch。如果需要特殊的错误处理逻辑，可以使用 `onError` 钩子：
+
 ```typescript
-const safePlugin = () => ({
-  name: 'safe-plugin',
-  async beforeRequest(config) {
-    try {
-      // 插件逻辑
+function errorHandlingPlugin() {
+  return {
+    name: 'error-handling',
+    async beforeRequest(config) {
+      // 验证配置
+      if (!config.url) {
+        throw new Error('URL is required');
+      }
       return config;
-    } catch (error) {
-      console.error('Plugin error:', error);
-      return config; // 返回原始配置
+    },
+    async onError(error) {
+      // 统一处理所有错误
+      console.error('请求错误:', error.message);
+
+      // 可以进行错误上报
+      reportErrorToService(error);
+
+      return error;
     }
-  }
-});
+  };
+}
 ```
 
 ### 3. 性能考虑
@@ -307,10 +388,10 @@ const safePlugin = () => ({
 ### 4. 配置验证
 
 ```typescript
-const configurablePlugin = (options = {}) => {
+function configurablePlugin(options = {}) {
   const defaultOptions = {
     enabled: true,
-    timeout: 5000
+    headerPrefix: 'X-Custom-'
   };
 
   const config = { ...defaultOptions, ...options };
@@ -318,13 +399,19 @@ const configurablePlugin = (options = {}) => {
   return {
     name: 'configurable-plugin',
     async beforeRequest(requestConfig) {
-      if (!config.enabled) return requestConfig;
+      // 仅在启用时执行插件逻辑
+      if (config.enabled) {
+        requestConfig.headers = new Headers(requestConfig.headers);
+        requestConfig.headers.set(
+          `${config.headerPrefix}Timestamp`,
+          Date.now().toString()
+        );
+      }
 
-      // 插件逻辑
       return requestConfig;
     }
   };
-};
+}
 ```
 
 ## 插件组合
@@ -348,18 +435,20 @@ const api = hookFetch.create({
 ### 插件执行顺序
 
 ```typescript
-const debugPlugin = () => ({
-  name: 'debug',
-  priority: -1, // 最低优先级，最后执行
-  async beforeRequest(config) {
-    console.log('Plugin execution order - beforeRequest');
-    return config;
-  },
-  async afterResponse(context, config) {
-    console.log('Plugin execution order - afterResponse');
-    return context;
-  }
-});
+function debugPlugin() {
+  return {
+    name: 'debug',
+    priority: -1, // 最低优先级，最后执行
+    async beforeRequest(config) {
+      console.log('Plugin execution order - beforeRequest');
+      return config;
+    },
+    async afterResponse(context, config) {
+      console.log('Plugin execution order - afterResponse');
+      return context;
+    }
+  };
+}
 ```
 
 ### 插件状态检查
@@ -378,40 +467,68 @@ const api = hookFetch.create({
 ### 插件工厂
 
 ```typescript
-const createApiPlugin = (apiKey: string, baseURL: string) => ({
-  name: 'api-plugin',
-  async beforeRequest(config) {
-    config.headers = new Headers(config.headers);
-    config.headers.set('X-API-Key', apiKey);
-
-    if (!config.url.startsWith('http')) {
-      config.url = `${baseURL}${config.url}`;
-    }
-
-    return config;
+// 推荐：直接在 baseURL 中配置
+const api = hookFetch.create({
+  baseURL: 'https://api.example.com',
+  headers: {
+    'X-API-Key': 'my-api-key'
   }
 });
 
-// 使用
+// 仅在需要多个接口代理时使用插件
+function multiApiPlugin(apiConfigs: Record<string, { baseURL: string; apiKey: string }>) {
+  return {
+    name: 'multi-api',
+    async beforeRequest(config) {
+      // 根据 URL 前缀选择不同的 API 配置
+      const apiName = config.extra?.apiName;
+      const apiConfig = apiConfigs[apiName];
+
+      if (apiConfig) {
+        config.headers = new Headers(config.headers);
+        config.headers.set('X-API-Key', apiConfig.apiKey);
+
+        if (!config.url.startsWith('http')) {
+          config.url = `${apiConfig.baseURL}${config.url}`;
+        }
+      }
+
+      return config;
+    }
+  };
+}
+
+// 使用示例：代理多个 API
 const api = hookFetch.create({
-  plugins: [createApiPlugin('my-api-key', 'https://api.example.com')]
+  plugins: [
+    multiApiPlugin({
+      github: { baseURL: 'https://api.github.com', apiKey: 'github-key' },
+      gitlab: { baseURL: 'https://gitlab.com/api/v4', apiKey: 'gitlab-key' }
+    })
+  ]
 });
+
+// 指定使用哪个 API
+await api.get('/users', {}, { extra: { apiName: 'github' } }).json();
+await api.get('/projects', {}, { extra: { apiName: 'gitlab' } }).json();
 ```
 
 ### 条件插件
 
 ```typescript
-const conditionalPlugin = (condition: () => boolean) => ({
-  name: 'conditional',
-  async beforeRequest(config) {
-    if (condition()) {
+function conditionalPlugin(condition: () => boolean) {
+  return {
+    name: 'conditional',
+    async beforeRequest(config) {
+      if (condition()) {
       // 只在满足条件时执行
-      config.headers = new Headers(config.headers);
-      config.headers.set('X-Conditional', 'true');
+        config.headers = new Headers(config.headers);
+        config.headers.set('X-Conditional', 'true');
+      }
+      return config;
     }
-    return config;
-  }
-});
+  };
+}
 ```
 
 插件系统为 Hook-Fetch 提供了无限的扩展可能性，让您能够根据具体需求定制请求行为。

@@ -112,15 +112,18 @@ const arrayBufferData = await request.arrayBuffer();
 ```typescript
 try {
   const response = await api.get('/users/1').json();
-} catch (error) {
+}
+catch (error) {
   if (error.response) {
     // Server responded with error status
     console.log('Status:', error.response.status);
     console.log('Data:', error.response.data);
-  } else if (error.request) {
+  }
+  else if (error.request) {
     // Request was sent but no response received
     console.log('Network error');
-  } else {
+  }
+  else {
     // Other error
     console.log('Error:', error.message);
   }
@@ -130,19 +133,21 @@ try {
 ### How do I set up global error handling?
 
 ```typescript
-const errorHandlerPlugin = () => ({
-  name: 'error-handler',
-  async onError(error, config) {
-    console.error(`API Error [${config.method}] ${config.url}:`, error);
+function errorHandlerPlugin() {
+  return {
+    name: 'error-handler',
+    async onError(error, config) {
+      console.error(`API Error [${config.method}] ${config.url}:`, error);
 
-    if (error.response?.status === 401) {
+      if (error.response?.status === 401) {
       // Handle unauthorized
-      window.location.href = '/login';
-    }
+        window.location.href = '/login';
+      }
 
-    return error;
-  }
-});
+      return error;
+    }
+  };
+}
 
 const api = hookFetch.create({
   plugins: [errorHandlerPlugin()]
@@ -200,7 +205,8 @@ try {
   for await (const chunk of request.stream()) {
     console.log(chunk.result);
   }
-} catch (error) {
+}
+catch (error) {
   if (error.name === 'AbortError') {
     console.log('Stream cancelled');
   }
@@ -212,20 +218,22 @@ try {
 ### How do I create a custom plugin?
 
 ```typescript
-const myPlugin = () => ({
-  name: 'my-plugin',
-  priority: 1,
-  async beforeRequest(config) {
+function myPlugin() {
+  return {
+    name: 'my-plugin',
+    priority: 1,
+    async beforeRequest(config) {
     // Modify request before sending
-    config.headers.set('X-Custom-Header', 'value');
-    return config;
-  },
-  async afterResponse(context) {
+      config.headers.set('X-Custom-Header', 'value');
+      return config;
+    },
+    async afterResponse(context) {
     // Process response after receiving
-    console.log('Response received:', context.response.status);
-    return context;
-  }
-});
+      console.log('Response received:', context.response.status);
+      return context;
+    }
+  };
+}
 
 api.use(myPlugin());
 ```
@@ -323,65 +331,100 @@ const loadUser = async () => {
 ### How do I implement request caching?
 
 ```typescript
-const cachePlugin = (ttl = 5 * 60 * 1000) => {
+function cachePlugin(options = {}) {
+  const defaultOptions = {
+    ttl: 5 * 60 * 1000, // 5 minutes
+  };
+  const config = { ...defaultOptions, ...options };
   const cache = new Map();
+
+  const getRequestKey = (url: string, method: string, params: any, data: any) => {
+    return `${url}::${method}::${JSON.stringify(params)}::${JSON.stringify(data)}`;
+  };
 
   return {
     name: 'cache',
-    async beforeRequest(config) {
-      if (config.method === 'GET') {
-        const key = `${config.url}?${JSON.stringify(config.params)}`;
-        const cached = cache.get(key);
+    async beforeRequest(requestConfig) {
+      if (requestConfig.method !== 'GET')
+        return requestConfig;
 
-        if (cached && Date.now() - cached.timestamp < ttl) {
-          return Promise.resolve(cached.data);
-        }
+      const key = getRequestKey(
+        requestConfig.url,
+        requestConfig.method,
+        requestConfig.params,
+        requestConfig.data
+      );
+      const cached = cache.get(key);
+
+      if (cached && Date.now() - cached.timestamp < config.ttl) {
+        // Return cached data
+        return {
+          ...requestConfig,
+          resolve: () => new Response(JSON.stringify(cached.data), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+          })
+        };
       }
-      return config;
+
+      return requestConfig;
     },
-    async afterResponse(context, config) {
-      if (config.method === 'GET') {
-        const key = `${config.url}?${JSON.stringify(config.params)}`;
-        cache.set(key, {
-          data: context.result,
-          timestamp: Date.now()
-        });
-      }
+    async afterResponse(context, requestConfig) {
+      if (requestConfig.method !== 'GET')
+        return context;
+
+      const key = getRequestKey(
+        requestConfig.url,
+        requestConfig.method,
+        requestConfig.params,
+        requestConfig.data
+      );
+      cache.set(key, {
+        data: context.result,
+        timestamp: Date.now()
+      });
+
       return context;
     }
   };
-};
+}
 ```
 
 ### How do I implement request deduplication?
 
 ```typescript
-const deduplicationPlugin = () => {
+function deduplicationPlugin() {
   const pendingRequests = new Map();
+
+  const getRequestKey = (url: string, method: string, params: any, data: any) => {
+    return `${method}:${url}:${JSON.stringify(params)}:${JSON.stringify(data)}`;
+  };
 
   return {
     name: 'deduplication',
     async beforeRequest(config) {
-      if (config.method === 'GET') {
-        const key = `${config.url}?${JSON.stringify(config.params)}`;
+      const key = getRequestKey(config.url, config.method, config.params, config.data);
 
-        if (pendingRequests.has(key)) {
-          return pendingRequests.get(key);
-        }
-
-        const requestPromise = fetch(config.url, config);
-        pendingRequests.set(key, requestPromise);
-
-        requestPromise.finally(() => {
-          pendingRequests.delete(key);
-        });
-
-        return requestPromise;
+      if (pendingRequests.has(key)) {
+        // Prevent duplicate requests by throwing error
+        pendingRequests.delete(key);
+        throw new Error('Duplicate request blocked');
       }
+
+      // Mark request as pending
+      pendingRequests.set(key, config);
       return config;
+    },
+    async afterResponse(context) {
+      const { config } = context;
+      const key = getRequestKey(config.url, config.method, config.params, config.data);
+
+      // Clean up after request completes
+      pendingRequests.delete(key);
+      return context;
     }
   };
-};
+}
 ```
 
 ### How do I optimize for large files?
@@ -392,7 +435,7 @@ async function downloadWithProgress(url, filename) {
   const request = hookFetch(url);
   const response = await request;
 
-  const total = parseInt(response.headers.get('content-length') || '0');
+  const total = Number.parseInt(response.headers.get('content-length') || '0');
   let loaded = 0;
 
   const chunks = [];
@@ -415,21 +458,23 @@ async function downloadWithProgress(url, filename) {
 ### How do I debug requests?
 
 ```typescript
-const debugPlugin = () => ({
-  name: 'debug',
-  async beforeRequest(config) {
-    console.log('🚀 Request:', config.method, config.url, config);
-    return config;
-  },
-  async afterResponse(context, config) {
-    console.log('✅ Response:', config.method, config.url, context.response.status);
-    return context;
-  },
-  async onError(error, config) {
-    console.error('❌ Error:', config.method, config.url, error);
-    return error;
-  }
-});
+function debugPlugin() {
+  return {
+    name: 'debug',
+    async beforeRequest(config) {
+      console.log('🚀 Request:', config.method, config.url, config);
+      return config;
+    },
+    async afterResponse(context, config) {
+      console.log('✅ Response:', config.method, config.url, context.response.status);
+      return context;
+    },
+    async onError(error, config) {
+      console.error('❌ Error:', config.method, config.url, error);
+      return error;
+    }
+  };
+}
 ```
 
 ### How do I mock requests for testing?
@@ -462,10 +507,10 @@ test('should fetch user', async () => {
 
 ```typescript
 // Mock streaming response
-const mockStream = async function* () {
+async function mockStream () {
   yield { result: 'chunk1', source: new Uint8Array(), error: null };
   yield { result: 'chunk2', source: new Uint8Array(), error: null };
-};
+}
 
 mockApi.get.mockReturnValue({
   stream: jest.fn().mockReturnValue(mockStream())
@@ -485,6 +530,7 @@ CORS errors occur when making requests from a browser to a different domain. Thi
 ### Why are my requests not being sent?
 
 Common causes:
+
 1. Network connectivity issues
 2. Incorrect URL or base URL
 3. Request is being blocked by ad blockers
@@ -502,7 +548,8 @@ try {
   const response = await api.get('/slow-endpoint', {}, {
     timeout: 30000 // 30 seconds
   }).json();
-} catch (error) {
+}
+catch (error) {
   if (error.name === 'TimeoutError') {
     console.log('Request timed out');
   }
@@ -512,6 +559,7 @@ try {
 ### Why is my plugin not working?
 
 Common issues:
+
 1. Plugin not registered: Make sure to call `api.use(plugin())`
 2. Wrong hook name: Check the plugin interface
 3. Plugin priority: Lower numbers have higher priority

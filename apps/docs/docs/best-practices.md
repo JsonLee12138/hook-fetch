@@ -138,47 +138,51 @@ export interface StreamMessage {
 
 ```typescript
 // src/api/plugins/error.ts
-export const errorHandlerPlugin = () => ({
-  name: 'error-handler',
-  async onError(error, config) {
+export function errorHandlerPlugin() {
+  return {
+    name: 'error-handler',
+    async onError(error, config) {
     // 记录错误
-    console.error(`[API Error] ${config.method} ${config.url}:`, error);
+      console.error(`[API Error] ${config.method} ${config.url}:`, error);
 
-    // 根据错误类型处理
-    if (error.response) {
-      const status = error.response.status;
+      // 根据错误类型处理
+      if (error.response) {
+        const status = error.status;
 
-      switch (status) {
-        case 401:
+        switch (status) {
+          case 401:
           // 未授权，重定向到登录页
-          window.location.href = '/login';
-          break;
-        case 403:
+            window.location.href = '/login';
+            break;
+          case 403:
           // 权限不足
-          showNotification('权限不足', 'error');
-          break;
-        case 404:
+            showNotification('权限不足', 'error');
+            break;
+          case 404:
           // 资源不存在
-          showNotification('请求的资源不存在', 'error');
-          break;
-        case 500:
+            showNotification('请求的资源不存在', 'error');
+            break;
+          case 500:
           // 服务器错误
-          showNotification('服务器内部错误，请稍后重试', 'error');
-          break;
-        default:
-          showNotification('请求失败，请检查网络连接', 'error');
+            showNotification('服务器内部错误，请稍后重试', 'error');
+            break;
+          default:
+            showNotification('请求失败，请检查网络连接', 'error');
+        }
       }
-    } else if (error.name === 'AbortError') {
+      else if (error.name === 'AbortError') {
       // 请求被取消，通常不需要显示错误
-      console.log('Request was aborted');
-    } else {
+        console.log('Request was aborted');
+      }
+      else {
       // 网络错误或其他错误
-      showNotification('网络连接失败，请检查网络设置', 'error');
-    }
+        showNotification('网络连接失败，请检查网络设置', 'error');
+      }
 
-    return error;
-  }
-});
+      return error;
+    }
+  };
+}
 ```
 
 ### 组件级错误处理
@@ -195,7 +199,7 @@ export function useApi() {
       // 组件级错误处理
       if (error.response?.status === 422) {
         // 表单验证错误
-        return error.response.json().then(data => {
+        return error.response.json().then((data) => {
           showValidationErrors(data.errors);
         });
       }
@@ -225,7 +229,7 @@ export function useApi() {
 
 ```typescript
 // src/api/plugins/cache.ts
-export const cachePlugin = (options = {}) => {
+export function cachePlugin(options = {}) {
   const defaultOptions = {
     ttl: 5 * 60 * 1000, // 5分钟
     maxSize: 100,
@@ -235,9 +239,8 @@ export const cachePlugin = (options = {}) => {
   const config = { ...defaultOptions, ...options };
   const cache = new Map();
 
-  const getCacheKey = (url: string, params: any) => {
-    const paramsStr = params ? JSON.stringify(params) : '';
-    return `${url}?${paramsStr}`;
+  const getRequestKey = (url: string, method: string, params: any, data: any) => {
+    return `${url}::${method}::${JSON.stringify(params)}::${JSON.stringify(data)}`;
   };
 
   return {
@@ -247,15 +250,30 @@ export const cachePlugin = (options = {}) => {
         return requestConfig;
       }
 
-      const key = getCacheKey(requestConfig.url, requestConfig.params);
+      const key = getRequestKey(
+        requestConfig.url,
+        requestConfig.method,
+        requestConfig.params,
+        requestConfig.data
+      );
       const cached = cache.get(key);
 
-      if (cached && Date.now() - cached.timestamp < config.ttl) {
-        // 返回缓存数据
-        throw new Response(JSON.stringify(cached.data), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' }
-        });
+      if (cached) {
+        // 检查缓存是否过期
+        if (cached.timestamp + config.ttl > Date.now()) {
+          // 返回缓存数据，使用 resolve 属性
+          return {
+            ...requestConfig,
+            resolve: () => new Response(JSON.stringify(cached.data), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' }
+            })
+          };
+        }
+        else {
+          // 缓存已过期，删除缓存
+          cache.delete(key);
+        }
       }
 
       return requestConfig;
@@ -265,7 +283,12 @@ export const cachePlugin = (options = {}) => {
         return context;
       }
 
-      const key = getCacheKey(requestConfig.url, requestConfig.params);
+      const key = getRequestKey(
+        requestConfig.url,
+        requestConfig.method,
+        requestConfig.params,
+        requestConfig.data
+      );
 
       // 限制缓存大小
       if (cache.size >= config.maxSize) {
@@ -282,14 +305,14 @@ export const cachePlugin = (options = {}) => {
       return context;
     }
   };
-};
+}
 ```
 
 ### 请求去重
 
 ```typescript
 // src/api/plugins/dedupe.ts
-export const dedupePlugin = () => {
+export function dedupePlugin() {
   const pendingRequests = new Map();
 
   const getRequestKey = (url: string, method: string, params: any, data: any) => {
@@ -302,23 +325,25 @@ export const dedupePlugin = () => {
       const key = getRequestKey(config.url, config.method, config.params, config.data);
 
       if (pendingRequests.has(key)) {
-        // 返回已存在的请求
-        return pendingRequests.get(key);
+        // 如果已有相同请求正在进行，抛出错误阻止重复请求
+        pendingRequests.delete(key);
+        throw new Error('重复请求已被阻止');
       }
 
-      // 创建新请求
-      const request = hookFetch(config.url, config);
-      pendingRequests.set(key, request);
+      // 标记请求为进行中
+      pendingRequests.set(key, config);
+      return config;
+    },
+    async afterResponse(context) {
+      const { config } = context;
+      const key = getRequestKey(config.url, config.method, config.params, config.data);
 
       // 请求完成后清理
-      request.finally(() => {
-        pendingRequests.delete(key);
-      });
-
-      return request;
+      pendingRequests.delete(key);
+      return context;
     }
   };
-};
+}
 ```
 
 ### 批量请求
@@ -347,7 +372,8 @@ export class BatchRequestManager {
 
       if (this.batchQueue.length >= this.batchSize) {
         this.processBatch();
-      } else if (!this.batchTimeout) {
+      }
+      else if (!this.batchTimeout) {
         this.batchTimeout = setTimeout(() => {
           this.processBatch();
         }, this.delay);
@@ -374,11 +400,13 @@ export class BatchRequestManager {
         const { resolve, reject } = currentBatch[index];
         if (result.success) {
           resolve(result.data);
-        } else {
+        }
+        else {
           reject(new Error(result.error));
         }
       });
-    } catch (error) {
+    }
+    catch (error) {
       currentBatch.forEach(({ reject }) => reject(error));
     }
   }
@@ -390,9 +418,9 @@ export class BatchRequestManager {
 ### 流式数据管理
 
 ```typescript
-// src/hooks/useStream.ts
-import { useRef, useCallback } from 'react';
 import { useHookFetch } from 'hook-fetch/react';
+// src/hooks/useStream.ts
+import { useCallback, useRef } from 'react';
 
 export function useStream<T = any>(requestFn: (...args: any[]) => any) {
   const dataRef = useRef<T[]>([]);
@@ -422,19 +450,20 @@ export function useStream<T = any>(requestFn: (...args: any[]) => any) {
           dataRef.current.push(chunk.result);
 
           // 通知所有监听者
-          listenersRef.current.forEach(listener => {
+          listenersRef.current.forEach((listener) => {
             listener([...dataRef.current]);
           });
         }
       }
-    } catch (error) {
+    }
+    catch (error) {
       console.error('Stream processing error:', error);
     }
   }, [stream]);
 
   const clear = useCallback(() => {
     dataRef.current = [];
-    listenersRef.current.forEach(listener => {
+    listenersRef.current.forEach((listener) => {
       listener([]);
     });
   }, []);
@@ -469,7 +498,8 @@ export class StreamBuffer<T> {
 
     if (this.buffer.length >= this.bufferSize) {
       this.flush();
-    } else if (!this.flushTimeout) {
+    }
+    else if (!this.flushTimeout) {
       this.flushTimeout = setTimeout(() => {
         this.flush();
       }, this.flushInterval);
@@ -504,7 +534,7 @@ export class StreamBuffer<T> {
 
 ```typescript
 // src/api/__tests__/api.test.ts
-import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from '../index';
 
 // 模拟 fetch
@@ -547,7 +577,7 @@ describe('API', () => {
 
 ```typescript
 // src/hooks/__tests__/useApi.test.ts
-import { renderHook, act } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 import { useApi } from '../useApi';
 
 describe('useApi', () => {
@@ -571,69 +601,71 @@ describe('useApi', () => {
 
 ```typescript
 // src/api/plugins/auth.ts
-export const authPlugin = () => ({
-  name: 'auth',
-  priority: 1,
-  async beforeRequest(config) {
-    const token = localStorage.getItem('authToken');
+export function authPlugin() {
+  return {
+    name: 'auth',
+    priority: 1,
+    async beforeRequest(config) {
+      const token = localStorage.getItem('authToken');
 
-    if (token) {
-      config.headers = new Headers(config.headers);
-      config.headers.set('Authorization', `Bearer ${token}`);
-    }
-
-    return config;
-  },
-  async onError(error, config) {
-    if (error.response?.status === 401) {
-      // Token 过期，尝试刷新
-      try {
-        const newToken = await refreshToken();
-        localStorage.setItem('authToken', newToken);
-
-        // 重试原请求
+      if (token) {
         config.headers = new Headers(config.headers);
-        config.headers.set('Authorization', `Bearer ${newToken}`);
-
-        return hookFetch(config.url, config);
-      } catch (refreshError) {
-        // 刷新失败，跳转到登录页
-        localStorage.removeItem('authToken');
-        window.location.href = '/login';
+        config.headers.set('Authorization', `Bearer ${token}`);
       }
-    }
 
-    return error;
-  }
-});
+      return config;
+    },
+    async onError(error) {
+      if (error.response?.status === 401) {
+      // Token 过期，提示用户重新登录
+        console.error('认证失败，请重新登录');
+        localStorage.removeItem('authToken');
+
+        // 可以在这里发出事件或导航到登录页
+        // 注意：在插件中直接修改 window.location 可能不是最佳实践
+        // 建议使用事件系统通知应用层处理
+
+        // 方式1：使用自定义事件
+        window.dispatchEvent(new CustomEvent('auth:logout'));
+
+      // 方式2：或者直接跳转（不推荐在插件中使用）
+      // window.location.href = '/login';
+      }
+
+      return error;
+    }
+  };
+}
 ```
 
 ### 请求签名
 
 ```typescript
 // src/api/plugins/signature.ts
-import { createHmac } from 'crypto';
+import { createHmac } from 'node:crypto';
 
-export const signaturePlugin = (secretKey: string) => ({
-  name: 'signature',
-  async beforeRequest(config) {
-    const timestamp = Date.now().toString();
-    const nonce = Math.random().toString(36).substring(2);
+export function signaturePlugin(secretKey: string) {
+  return {
+    name: 'signature',
+    async beforeRequest(config) {
+      const timestamp = Date.now().toString();
+      const nonce = Math.random().toString(36).substring(2);
 
-    // 创建签名字符串
-    const signString = `${config.method}${config.url}${timestamp}${nonce}`;
-    const signature = createHmac('sha256', secretKey)
-      .update(signString)
-      .digest('hex');
+      // 创建签名字符串
+      const signString = `${config.method}${config.url}${timestamp}${nonce}`;
+      const signature = createHmac('sha256', secretKey)
+        .update(signString)
+        .digest('hex');
 
-    config.headers = new Headers(config.headers);
-    config.headers.set('X-Timestamp', timestamp);
-    config.headers.set('X-Nonce', nonce);
-    config.headers.set('X-Signature', signature);
+      config.headers = new Headers(config.headers);
+      config.headers.set('X-Timestamp', timestamp);
+      config.headers.set('X-Nonce', nonce);
+      config.headers.set('X-Signature', signature);
 
-    return config;
-  }
-});
+      return config;
+    }
+  };
+}
 ```
 
 ## 监控和调试
@@ -642,44 +674,46 @@ export const signaturePlugin = (secretKey: string) => ({
 
 ```typescript
 // src/api/plugins/performance.ts
-export const performancePlugin = () => ({
-  name: 'performance',
-  async beforeRequest(config) {
-    config.extra = {
-      ...config.extra,
-      startTime: performance.now()
-    };
-    return config;
-  },
-  async afterResponse(context, config) {
-    const endTime = performance.now();
-    const duration = endTime - (config.extra?.startTime || 0);
+export function performancePlugin() {
+  return {
+    name: 'performance',
+    async beforeRequest(config) {
+      config.extra = {
+        ...config.extra,
+        startTime: performance.now()
+      };
+      return config;
+    },
+    async afterResponse(context, config) {
+      const endTime = performance.now();
+      const duration = endTime - (config.extra?.startTime || 0);
 
-    // 记录性能指标
-    console.log(`[Performance] ${config.method} ${config.url}: ${duration.toFixed(2)}ms`);
+      // 记录性能指标
+      console.log(`[Performance] ${config.method} ${config.url}: ${duration.toFixed(2)}ms`);
 
-    // 发送到监控系统
-    if (duration > 5000) { // 超过5秒的请求
-      sendToMonitoring({
-        type: 'slow_request',
-        url: config.url,
-        method: config.method,
-        duration
-      });
+      // 发送到监控系统
+      if (duration > 5000) { // 超过5秒的请求
+        sendToMonitoring({
+          type: 'slow_request',
+          url: config.url,
+          method: config.method,
+          duration
+        });
+      }
+
+      return context;
     }
-
-    return context;
-  }
-});
+  };
+}
 ```
 
 ### 调试工具
 
 ```typescript
 // src/utils/debug.ts
-export const createDebugger = (namespace: string) => {
-  const isDebugEnabled = process.env.NODE_ENV === 'development' ||
-                        localStorage.getItem('debug') === 'true';
+export function createDebugger(namespace: string) {
+  const isDebugEnabled = process.env.NODE_ENV === 'development'
+    || localStorage.getItem('debug') === 'true';
 
   return {
     log: (...args: any[]) => {
@@ -698,7 +732,7 @@ export const createDebugger = (namespace: string) => {
       }
     }
   };
-};
+}
 ```
 
 ## 部署和生产环境
@@ -710,8 +744,8 @@ export const createDebugger = (namespace: string) => {
 export const config = {
   apiUrl: process.env.REACT_APP_API_URL || 'https://api.example.com',
   streamUrl: process.env.REACT_APP_STREAM_URL || 'https://stream.example.com',
-  timeout: parseInt(process.env.REACT_APP_TIMEOUT || '10000'),
-  retryAttempts: parseInt(process.env.REACT_APP_RETRY_ATTEMPTS || '3'),
+  timeout: Number.parseInt(process.env.REACT_APP_TIMEOUT || '10000'),
+  retryAttempts: Number.parseInt(process.env.REACT_APP_RETRY_ATTEMPTS || '3'),
   debug: process.env.NODE_ENV === 'development'
 };
 ```

@@ -28,9 +28,9 @@ for await (const chunk of request.stream()) {
 
 ```typescript
 interface StreamContext<T = unknown> {
-  result: T;                  // 处理后的数据
-  source: Uint8Array;         // 原始字节数据
-  error: unknown | null;      // 错误信息（如果有）
+  result: T; // 处理后的数据
+  source: Uint8Array; // 原始字节数据
+  error: unknown | null; // 错误信息（如果有）
 }
 ```
 
@@ -58,12 +58,12 @@ import { sseTextDecoderPlugin } from 'hook-fetch/plugins/sse';
 const api = hookFetch.create({
   plugins: [
     sseTextDecoderPlugin({
-      json: true,                 // 自动解析 JSON
-      prefix: 'data: ',          // 移除 "data: " 前缀
-      splitSeparator: '\n\n',    // 事件分隔符
-      lineSeparator: '\n',       // 行分隔符
-      trim: true,                // 去除首尾空白
-      doneSymbol: '[DONE]'       // 结束标记
+      json: true, // 自动解析 JSON
+      prefix: 'data: ', // 移除 "data: " 前缀
+      splitSeparator: '\n\n', // 事件分隔符
+      lineSeparator: '\n', // 行分隔符
+      trim: true, // 去除首尾空白
+      doneSymbol: '[DONE]' // 结束标记
     })
   ]
 });
@@ -78,12 +78,12 @@ for await (const chunk of api.get('/sse-endpoint').stream()) {
 
 ```typescript
 interface SSETextDecoderPluginOptions {
-  splitSeparator: string;      // 事件分隔符，默认 '\n\n'
-  lineSeparator?: string;      // 行分隔符，可选
-  trim: boolean;               // 是否去除空白，默认 true
-  json: boolean;               // 是否解析 JSON，默认 false
-  prefix: string;              // 要移除的前缀，默认 ''
-  doneSymbol?: string;         // 结束标记，可选
+  splitSeparator: string; // 事件分隔符，默认 '\n\n'
+  lineSeparator?: string; // 行分隔符，可选
+  trim: boolean; // 是否去除空白，默认 true
+  json: boolean; // 是否解析 JSON，默认 false
+  prefix: string; // 要移除的前缀，默认 ''
+  doneSymbol?: string; // 结束标记，可选
 }
 ```
 
@@ -135,22 +135,25 @@ async function streamChat(message: string) {
 ### 自定义聊天流处理
 
 ```typescript
-const customChatPlugin = () => ({
-  name: 'custom-chat',
-  async transformStreamChunk(chunk, config) {
-    if (!chunk.error && chunk.result) {
-      try {
-        const data = JSON.parse(chunk.result);
-        // 提取聊天内容
-        const content = data.choices?.[0]?.delta?.content || '';
-        chunk.result = { content, timestamp: Date.now() };
-      } catch (error) {
-        chunk.error = error;
+function customChatPlugin() {
+  return {
+    name: 'custom-chat',
+    async transformStreamChunk(chunk, config) {
+      if (!chunk.error && chunk.result) {
+        try {
+          const data = JSON.parse(chunk.result);
+          // 提取聊天内容
+          const content = data.choices?.[0]?.delta?.content || '';
+          chunk.result = { content, timestamp: Date.now() };
+        }
+        catch (error) {
+          chunk.error = error;
+        }
       }
+      return chunk;
     }
-    return chunk;
-  }
-});
+  };
+}
 
 const api = hookFetch.create({
   plugins: [
@@ -174,7 +177,7 @@ async function downloadWithProgress(url: string, filename: string) {
   }
 
   const contentLength = response.headers.get('content-length');
-  const total = contentLength ? parseInt(contentLength, 10) : 0;
+  const total = contentLength ? Number.parseInt(contentLength, 10) : 0;
   let loaded = 0;
 
   const chunks: Uint8Array[] = [];
@@ -257,9 +260,11 @@ async function monitorServerStatus() {
 
     if (status.type === 'cpu') {
       updateCPUChart(status.value);
-    } else if (status.type === 'memory') {
+    }
+    else if (status.type === 'memory') {
       updateMemoryChart(status.value);
-    } else if (status.type === 'disk') {
+    }
+    else if (status.type === 'disk') {
       updateDiskChart(status.value);
     }
 
@@ -274,33 +279,36 @@ async function monitorServerStatus() {
 ### 日志流处理
 
 ```typescript
-const logStreamPlugin = () => ({
-  name: 'log-stream',
-  async transformStreamChunk(chunk, config) {
-    if (!chunk.error && typeof chunk.result === 'string') {
-      try {
+function logStreamPlugin() {
+  return {
+    name: 'log-stream',
+    async transformStreamChunk(chunk, config) {
+      if (!chunk.error && typeof chunk.result === 'string') {
+        try {
         // 解析日志行
-        const logEntry = JSON.parse(chunk.result);
+          const logEntry = JSON.parse(chunk.result);
 
-        // 添加客户端时间戳
-        logEntry.clientTimestamp = Date.now();
+          // 添加客户端时间戳
+          logEntry.clientTimestamp = Date.now();
 
-        // 格式化日志级别
-        logEntry.level = logEntry.level?.toUpperCase();
+          // 格式化日志级别
+          logEntry.level = logEntry.level?.toUpperCase();
 
-        chunk.result = logEntry;
-      } catch (error) {
+          chunk.result = logEntry;
+        }
+        catch (error) {
         // 如果不是 JSON，保持原样
-        chunk.result = {
-          message: chunk.result,
-          level: 'INFO',
-          timestamp: Date.now()
-        };
+          chunk.result = {
+            message: chunk.result,
+            level: 'INFO',
+            timestamp: Date.now()
+          };
+        }
       }
+      return chunk;
     }
-    return chunk;
-  }
-});
+  };
+}
 
 const logApi = hookFetch.create({
   plugins: [
@@ -315,10 +323,10 @@ async function streamLogs() {
 
     // 根据日志级别显示不同颜色
     const color = {
-      'ERROR': 'red',
-      'WARN': 'orange',
-      'INFO': 'blue',
-      'DEBUG': 'gray'
+      ERROR: 'red',
+      WARN: 'orange',
+      INFO: 'blue',
+      DEBUG: 'gray'
     }[log.level] || 'black';
 
     console.log(`%c[${log.level}] ${log.message}`, `color: ${color}`);
@@ -334,28 +342,61 @@ async function streamLogs() {
 ### 自动重连机制
 
 ```typescript
-const reconnectingStreamPlugin = (maxRetries = 3, delay = 1000) => ({
-  name: 'reconnecting-stream',
-  async onError(error, config) {
-    const retryCount = config.extra?.retryCount || 0;
+// 注意：自动重连需要在应用层实现
+// 插件的 onError 钩子不应该返回新的请求对象
+function reconnectingStreamPlugin(maxRetries = 3, delay = 1000) {
+  return {
+    name: 'reconnecting-stream',
+    async onError(error, config) {
+      const retryCount = config.extra?.retryCount || 0;
 
-    if (retryCount < maxRetries) {
-      console.log(`Stream connection failed, retrying... (${retryCount + 1}/${maxRetries})`);
+      if (retryCount < maxRetries && error.response?.status >= 500) {
+        console.log(`流连接失败，建议重试... (${retryCount + 1}/${maxRetries})`);
 
-      // 延迟重连
-      await new Promise(resolve => setTimeout(resolve, delay * Math.pow(2, retryCount)));
+        // 延迟建议
+        await new Promise(resolve => setTimeout(resolve, delay * 2 ** retryCount));
 
-      // 更新重试计数
-      config.extra = { ...config.extra, retryCount: retryCount + 1 };
+        // 将重试信息附加到错误中，由应用层决定是否重试
+        error.retryInfo = {
+          retryCount,
+          maxRetries,
+          shouldRetry: true
+        };
+      }
+      else {
+        console.error('流连接失败，已达到最大重试次数');
+      }
 
-      // 重新创建流
-      return hookFetch(config.url, config);
+      return error;
     }
+  };
+}
 
-    console.error('Stream connection failed after maximum retries');
-    return error;
+// 使用示例：在应用层实现重连逻辑
+async function streamWithRetry(url, maxRetries = 3) {
+  let retryCount = 0;
+
+  while (retryCount <= maxRetries) {
+    try {
+      const req = api.get(url, {}, { extra: { retryCount } });
+      for await (const chunk of req.stream()) {
+        // 处理数据
+        console.log(chunk.result);
+      }
+      break; // 成功，退出循环
+    }
+    catch (error) {
+      if (error.retryInfo?.shouldRetry && retryCount < maxRetries) {
+        retryCount++;
+        console.log(`重试中... (${retryCount}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, 1000 * 2 ** retryCount));
+      }
+      else {
+        throw error; // 无法重试，抛出错误
+      }
+    }
   }
-});
+}
 ```
 
 ### 流式错误处理
@@ -364,28 +405,43 @@ const reconnectingStreamPlugin = (maxRetries = 3, delay = 1000) => ({
 async function robustStreamProcessing() {
   const api = hookFetch.create({
     plugins: [
-      sseTextDecoderPlugin({ json: true }),
-      reconnectingStreamPlugin(5, 1000)
+      sseTextDecoderPlugin({ json: true })
     ]
   });
 
-  try {
-    for await (const chunk of api.get('/api/stream').stream()) {
-      if (chunk.error) {
-        console.error('Chunk error:', chunk.error);
-        continue; // 跳过错误的块
-      }
+  let retryCount = 0;
+  const maxRetries = 3;
 
-      try {
-        await processChunk(chunk.result);
-      } catch (processingError) {
-        console.error('Processing error:', processingError);
-        // 继续处理下一个块
+  while (retryCount <= maxRetries) {
+    try {
+      for await (const chunk of api.get('/api/stream').stream()) {
+        if (chunk.error) {
+          console.error('Chunk error:', chunk.error);
+          continue; // 跳过错误的块
+        }
+
+        try {
+          await processChunk(chunk.result);
+        }
+        catch (processingError) {
+          console.error('Processing error:', processingError);
+          // 继续处理下一个块
+        }
+      }
+      break; // 流成功完成，退出重试循环
+    }
+    catch (streamError) {
+      console.error('Stream error:', streamError);
+
+      if (retryCount < maxRetries) {
+        retryCount++;
+        console.log(`重试流连接... (${retryCount}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, 1000 * 2 ** retryCount));
+      }
+      else {
+        throw streamError; // 达到最大重试次数，抛出错误
       }
     }
-  } catch (streamError) {
-    console.error('Stream error:', streamError);
-    // 可以在这里实现重连逻辑
   }
 }
 ```
@@ -395,7 +451,7 @@ async function robustStreamProcessing() {
 ### 流式缓存插件
 
 ```typescript
-const streamCachePlugin = (maxSize = 1000) => {
+function streamCachePlugin(maxSize = 1000) {
   const cache = new Map();
 
   return {
@@ -422,7 +478,7 @@ const streamCachePlugin = (maxSize = 1000) => {
       return chunk;
     }
   };
-};
+}
 ```
 
 ## 性能优化
@@ -430,28 +486,30 @@ const streamCachePlugin = (maxSize = 1000) => {
 ### 流式数据压缩
 
 ```typescript
-const compressionPlugin = () => ({
-  name: 'compression',
-  async beforeRequest(config) {
-    config.headers = new Headers(config.headers);
-    config.headers.set('Accept-Encoding', 'gzip, deflate, br');
-    return config;
-  },
-  async beforeStream(body, config) {
+function compressionPlugin() {
+  return {
+    name: 'compression',
+    async beforeRequest(config) {
+      config.headers = new Headers(config.headers);
+      config.headers.set('Accept-Encoding', 'gzip, deflate, br');
+      return config;
+    },
+    async beforeStream(body, config) {
     // 如果响应被压缩，自动解压
-    const contentEncoding = config.headers?.get?.('content-encoding');
-    if (contentEncoding === 'gzip') {
-      return body.pipeThrough(new DecompressionStream('gzip'));
+      const contentEncoding = config.headers?.get?.('content-encoding');
+      if (contentEncoding === 'gzip') {
+        return body.pipeThrough(new DecompressionStream('gzip'));
+      }
+      return body;
     }
-    return body;
-  }
-});
+  };
+}
 ```
 
 ### 流式数据批处理
 
 ```typescript
-const batchProcessingPlugin = (batchSize = 10) => {
+function batchProcessingPlugin(batchSize = 10) {
   let batch: any[] = [];
 
   return {
@@ -466,7 +524,8 @@ const batchProcessingPlugin = (batchSize = 10) => {
           batch = [];
 
           chunk.result = processedBatch;
-        } else {
+        }
+        else {
           // 暂不输出，等待批次完成
           chunk.result = null;
         }
@@ -474,7 +533,7 @@ const batchProcessingPlugin = (batchSize = 10) => {
       return chunk;
     }
   };
-};
+}
 ```
 
 流式处理是 Hook-Fetch 的核心特性之一，通过灵活的插件系统和强大的流式 API，您可以轻松处理各种实时数据场景。
