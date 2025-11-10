@@ -1,5 +1,14 @@
 # hook-fetch
 
+## 2.2.4
+
+### Patch Changes
+
+- Improve type safety for streaming API:
+  - Add generic parameter support to `stream<U = T>()` method, allowing type override at stream stage
+  - Improve TypeScript inference: recommend specifying response type at request method level (e.g., `post<T>()`) rather than stream level for better type safety
+  - Update internal type handling in stream implementation for more accurate type narrowing
+
 ## 2.2.3
 
 ### Patch Changes

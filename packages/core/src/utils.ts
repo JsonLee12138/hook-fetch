@@ -450,7 +450,7 @@ export class HookFetchRequest<T = unknown, E = unknown> implements PromiseLike<T
     this.#plugins = parsePlugins(newPlugins);
   }
 
-  async* stream<T>() {
+  async* stream<U = T>() {
     let body = (await this.#response)?.body;
     if (!body) {
       throw new Error('Response body is null');
@@ -485,11 +485,11 @@ export class HookFetchRequest<T = unknown, E = unknown> implements PromiseLike<T
                 result: chunk,
                 error: null,
               };
-              yield resultItem as StreamContext<T>;
+              yield resultItem as StreamContext<U>;
             }
           }
           else {
-            yield res as StreamContext<T>;
+            yield res as StreamContext<U>;
           }
         }
         catch (error) {
