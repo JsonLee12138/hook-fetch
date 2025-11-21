@@ -1,4 +1,4 @@
-import type { RequestConfig } from './types';
+import type { BodyType, RequestConfig } from './types';
 
 export interface ResponseErrorOptions<E = unknown> {
   name?: string;
@@ -6,7 +6,7 @@ export interface ResponseErrorOptions<E = unknown> {
   status?: number;
   statusText?: string;
   response?: Response;
-  config?: RequestConfig<unknown, unknown, E>;
+  config?: RequestConfig<unknown, BodyType, E>;
 }
 
 export class ResponseError<E = unknown> extends Error {
@@ -15,7 +15,7 @@ export class ResponseError<E = unknown> extends Error {
   #status?: number | undefined;
   #statusText?: string | undefined;
   #response?: Response | undefined;
-  #config?: RequestConfig<unknown, unknown, E> | undefined;
+  #config?: RequestConfig<unknown, BodyType, E> | undefined;
 
   constructor({ message, status, statusText, response, config, name }: ResponseErrorOptions<E>) {
     super(message);

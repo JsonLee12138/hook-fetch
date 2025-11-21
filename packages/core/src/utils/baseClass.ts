@@ -389,7 +389,7 @@ export class HookFetchRequest<T = unknown, E = unknown> implements PromiseLike<T
       }
     }
     catch (error) {
-      return this.#normalizeError(error);
+      throw await this.#normalizeError(error);
     }
     finally {
       reader.releaseLock();
