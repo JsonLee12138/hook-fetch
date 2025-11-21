@@ -1,5 +1,15 @@
 # hook-fetch
 
+## 2.3.0
+
+### Minor Changes
+
+- 发布 2.3，主要变化：
+  - 新增 BodyType 并应用到请求/插件泛型，支持 string/FormData/Blob/ArrayBuffer/ReadableStream 等原生 body 直传。
+  - 优化 upload：支持对象或 FormData 自动转换为 FormData，上传数据类型推导更准确。
+  - Content-Type 为 text/plain 时保持原始字符串 body，纯文本接口按预期提交。
+  - 补充本地文件上传与 text/plain 测试用例，覆盖多文件、请求头透传与流式上传中断场景。
+
 ## 2.2.4
 
 ### Patch Changes

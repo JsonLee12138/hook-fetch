@@ -9,14 +9,14 @@ describe('test hook-fetch', () => {
 
   beforeAll(async () => {
     server = await startTestSseServer(9995, (app) => {
-      app.get('/api/test', (req, res) => {
+      app.get('/api/test', (_, res) => {
         res.json({
           code: 401,
           message: 'test',
           msg: 'test',
         });
       });
-      app.get('/api/unauthorized', (req, res) => {
+      app.get('/api/unauthorized', (_, res) => {
         // res.json({
         //   code: 422,
         //   message: 'test',

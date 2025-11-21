@@ -1,12 +1,12 @@
-import type QueryString from 'qs';
 import type { AnyObject } from 'typescript-api-pro';
-import type { BaseRequestOptions, FetchPluginContext, FetchResponseType, HookFetchPlugin, RequestConfig, RequestMethod, RequestMethodWithBody, RequestMethodWithParams, StreamContext } from './types';
-import qs from 'qs';
+import type { BaseRequestOptions, BodyType, FetchPluginContext, FetchResponseType, HookFetchPlugin, RequestConfig, StreamContext } from '../types';
 import { omit } from 'radash';
-import { ContentType, StatusCode } from './enum';
-import { ResponseError } from './error';
-
-export const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+import { StatusCode } from '../enum';
+import { ResponseError } from '../error';
+import { getBody } from './body';
+import { buildUrl, DEFAULT_QS_CONFIG } from './config';
+import { isAsyncGenerator, isGenerator } from './others';
+import { parsePlugins } from './plugin';
 
 export function timeoutCallback(controller: AbortController) {
   controller.abort();
@@ -21,130 +21,19 @@ enum ResponseType {
   BYTES = 'bytes',
 }
 
-function parsePlugins(plugins: HookFetchPlugin[]) {
-  const pluginsMap = new Map<string, HookFetchPlugin>();
-  plugins.forEach((plugin) => {
-    pluginsMap.set(plugin.name, plugin);
-  });
-  const pluginsArr = Array.from(pluginsMap.values()).sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0));
-
-  const beforeRequestPlugins: Array<Exclude<HookFetchPlugin['beforeRequest'], undefined>> = [];
-  const afterResponsePlugins: Array<Exclude<HookFetchPlugin['afterResponse'], undefined>> = [];
-  const errorPlugins: Array<Exclude<HookFetchPlugin['onError'], undefined>> = [];
-  const finallyPlugins: Array<Exclude<HookFetchPlugin['onFinally'], undefined>> = [];
-  const transformStreamChunkPlugins: Array<Exclude<HookFetchPlugin['transformStreamChunk'], undefined>> = [];
-  const beforeStreamPlugins: Array<Exclude<HookFetchPlugin['beforeStream'], undefined>> = [];
-  pluginsArr.forEach((plugin) => {
-    if (plugin.beforeRequest) {
-      beforeRequestPlugins.push(plugin.beforeRequest);
-    }
-    if (plugin.afterResponse) {
-      afterResponsePlugins.push(plugin.afterResponse);
-    }
-    if (plugin.onError) {
-      errorPlugins.push(plugin.onError);
-    }
-    if (plugin.onFinally) {
-      finallyPlugins.push(plugin.onFinally);
-    }
-    if (plugin.transformStreamChunk) {
-      transformStreamChunkPlugins.push(plugin.transformStreamChunk);
-    }
-    if (plugin.beforeStream) {
-      beforeStreamPlugins.push(plugin.beforeStream);
-    }
-  });
-  return {
-    beforeRequestPlugins,
-    afterResponsePlugins,
-    errorPlugins,
-    finallyPlugins,
-    beforeStreamPlugins,
-    transformStreamChunkPlugins,
-  };
-}
-
-export function buildUrl(url: string, params?: AnyObject, qsConfig: QueryString.IStringifyOptions = {
-  arrayFormat: 'repeat',
-}): string {
-  if (params) {
-    const paramsStr = qs.stringify(params, qsConfig);
-    if (paramsStr) {
-      url = url.includes('?') ? `${url}&${paramsStr}` : `${url}?${paramsStr}`;
-    }
-  }
-  return url;
-}
-
-export function mergeHeaders(_baseHeaders: HeadersInit | Headers = {}, _newHeaders: HeadersInit | Headers = {}): Headers {
-  const _result = _baseHeaders instanceof Headers ? _baseHeaders : new Headers(_baseHeaders);
-  const combineHeaders = (_headers: HeadersInit | Headers) => {
-    if (!(_headers instanceof Headers)) {
-      _headers = new Headers(_headers);
-    }
-    _headers.forEach((value, key) => {
-      _result.set(key, value);
-    });
-  };
-  combineHeaders(_newHeaders);
-  return _result;
-}
-
-const withBodyArr: RequestMethodWithBody[] = ['PATCH', 'POST', 'PUT', 'DELETE', 'OPTIONS'];
-const withoutBodyArr: RequestMethodWithParams[] = ['GET', 'HEAD'];
-
-export function getBody(body: AnyObject, method: RequestMethod, headers?: HeadersInit, qsConfig: QueryString.IStringifyOptions = {
-  arrayFormat: 'repeat',
-}): BodyInit | null {
-  if (!body)
-    return null;
-  if (body instanceof FormData)
-    return body;
-  let res: BodyInit | null = null;
-  if (withBodyArr.includes(method.toUpperCase() as RequestMethodWithBody)) {
-    const _headers_: Headers = new Headers(headers || {});
-    const _contentType = _headers_.get('Content-Type') || ContentType.JSON;
-    if (_contentType.includes(ContentType.JSON)) {
-      res = JSON.stringify(body);
-    }
-    else if (_contentType.includes(ContentType.FORM_URLENCODED)) {
-      res = qs.stringify(body, qsConfig);
-    }
-    else if (_contentType.includes(ContentType.FORM_DATA)) {
-      const formData = new FormData();
-      if (!(body instanceof FormData) && typeof body === 'object') {
-        const _data = body as AnyObject;
-        Object.keys(_data).forEach((key) => {
-          if (_data['prototype'].hasOwnProperty.call(key)) {
-            formData.append(key, _data[key]);
-          }
-        });
-        res = formData;
-      }
-    }
-  }
-  if (withoutBodyArr.includes(method.toUpperCase() as RequestMethodWithParams)) {
-    res = null;
-  }
-  return res;
-}
-
-const DEFAULT_QS_CONFIG: QueryString.IStringifyOptions = {
-  arrayFormat: 'repeat',
-};
 export class HookFetchRequest<T = unknown, E = unknown> implements PromiseLike<T> {
   #plugins: ReturnType<typeof parsePlugins>;
   #sourcePlugins: HookFetchPlugin[];
   #controller: AbortController;
-  #config: RequestConfig<unknown, unknown, E>;
+  #config: RequestConfig<unknown, BodyType, E>;
   #promise: Promise<Response> | null = null;
   #isTimeout: boolean = false;
   #executor: Promise<any> | null = null;
   #finallyCallbacks: Set<(() => void) | null | undefined> = new Set();
   #responseType: FetchResponseType = 'json';
-  #fullOptions: BaseRequestOptions<unknown, unknown, E>;
+  #fullOptions: BaseRequestOptions<unknown, BodyType, E>;
 
-  constructor(options: BaseRequestOptions<unknown, unknown, E>) {
+  constructor(options: BaseRequestOptions<unknown, BodyType, E>) {
     this.#fullOptions = options;
     const { plugins = [], controller, url, baseURL = '', params, data, qsConfig = {}, withCredentials = false, extra, method = 'GET', headers = {} } = options;
     this.#controller = controller ?? new AbortController();
@@ -154,7 +43,7 @@ export class HookFetchRequest<T = unknown, E = unknown> implements PromiseLike<T
       url,
       baseURL,
       params,
-      data,
+      data: data as BodyType,
       withCredentials,
       extra: extra as E,
       method,
@@ -164,7 +53,7 @@ export class HookFetchRequest<T = unknown, E = unknown> implements PromiseLike<T
     this.#promise = this.#init(options);
   }
 
-  #init({ timeout }: BaseRequestOptions<unknown, unknown, E>) {
+  #init({ timeout }: BaseRequestOptions<unknown, BodyType, E>) {
     // eslint-disable-next-line no-async-promise-executor
     return new Promise<Response>(async (resolve, reject) => {
       let config = this.#config;
@@ -172,7 +61,7 @@ export class HookFetchRequest<T = unknown, E = unknown> implements PromiseLike<T
       let err = null;
       for (const plugin of beforeRequestPlugins) {
         try {
-          config = (await plugin(config)) as RequestConfig<unknown, unknown, E>;
+          config = (await plugin(config)) as RequestConfig<unknown, BodyType, E>;
           if (config.resolve) {
             const res = config.resolve();
             if (res instanceof Response) {
@@ -195,7 +84,7 @@ export class HookFetchRequest<T = unknown, E = unknown> implements PromiseLike<T
 
       const _url_ = buildUrl(config.baseURL + config.url, config.params as AnyObject, config.qsConfig);
 
-      const body = getBody(config.data as AnyObject, config.method, config.headers, config.qsConfig);
+      const body = getBody(config.data ?? null, config.method, config.headers, config.qsConfig);
 
       const otherOptions = omit(config ?? {}, ['baseURL', 'data', 'extra', 'headers', 'method', 'params', 'url', 'withCredentials']);
 
@@ -458,7 +347,7 @@ export class HookFetchRequest<T = unknown, E = unknown> implements PromiseLike<T
     for (const plugin of this.#plugins.beforeStreamPlugins) {
       body = await plugin(body, this.#config);
     }
-    const reader = body.getReader();
+    const reader = body!.getReader();
     if (!reader) {
       throw new Error('Response body reader is null');
     }
@@ -516,12 +405,4 @@ export class HookFetchRequest<T = unknown, E = unknown> implements PromiseLike<T
   get response() {
     return this.#response;
   }
-}
-
-export function isGenerator(v: any) {
-  return v[Symbol.toStringTag] === 'Generator' && typeof v.next === 'function' && typeof v.return === 'function' && typeof v.throw === 'function' && typeof v[Symbol.iterator] === 'function';
-}
-
-export function isAsyncGenerator(v: any) {
-  return v[Symbol.toStringTag] === 'AsyncGenerator' && typeof v.next === 'function' && typeof v.return === 'function' && typeof v.throw === 'function' && typeof v[Symbol.asyncIterator] === 'function';
 }

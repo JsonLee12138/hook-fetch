@@ -1,9 +1,9 @@
 import type QueryString from 'qs';
 import type { AnyObject, Generic } from 'typescript-api-pro';
-import type { BaseOptions, BaseRequestOptions, DeleteOptions, GetOptions, HeadOptions, HookFetchPlugin, OptionsOptions, PatchOptions, PostOptions, PutOptions, RequestOptions, RequestWithBodyOptions, RequestWithParamsOptions } from './types';
-import { HookFetchRequest, mergeHeaders } from './utils';
+import type { BaseOptions, BaseRequestOptions, BodyType, DeleteOptions, GetOptions, HeadOptions, HookFetchPlugin, OptionsOptions, PatchOptions, PostOptions, PutOptions, RequestOptions, RequestWithBodyOptions, RequestWithParamsOptions } from './types';
+import { body2FormData, HookFetchRequest, mergeHeaders } from './utils';
 
-function _request_<R, P, D, E>(options: BaseRequestOptions<P, D, E>): HookFetchRequest<R, E> {
+function _request_<R, P, D extends BodyType, E>(options: BaseRequestOptions<P, D, E>): HookFetchRequest<R, E> {
   return new HookFetchRequest<R, E>(options);
 }
 
@@ -42,7 +42,7 @@ class HookFetch<R extends AnyObject | null = null, K extends keyof R = never, E 
     return this;
   }
 
-  request<T = AnyObject, P = AnyObject, D = AnyObject>(url: string, { timeout, headers, method = 'GET', params = {} as P, data = {} as D, qsConfig = {}, withCredentials, extra = {} as E, plugins = [] }: RequestOptions<P, D, E> = {}) {
+  request<T = AnyObject, P = AnyObject, D extends BodyType = BodyType>(url: string, { timeout, headers, method = 'GET', params = {} as P, data = {} as D, qsConfig = {}, withCredentials, extra = {} as E, plugins = [] }: RequestOptions<P, D, E> = {}) {
     const controller = new AbortController();
     this.#queue.push(controller);
     // eslint-disable-next-line ts/no-this-alias
@@ -75,7 +75,7 @@ class HookFetch<R extends AnyObject | null = null, K extends keyof R = never, E 
     return this.request<T, P, never>(url, { ...options, params });
   }
 
-  #requestWithBody<T = AnyObject, D = AnyObject, P = AnyObject>(url: string, data: D = {} as D, options: RequestWithBodyOptions<D, P, E> = {}) {
+  #requestWithBody<T = AnyObject, D extends BodyType = BodyType, P = AnyObject>(url: string, data: D = {} as D, options: RequestWithBodyOptions<D, P, E> = {}) {
     return this.request<T, P, D>(url, { ...options, data });
   }
 
@@ -87,39 +87,27 @@ class HookFetch<R extends AnyObject | null = null, K extends keyof R = never, E 
     return this.#requestWithParams<T, P>(url, params, { ...options, method: 'HEAD' });
   }
 
-  options<T = AnyObject, P = AnyObject, D = AnyObject>(url: string, params: P = {} as P, options?: OptionsOptions<P, D, E>) {
+  options<T = AnyObject, P = AnyObject, D extends BodyType = BodyType>(url: string, params: P = {} as P, options?: OptionsOptions<P, D, E>) {
     return this.request<T, P, D>(url, { ...options, method: 'OPTIONS', params });
   }
 
-  delete<T = AnyObject, D = AnyObject, P = AnyObject>(url: string, options?: DeleteOptions<P, D, E>) {
+  delete<T = AnyObject, D extends BodyType = BodyType, P = AnyObject>(url: string, options?: DeleteOptions<P, D, E>) {
     return this.request<T, P, D>(url, { ...options, method: 'DELETE' });
   }
 
-  post<T = AnyObject, D = AnyObject, P = AnyObject>(url: string, data?: D, options?: PostOptions<D, P, E>) {
+  post<T = AnyObject, D extends BodyType = BodyType, P = AnyObject>(url: string, data?: D, options?: PostOptions<D, P, E>) {
     return this.#requestWithBody<T, D, P>(url, data, { ...options, method: 'POST' });
   }
 
-  upload<T = AnyObject, D = AnyObject, P = AnyObject>(url: string, data?: D, options?: PostOptions<D, P, E>) {
-    const formData = new FormData();
-    for (const key in data) {
-      if (Object.prototype.hasOwnProperty.call(data, key)) {
-        const value = data[key];
-        if (value instanceof File || value instanceof Blob) {
-          formData.append(key, value);
-        }
-        else {
-          formData.append(key, String(value));
-        }
-      }
-    }
-    return this.#requestWithBody<T, FormData, P>(url, formData, { ...options, method: 'POST' });
+  upload<T = AnyObject, D extends AnyObject | FormData = AnyObject, P = AnyObject>(url: string, data?: D, options?: PostOptions<D, P, E>) {
+    return this.#requestWithBody<T, FormData, P>(url, body2FormData(data ?? {}), { ...options, method: 'POST' });
   }
 
-  put<T = AnyObject, D = AnyObject, P = AnyObject>(url: string, data?: D, options?: PutOptions<D, P, E>) {
+  put<T = AnyObject, D extends BodyType = BodyType, P = AnyObject>(url: string, data?: D, options?: PutOptions<D, P, E>) {
     return this.#requestWithBody<T, D, P>(url, data, { ...options, method: 'PUT' });
   }
 
-  patch<T = AnyObject, D = AnyObject, P = AnyObject>(url: string, data?: D, options?: PatchOptions<D, P, E>) {
+  patch<T = AnyObject, D extends BodyType = BodyType, P = AnyObject>(url: string, data?: D, options?: PatchOptions<D, P, E>) {
     return this.#requestWithBody<T, D, P>(url, data, { ...options, method: 'PATCH' });
   }
 
@@ -129,7 +117,7 @@ class HookFetch<R extends AnyObject | null = null, K extends keyof R = never, E 
   }
 }
 
-function useRequest<R = AnyObject, P = AnyObject, D = AnyObject, E = AnyObject>(url: string, options: RequestOptions<P, D, E> = {}) {
+function useRequest<R = AnyObject, P = AnyObject, D extends BodyType = BodyType, E = AnyObject>(url: string, options: RequestOptions<P, D, E> = {}) {
   return _request_<R, P, D, E>({
     url,
     baseURL: '',
@@ -141,7 +129,7 @@ function requestWithParams<R = AnyObject, P = AnyObject, E = AnyObject>(url: str
   return useRequest<R, P, never, E>(url, { ...options, params });
 }
 
-function requestWithBody<R = AnyObject, D = AnyObject, P = AnyObject, E = AnyObject>(url: string, data: D = null as D, options: RequestWithBodyOptions<D, P, E> = {}) {
+function requestWithBody<R = AnyObject, D extends BodyType = BodyType, P = AnyObject, E = AnyObject>(url: string, data: D = null as D, options: RequestWithBodyOptions<D, P, E> = {}) {
   return useRequest<R, P, D, E>(url, { ...options, data });
 }
 
@@ -155,39 +143,27 @@ export function head<R = AnyObject, P = AnyObject, E = AnyObject>(url: string, p
   return requestWithParams<R, P, E>(url, params, { ...options, method: 'HEAD' });
 }
 
-export function options<R = AnyObject, P = AnyObject, D = AnyObject, E = AnyObject>(url: string, params: P = {} as P, options?: OptionsOptions<P, D, E>) {
+export function options<R = AnyObject, P = AnyObject, D extends BodyType = BodyType, E = AnyObject>(url: string, params: P = {} as P, options?: OptionsOptions<P, D, E>) {
   return useRequest<R, P, D, E>(url, { ...options, params, method: 'OPTIONS' });
 }
 
-export function del<R = AnyObject, D = AnyObject, P = AnyObject, E = AnyObject>(url: string, options?: DeleteOptions<P, D, E>) {
+export function del<R = AnyObject, D extends BodyType = BodyType, P = AnyObject, E = AnyObject>(url: string, options?: DeleteOptions<P, D, E>) {
   return useRequest<R, P, D, E>(url, { ...options, method: 'DELETE' });
 }
 
-export function post<R = AnyObject, D = AnyObject, P = AnyObject, E = AnyObject>(url: string, data?: D, options?: PostOptions<D, P, E>) {
+export function post<R = AnyObject, D extends BodyType = BodyType, P = AnyObject, E = AnyObject>(url: string, data?: D, options?: PostOptions<D, P, E>) {
   return requestWithBody<R, D, P, E>(url, data, { ...options, method: 'POST' });
 }
 
-export function upload<R = AnyObject, D = AnyObject, P = AnyObject, E = AnyObject>(url: string, data?: D, options?: PostOptions<D, P, E>) {
-  const formData = new FormData();
-  for (const key in data) {
-    if (Object.prototype.hasOwnProperty.call(data, key)) {
-      const value = data[key];
-      if (value instanceof File || value instanceof Blob) {
-        formData.append(key, value);
-      }
-      else {
-        formData.append(key, String(value));
-      }
-    }
-  }
-  return requestWithBody<R, FormData, P, E>(url, formData, { ...options, method: 'POST' });
+export function upload<R = AnyObject, D extends AnyObject | FormData = AnyObject, P = AnyObject, E = AnyObject>(url: string, data?: D, options?: PostOptions<D, P, E>) {
+  return requestWithBody<R, FormData, P, E>(url, body2FormData(data ?? {}), { ...options, method: 'POST' });
 }
 
-export function put<R = AnyObject, D = AnyObject, P = AnyObject, E = AnyObject>(url: string, data?: D, options?: PutOptions<D, P, E>) {
+export function put<R = AnyObject, D extends BodyType = BodyType, P = AnyObject, E = AnyObject>(url: string, data?: D, options?: PutOptions<D, P, E>) {
   return requestWithBody<R, D, P, E>(url, data, { ...options, method: 'PUT' });
 }
 
-export function patch<R = AnyObject, D = AnyObject, P = AnyObject, E = AnyObject>(url: string, data?: D, options?: PatchOptions<D, P, E>) {
+export function patch<R = AnyObject, D extends BodyType = BodyType, P = AnyObject, E = AnyObject>(url: string, data?: D, options?: PatchOptions<D, P, E>) {
   return requestWithBody<R, D, P, E>(url, data, { ...options, method: 'PATCH' });
 }
 

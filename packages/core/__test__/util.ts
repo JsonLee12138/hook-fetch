@@ -5,6 +5,10 @@ export interface TestServer {
   close: () => Promise<void> | any;
 }
 
+export function startTestServer(port: number, handlers: (_app: express.Application) => void): Promise<TestServer> {
+  return startTestSseServer(port, handlers);
+}
+
 export function startTestSseServer(port: number, handlers: (_app: express.Application) => void): Promise<TestServer> {
   const app = express();
   app.use((req, res, next) => {

@@ -10,7 +10,9 @@ export type RequestMethodWithBody = 'PUT' | 'PATCH' | 'POST' | 'DELETE' | 'OPTIO
 
 export type RequestMethod = RequestMethodWithParams | RequestMethodWithBody;
 
-export interface RequestConfig<P, D, E = AnyObject> extends Omit<RequestInit, 'body' | 'signal' | 'credentials' | 'method'> {
+export type BodyType = AnyObject | string | FormData | URLSearchParams | Blob | ArrayBuffer | ArrayBufferView | ReadableStream | null;
+
+export interface RequestConfig<P, D extends BodyType = BodyType, E = AnyObject> extends Omit<RequestInit, 'body' | 'signal' | 'credentials' | 'method'> {
   url: string;
   baseURL: string;
   params?: P;
@@ -24,7 +26,7 @@ export interface RequestConfig<P, D, E = AnyObject> extends Omit<RequestInit, 'b
 }
 
 // 下方 request 的 option
-export type BaseRequestOptions<P, D, E = AnyObject> = Partial<{
+export type BaseRequestOptions<P = AnyObject, D extends BodyType = BodyType, E = AnyObject> = Partial<{
   plugins: Array<HookFetchPlugin>;
   timeout: number;
   params: P;
@@ -41,7 +43,7 @@ export type BaseRequestOptions<P, D, E = AnyObject> = Partial<{
 };
 
 // 插件模式
-export interface FetchPluginContext<T = unknown, E = unknown, P = unknown, D = unknown> {
+export interface FetchPluginContext<T = unknown, E = unknown, P = unknown, D extends BodyType = BodyType> {
   config: RequestConfig<P, D, E>;
   response: Response;
   responseType: FetchResponseType;
@@ -55,19 +57,19 @@ export interface StreamContext<T = unknown> {
   error: unknown | null;
 }
 
-export type BeforeRequestHandler<E = unknown, P = unknown, D = unknown> = (config: RequestConfig<P, D, E>) => RequestConfig<P, D, E> | PromiseLike<RequestConfig<P, D, E>>;
+export type BeforeRequestHandler<E = unknown, P = unknown, D extends BodyType = BodyType> = (config: RequestConfig<P, D, E>) => RequestConfig<P, D, E> | PromiseLike<RequestConfig<P, D, E>>;
 
-export type AfterResponseHandler<T = unknown, E = unknown, P = unknown, D = unknown> = (context: FetchPluginContext<T>, config: RequestConfig<P, D, E>) => FetchPluginContext<T> | PromiseLike<FetchPluginContext<T>>;
+export type AfterResponseHandler<T = unknown, E = unknown, P = unknown, D extends BodyType = BodyType> = (context: FetchPluginContext<T>, config: RequestConfig<P, D, E>) => FetchPluginContext<T> | PromiseLike<FetchPluginContext<T>>;
 
-export type BeforeStreamHandler<E = unknown, P = unknown, D = unknown> = (body: ReadableStream<any>, config: RequestConfig<P, D, E>) => ReadableStream<any> | PromiseLike<ReadableStream<any>>;
+export type BeforeStreamHandler<E = unknown, P = unknown, D extends BodyType = BodyType> = (body: ReadableStream<any>, config: RequestConfig<P, D, E>) => ReadableStream<any> | PromiseLike<ReadableStream<any>>;
 
-export type TransformStreamChunkHandler<E = unknown, P = unknown, D = unknown> = (chunk: StreamContext<any>, config: RequestConfig<P, D, E>) => StreamContext | PromiseLike<StreamContext>;
+export type TransformStreamChunkHandler<E = unknown, P = unknown, D extends BodyType = BodyType> = (chunk: StreamContext<any>, config: RequestConfig<P, D, E>) => StreamContext | PromiseLike<StreamContext>;
 
-export type OnFinallyHandler<E = unknown, P = unknown, D = unknown> = (res: Pick<FetchPluginContext<unknown, E, P, D>, 'config'>) => void | PromiseLike<void>;
+export type OnFinallyHandler<E = unknown, P = unknown, D extends BodyType = BodyType> = (res: Pick<FetchPluginContext<unknown, E, P, D>, 'config'>) => void | PromiseLike<void>;
 
-export type OnErrorHandler<E = unknown, P = unknown, D = unknown> = (error: ResponseError<E>, config: RequestConfig<P, D, E>) => PromiseLike<Error | void | ResponseError<E>> | Error | void | ResponseError<E>;
+export type OnErrorHandler<E = unknown, P = unknown, D extends BodyType = BodyType> = (error: ResponseError<E>, config: RequestConfig<P, D, E>) => PromiseLike<Error | void | ResponseError<E>> | Error | void | ResponseError<E>;
 
-export interface HookFetchPlugin<T = unknown, E = unknown, P = unknown, D = unknown> {
+export interface HookFetchPlugin<T = unknown, E = unknown, P = unknown, D extends BodyType = BodyType> {
   /** 插件名称 */
   name: string;
   /** 优先级 */
@@ -93,28 +95,28 @@ export interface OptionProps {
 
 export type BaseOptions = Partial<OptionProps>;
 
-export type RequestOptions<P = AnyObject, D = AnyObject, E = AnyObject> = Omit<BaseRequestOptions<P, D, E>, 'url' | 'baseURL' | 'controller'>;
+export type RequestOptions<P = AnyObject, D extends BodyType = BodyType, E = AnyObject> = Omit<BaseRequestOptions<P, D, E>, 'url' | 'baseURL' | 'controller'>;
 
 /**
  * 已废除, 请改用 RequestOptions
  *
  * Deprecated, please use RequestOptions instead
  */
-export type RequestUseOptions<P = AnyObject, D = AnyObject, E = AnyObject> = RequestOptions<P, D, E>;
+export type RequestUseOptions<P = AnyObject, D extends BodyType = BodyType, E = AnyObject> = RequestOptions<P, D, E>;
 
-export type RequestWithBodyOptions<D = AnyObject, P = AnyObject, E = AnyObject> = Omit<RequestOptions<P, D, E>, 'data'>;
+export type RequestWithBodyOptions<D extends BodyType = BodyType, P = AnyObject, E = AnyObject> = Omit<RequestOptions<P, D, E>, 'data'>;
 
 export type RequestWithParamsOptions<P = AnyObject, E = AnyObject> = Omit<RequestOptions<P, null, E>, 'params' | 'data'>;
 
-export type RequestWithBodyFnOptions<D = AnyObject, P = AnyObject, E = AnyObject> = Omit<RequestOptions<P, D, E>, 'data' | 'method'>;
+export type RequestWithBodyFnOptions<D extends BodyType = BodyType, P = AnyObject, E = AnyObject> = Omit<RequestOptions<P, D, E>, 'data' | 'method'>;
 
 export type RequestWithParamsFnOptions<P = AnyObject, E = AnyObject> = Omit<RequestOptions<P, null, E>, 'params' | 'data' | 'method'>;
 
-export type PostOptions<D = AnyObject, P = AnyObject, E = AnyObject> = RequestWithBodyFnOptions<D, P, E>;
+export type PostOptions<D extends BodyType = BodyType, P = AnyObject, E = AnyObject> = RequestWithBodyFnOptions<D, P, E>;
 
-export type PutOptions<D = AnyObject, P = AnyObject, E = AnyObject> = RequestWithBodyFnOptions<D, P, E>;
+export type PutOptions<D extends BodyType = BodyType, P = AnyObject, E = AnyObject> = RequestWithBodyFnOptions<D, P, E>;
 
-export type PatchOptions<D = AnyObject, P = AnyObject, E = AnyObject> = RequestWithBodyFnOptions<D, P, E>;
+export type PatchOptions<D extends BodyType = BodyType, P = AnyObject, E = AnyObject> = RequestWithBodyFnOptions<D, P, E>;
 
 export type GetOptions<P = AnyObject, E = AnyObject> = RequestWithParamsFnOptions<P, E>;
 
@@ -125,6 +127,6 @@ export type HeadOptions<P = AnyObject, E = AnyObject> = RequestWithParamsFnOptio
  *
  * OPTIONS method request optional parameter types
  */
-export type OptionsOptions<P = AnyObject, D = AnyObject, E = AnyObject> = RequestUseOptions<P, D, E>;
+export type OptionsOptions<P = AnyObject, D extends BodyType = BodyType, E = AnyObject> = RequestUseOptions<P, D, E>;
 
-export type DeleteOptions<P = AnyObject, D = AnyObject, E = AnyObject> = RequestUseOptions<P, D, E>;
+export type DeleteOptions<P = AnyObject, D extends BodyType = BodyType, E = AnyObject> = RequestUseOptions<P, D, E>;
