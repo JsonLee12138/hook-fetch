@@ -2,7 +2,7 @@ import type { AnyObject } from 'typescript-api-pro';
 import type { BaseRequestOptions, BodyType, FetchPluginContext, FetchResponseType, HookFetchPlugin, RequestConfig, StreamContext } from '../types';
 import { omit } from 'radash';
 import { StatusCode } from '../enum';
-import { ResponseError } from '../error';
+import { ResponseError } from '../errors';
 import { getBody } from './body';
 import { buildUrl, DEFAULT_QS_CONFIG } from './config';
 import { isAsyncGenerator, isGenerator } from './others';
@@ -35,22 +35,26 @@ export class HookFetchRequest<T = unknown, E = unknown> implements PromiseLike<T
 
   constructor(options: BaseRequestOptions<unknown, BodyType, E>) {
     this.#fullOptions = options;
-    const { plugins = [], controller, url, baseURL = '', params, data, qsConfig = {}, withCredentials = false, extra, method = 'GET', headers = {} } = options;
+    const { plugins = [], controller } = options;
     this.#controller = controller ?? new AbortController();
     this.#sourcePlugins = plugins;
     this.#plugins = parsePlugins(plugins);
-    this.#config = {
-      url,
+    this.#config = this.#buildConfig(options);
+    this.#promise = this.#init(options);
+  }
+
+  // 初始化配置
+  #buildConfig({ baseURL = '', method = 'GET', qsConfig = {}, withCredentials = false, headers = {}, ...rest }: BaseRequestOptions<unknown, BodyType, E>): RequestConfig<unknown, BodyType, E> {
+    return {
+      ...rest,
       baseURL,
-      params,
-      data: data as BodyType,
-      withCredentials,
-      extra: extra as E,
       method,
+      data: rest.data as BodyType,
+      extra: rest.extra as E,
+      withCredentials,
       headers,
       qsConfig: Object.assign(DEFAULT_QS_CONFIG, qsConfig),
     };
-    this.#promise = this.#init(options);
   }
 
   #init({ timeout }: BaseRequestOptions<unknown, BodyType, E>) {
@@ -65,10 +69,10 @@ export class HookFetchRequest<T = unknown, E = unknown> implements PromiseLike<T
           if (config.resolve) {
             const res = config.resolve();
             if (res instanceof Response) {
-              resolve(res);
+              return resolve(res);
             }
             else {
-              resolve(new Response(res));
+              return resolve(new Response(res));
             }
           }
         }
@@ -96,7 +100,6 @@ export class HookFetchRequest<T = unknown, E = unknown> implements PromiseLike<T
         credentials: config.withCredentials ? 'include' : 'omit',
         body,
       };
-
       const req = fetch(_url_, options);
       const promises: Array<Promise<Response | void>> = [req];
       let timeoutId: ReturnType<typeof setTimeout> | null = null;
