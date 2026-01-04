@@ -1,5 +1,11 @@
 # hook-fetch
 
+## 2.3.1
+
+### Patch Changes
+
+- 修改resolve后仍然会继续请求的问题
+
 ## 2.3.0
 
 ### Minor Changes
