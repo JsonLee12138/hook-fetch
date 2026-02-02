@@ -1,6 +1,7 @@
 import type QueryString from 'qs';
 import type { AnyObject } from 'typescript-api-pro';
 import type { BodyType, RequestMethod, RequestMethodWithBody, RequestMethodWithParams } from '../types';
+import qs from 'qs';
 import { ContentType } from '../enum';
 
 const withBodyArr: RequestMethodWithBody[] = ['PATCH', 'POST', 'PUT', 'DELETE', 'OPTIONS'];

@@ -1,5 +1,11 @@
 # hook-fetch
 
+## 2.3.2
+
+### Patch Changes
+
+- 修复没有引入qs的问题
+
 ## 2.3.1
 
 ### Patch Changes
