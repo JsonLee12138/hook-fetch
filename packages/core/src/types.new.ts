@@ -2,7 +2,7 @@ import type QueryString from 'qs';
 import type { AnyObject } from 'typescript-api-pro';
 import type { ResponseError } from './errors';
 
-export type FetchResponseType = 'json' | 'text' | 'blob' | 'arrayBuffer' | 'formData' | 'bytes';
+export type FetchResponseType = 'json' | 'text' | 'blob' | 'arrayBuffer' | 'formData' | 'bytes' | 'response';
 
 export type RequestMethodWithParams = 'GET' | 'HEAD';
 
@@ -57,6 +57,55 @@ export interface StreamContext<T = unknown> {
   error: unknown | null;
 }
 
+export type RetryDelayHandler<E = unknown, P = unknown, D extends BodyType = BodyType> = (params: {
+  attempt: number;
+  error: ResponseError<E>;
+  config: RequestConfig<P, D, E>;
+}) => number | void | Promise<number | void>;
+
+export type RetryOverrideOptions<P = AnyObject, D extends BodyType = BodyType, E = AnyObject> = Partial<Omit<BaseRequestOptions<P, D, E>, 'controller' | 'plugins'>>;
+
+export interface RequestRetryOptions<P = AnyObject, D extends BodyType = BodyType, E = AnyObject> {
+  enabled?: boolean;
+  maxAttempts?: number;
+  delay?: number | RetryDelayHandler<E, P, D>;
+  overrides?: RetryOverrideOptions<P, D, E>;
+}
+
+export interface RetryHandlerDecision<P = AnyObject, D extends BodyType = BodyType, E = AnyObject> {
+  __hookFetchDecision__: 'retry';
+  options?: RequestRetryOptions<P, D, E>;
+}
+
+export interface ResolveHandlerDecision<T = unknown> {
+  __hookFetchDecision__: 'resolve';
+  value: T | PromiseLike<T>;
+}
+
+export interface RejectHandlerDecision<E = unknown> {
+  __hookFetchDecision__: 'reject';
+  error?: Error | ResponseError<E>;
+}
+
+export interface OnErrorContext<T = unknown, E = unknown, P = unknown, D extends BodyType = BodyType> {
+  attempt: number;
+  maxAttempts: number;
+  retry: (options?: RequestRetryOptions<P, D, E>) => RetryHandlerDecision<P, D, E>;
+  resolve: (value: T | PromiseLike<T>) => ResolveHandlerDecision<T>;
+  reject: (error?: Error | ResponseError<E>) => RejectHandlerDecision<E>;
+}
+
+export type OnErrorHandlerResult<T = unknown, E = unknown, P = unknown, D extends BodyType = BodyType> =
+  | void
+  | T
+  | PromiseLike<T>
+  | ResponseError<E>
+  | Error
+  | RetryHandlerDecision<P, D, E>
+  | ResolveHandlerDecision<T>
+  | RejectHandlerDecision<E>
+  | PromiseLike<void | T | ResponseError<E> | Error | RetryHandlerDecision<P, D, E> | ResolveHandlerDecision<T> | RejectHandlerDecision<E>>;
+
 export type BeforeRequestHandler<E = unknown, P = unknown, D extends BodyType = BodyType> = (config: RequestConfig<P, D, E>) => RequestConfig<P, D, E> | PromiseLike<RequestConfig<P, D, E>>;
 
 export type AfterResponseHandler<T = unknown, E = unknown, P = unknown, D extends BodyType = BodyType> = (context: FetchPluginContext<T>, config: RequestConfig<P, D, E>) => FetchPluginContext<T> | PromiseLike<FetchPluginContext<T>>;
@@ -67,7 +116,7 @@ export type TransformStreamChunkHandler<E = unknown, P = unknown, D extends Body
 
 export type OnFinallyHandler<E = unknown, P = unknown, D extends BodyType = BodyType> = (res: Pick<FetchPluginContext<unknown, E, P, D>, 'config'>) => void | PromiseLike<void>;
 
-export type OnErrorHandler<E = unknown, P = unknown, D extends BodyType = BodyType> = (error: ResponseError<E>, config: RequestConfig<P, D, E>) => PromiseLike<Error | void | ResponseError<E>> | Error | void | ResponseError<E>;
+export type OnErrorHandler<T = unknown, E = unknown, P = unknown, D extends BodyType = BodyType> = (error: ResponseError<E>, config: RequestConfig<P, D, E>, context?: OnErrorContext<T, E, P, D>) => OnErrorHandlerResult<T, E, P, D>;
 // interface HookFetchErrorContext<E = unknown, P = unknown, D extends BodyType = BodyType> {
 //   error: ResponseError;
 //   resolve: (config: RequestConfig<P, D, E>) => PromiseLike<void>;
@@ -83,7 +132,7 @@ export interface HookFetchPlugin<T = unknown, E = unknown, P = unknown, D extend
   afterResponse?: AfterResponseHandler<T, E, P, D>;
   beforeStream?: BeforeStreamHandler<E, P, D>;
   transformStreamChunk?: TransformStreamChunkHandler<E, P, D>;
-  onError?: OnErrorHandler<E, P, D>;
+  onError?: OnErrorHandler<T, E, P, D>;
   onFinally?: OnFinallyHandler<E, P, D>;
 }
 

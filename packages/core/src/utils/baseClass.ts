@@ -117,7 +117,7 @@ export class HookFetchRequest<T = unknown, E = unknown> implements PromiseLike<T
         const res = await Promise.race(promises);
         if (res) {
           if (res.ok) {
-            resolve(res);
+            return resolve(res);
           }
           err = new ResponseError({
             message: 'Fail Request',
@@ -144,7 +144,7 @@ export class HookFetchRequest<T = unknown, E = unknown> implements PromiseLike<T
       }
       finally {
         if (err) {
-          reject(err);
+          return reject(err);
         }
         if (timeoutId) {
           clearTimeout(timeoutId);

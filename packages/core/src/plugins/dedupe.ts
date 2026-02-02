@@ -1,5 +1,5 @@
 import type { HookFetchPlugin } from '../types';
-import { ResponseError } from '../error';
+import { ResponseError } from '../errors';
 
 /**
  * 去重插件配置选项

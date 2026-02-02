@@ -3,7 +3,7 @@ import hookFetch from './base';
 
 export * from './base';
 export * from './enum';
-export * from './error';
+export * from './errors';
 export * from './types';
 export type HookFetchRequest<T = unknown, E = unknown> = _HookFetchRequest_<T, E>;
 export default hookFetch;

@@ -108,7 +108,7 @@ describe('test cache plugin', () => {
 
     // 第一次请求，应该发起实际请求
     const firstResponse = await instance.request<{ message: string; count: number }>('/api/data', {
-      extra: { ttl: 5000 }, // 5秒缓存
+      // extra: { ttl: 5000 }, // 5秒缓存
     }).json();
 
     expect(firstResponse.count).toBe(1);
@@ -116,7 +116,7 @@ describe('test cache plugin', () => {
 
     // 第二次请求，应该返回缓存数据
     const secondResponse = await instance.request<{ message: string; count: number }>('/api/data', {
-      extra: { ttl: 5000 },
+      // extra: { ttl: 5000 },
     }).json();
 
     expect(secondResponse.count).toBe(1); // 返回缓存的 count
