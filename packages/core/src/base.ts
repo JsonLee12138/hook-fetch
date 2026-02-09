@@ -14,7 +14,7 @@ class HookFetch<R extends AnyObject | null = null, K extends keyof R = never, E 
   #baseURL: string;
   #commonHeaders: HeadersInit;
   #queue: Array<AbortController> = [];
-  #plugins: Array<HookFetchPlugin<any, any, any, any>> = [];
+  #plugins: Array<HookFetchPlugin<any, any>> = [];
   #withCredentials: boolean;
   #qsConfig: QueryString.IStringifyOptions;
 
@@ -37,7 +37,7 @@ class HookFetch<R extends AnyObject | null = null, K extends keyof R = never, E 
     this.use = this.use.bind(this);
   }
 
-  use(plugin: HookFetchPlugin<any, any, any, any>) {
+  use(plugin: HookFetchPlugin<any, any>) {
     this.#plugins.push(plugin);
     return this;
   }
@@ -64,7 +64,7 @@ class HookFetch<R extends AnyObject | null = null, K extends keyof R = never, E 
       method,
       params,
       data,
-      qsConfig: Object.assign(this.#qsConfig, qsConfig),
+      qsConfig: Object.assign({}, this.#qsConfig, qsConfig),
       withCredentials: withCredentials ?? this.#withCredentials,
       extra,
     });
@@ -182,10 +182,21 @@ type ExportDefault = typeof useRequest & {
 const hookFetch = useRequest as ExportDefault;
 
 hookFetch.create = <R extends AnyObject | null = null, K extends keyof R = never, E = AnyObject>(options: BaseOptions) => {
-  const context = new HookFetch<R, K, E>(options);
-  const instance = context.request.bind(this);
-  Object.assign(instance, HookFetch.prototype, context);
-  return instance as (typeof context.request & HookFetch<R, K, E>);
+  const instance = new HookFetch<R, K, E>(options);
+  const bound = instance.request.bind(instance) as (typeof instance.request & HookFetch<R, K, E>);
+  // Manually bind all methods to the instance
+  bound.get = instance.get.bind(instance);
+  bound.head = instance.head.bind(instance);
+  bound.options = instance.options.bind(instance);
+  bound.delete = instance.delete.bind(instance);
+  bound.post = instance.post.bind(instance);
+  bound.put = instance.put.bind(instance);
+  bound.patch = instance.patch.bind(instance);
+  bound.upload = instance.upload.bind(instance);
+  bound.abortAll = instance.abortAll.bind(instance);
+  bound.use = ((plugin: HookFetchPlugin<any, any>) => { instance.use(plugin); return bound; }) as any;
+  bound.request = instance.request.bind(instance);
+  return bound;
 };
 
 hookFetch.get = get;

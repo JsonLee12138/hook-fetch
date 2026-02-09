@@ -1,162 +1,83 @@
 ---
-sidebar_position: 1
+sidebar_position: 2
 ---
 
-# Frequently Asked Questions
+# 常见问题
 
-This page answers common questions about Hook-Fetch usage, configuration, and troubleshooting.
+本页面收集了使用 Hook-Fetch 时的常见问题和解决方案。
 
-## General Questions
+## 基础使用
 
-### What is Hook-Fetch?
+### Q: Hook-Fetch 与 Axios 有什么区别？
 
-Hook-Fetch is a modern HTTP request library based on the native fetch API. It provides a clean syntax, rich features, and a powerful plugin system, with particular strength in streaming data processing and framework integration.
+**A:** Hook-Fetch 相比 Axios 有以下优势：
 
-### How is Hook-Fetch different from Axios?
-
-- **Lighter weight**: Based on native fetch API, smaller bundle size
-- **Modern design**: Built for modern JavaScript/TypeScript projects
-- **Streaming support**: Native support for SSE and streaming data
-- **Plugin system**: Powerful and flexible plugin architecture
-- **Framework integration**: Built-in React and Vue hooks
-
-### Can I use Hook-Fetch with TypeScript?
-
-Yes! Hook-Fetch is written in TypeScript and provides complete type definitions. You get full type safety and IntelliSense support.
+1. **更轻量**: 基于原生 fetch API，包体积更小
+2. **更现代**: 原生支持 Promise 和 async/await
+3. **流式处理**: 内置强大的流式数据处理能力
+4. **插件系统**: 灵活的插件架构，易于扩展
+5. **TypeScript**: 更好的类型支持和类型推断
 
 ```typescript
-interface User {
-  id: number;
-  name: string;
-  email: string;
-}
+// Axios 风格
+const response = await axios.get('/users');
+const data = response.data;
 
-const user = await api.get<User>('/users/1').json();
-// user is fully typed as User
+// Hook-Fetch 风格
+const data = await hookFetch('/users').json();
 ```
 
-## Installation and Setup
+### Q: 如何设置全局配置？
 
-### How do I install Hook-Fetch?
-
-```bash
-# npm
-npm install hook-fetch
-
-# yarn
-yarn add hook-fetch
-
-# pnpm
-pnpm add hook-fetch
-```
-
-### Do I need any polyfills?
-
-Hook-Fetch uses the native fetch API, which is supported in all modern browsers. For older browsers (IE11), you may need a fetch polyfill.
-
-### Can I use Hook-Fetch in Node.js?
-
-Yes, but you'll need to ensure fetch is available. In Node.js 18+, fetch is built-in. For older versions, you can use a polyfill like `node-fetch`.
-
-## Basic Usage
-
-### How do I make a simple GET request?
-
-```typescript
-import hookFetch from 'hook-fetch';
-
-// Simple GET request
-const response = await hookFetch('https://api.example.com/users').json();
-
-// With parameters
-const users = await hookFetch('https://api.example.com/users', {
-  params: { page: 1, limit: 10 }
-}).json();
-```
-
-### How do I create a configured instance?
+**A:** 使用 `create` 方法创建实例：
 
 ```typescript
 const api = hookFetch.create({
   baseURL: 'https://api.example.com',
+  timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
-    'Authorization': 'Bearer your-token'
-  },
-  timeout: 5000
+    'Authorization': 'Bearer token'
+  }
 });
-
-const users = await api.get('/users').json();
 ```
 
-### How do I handle different response types?
+### Q: 如何处理错误？
+
+**A:** Hook-Fetch 提供多种错误处理方式：
 
 ```typescript
-// JSON response
-const jsonData = await request.json();
-
-// Text response
-const textData = await request.text();
-
-// Blob response (for files)
-const blobData = await request.blob();
-
-// ArrayBuffer response
-const arrayBufferData = await request.arrayBuffer();
-```
-
-## Error Handling
-
-### How do I handle errors?
-
-```typescript
+// 1. try-catch
 try {
-  const response = await api.get('/users/1').json();
+  const data = await api.get('/users').json();
 }
 catch (error) {
-  if (error.response) {
-    // Server responded with error status
-    console.log('Status:', error.response.status);
-    console.log('Data:', error.response.data);
-  }
-  else if (error.request) {
-    // Request was sent but no response received
-    console.log('Network error');
-  }
-  else {
-    // Other error
-    console.log('Error:', error.message);
-  }
-}
-```
-
-### How do I set up global error handling?
-
-```typescript
-function errorHandlerPlugin() {
-  return {
-    name: 'error-handler',
-    async onError(error, config) {
-      console.error(`API Error [${config.method}] ${config.url}:`, error);
-
-      if (error.response?.status === 401) {
-      // Handle unauthorized
-        window.location.href = '/login';
-      }
-
-      return error;
-    }
-  };
+  console.error('Request failed:', error);
 }
 
-const api = hookFetch.create({
-  plugins: [errorHandlerPlugin()]
+// 2. catch 方法
+const data = await api.get('/users')
+  .catch((error) => {
+    console.error('Request failed:', error);
+    return { users: [] }; // 默认值
+  })
+  .json();
+
+// 3. 插件处理
+api.use({
+  name: 'error-handler',
+  async onError({ error, config }) {
+    console.error(`Error in ${config.url}:`, error);
+    return undefined;
+  }
 });
 ```
 
-## Streaming and SSE
+## 流式处理
 
-### How do I handle Server-Sent Events (SSE)?
+### Q: 如何处理 Server-Sent Events (SSE)？
+
+**A:** 使用内置的 SSE 插件：
 
 ```typescript
 import { sseTextDecoderPlugin } from 'hook-fetch/plugins/sse';
@@ -172,34 +93,37 @@ const api = hookFetch.create({
 });
 
 for await (const chunk of api.get('/sse-endpoint').stream()) {
-  console.log('SSE data:', chunk.result);
+  console.log(chunk.result);
 }
 ```
 
-### How do I process streaming data?
+### Q: 流式数据处理中如何处理错误？
+
+**A:** 在流式处理中，错误会出现在 `chunk.error` 中：
 
 ```typescript
-const request = hookFetch('https://api.example.com/stream');
-
 for await (const chunk of request.stream()) {
-  console.log('Received:', chunk.result);
-  console.log('Raw bytes:', chunk.source);
-
   if (chunk.error) {
-    console.error('Stream error:', chunk.error);
+    console.error('Chunk error:', chunk.error);
+    continue; // 跳过错误块
   }
+
+  // 处理正常数据
+  console.log(chunk.result);
 }
 ```
 
-### Can I cancel streaming requests?
+### Q: 如何中断流式请求？
+
+**A:** 使用 `abort()` 方法：
 
 ```typescript
 const request = api.get('/stream');
 
-// Cancel after 30 seconds
+// 5秒后中断
 setTimeout(() => {
   request.abort();
-}, 30000);
+}, 5000);
 
 try {
   for await (const chunk of request.stream()) {
@@ -208,29 +132,31 @@ try {
 }
 catch (error) {
   if (error.name === 'AbortError') {
-    console.log('Stream cancelled');
+    console.log('Stream was aborted');
   }
 }
 ```
 
-## Plugin System
+## 插件系统
 
-### How do I create a custom plugin?
+### Q: 如何创建自定义插件？
+
+**A:** 插件是一个包含钩子函数的对象：
 
 ```typescript
 function myPlugin() {
   return {
     name: 'my-plugin',
-    priority: 1,
-    async beforeRequest(config) {
-    // Modify request before sending
-      config.headers.set('X-Custom-Header', 'value');
+    priority: 1, // 可选，数字越小优先级越高
+    async beforeRequest({ config }) {
+    // 请求前处理
+      console.log('Before request:', config.url);
       return config;
     },
-    async afterResponse(context) {
-    // Process response after receiving
-      console.log('Response received:', context.response.status);
-      return context;
+    async afterResponse(ctx) {
+    // 响应后处理
+      console.log('After response:', ctx.response.status);
+      return ctx;
     }
   };
 }
@@ -238,51 +164,64 @@ function myPlugin() {
 api.use(myPlugin());
 ```
 
-### How do I register multiple plugins?
+### Q: 插件的执行顺序是什么？
+
+**A:** 插件按以下顺序执行：
+
+1. **beforeRequest** - 按优先级从高到低
+2. **beforeStream** - 仅流式请求
+3. **transformStreamChunk** - 流式数据转换
+4. **afterResponse** - 按优先级从高到低
+5. **onError** - 错误处理
+6. **onFinally** - 最终清理
+
+### Q: 如何在插件间共享数据？
+
+**A:** 使用 `config.extra` 字段：
 
 ```typescript
-const api = hookFetch.create({
-  plugins: [
-    authPlugin(),
-    loggerPlugin(),
-    retryPlugin({ maxRetries: 3 })
-  ]
-});
+function plugin1() {
+  return {
+    name: 'plugin1',
+    async beforeRequest({ config }) {
+      config.extra = { ...config.extra, startTime: Date.now() };
+      return config;
+    }
+  };
+}
 
-// Or register individually
-api.use(cachePlugin());
-api.use(metricsPlugin());
+function plugin2() {
+  return {
+    name: 'plugin2',
+    async afterResponse(ctx) {
+      const duration = Date.now() - (ctx.config.extra as any).startTime;
+      console.log(`Request took ${duration}ms`);
+      return ctx;
+    }
+  };
+}
 ```
 
-### What's the plugin execution order?
+## 框架集成
 
-Plugins execute by priority (lower numbers = higher priority):
+### Q: 在 React 中如何管理请求状态？
 
-1. beforeRequest (by priority)
-2. beforeStream (for streaming requests)
-3. transformStreamChunk (for streaming requests)
-4. afterResponse (by priority)
-5. onError (if error occurs)
-6. onFinally (always)
-
-## Framework Integration
-
-### How do I use Hook-Fetch with React?
+**A:** 使用 `useHookFetch` Hook：
 
 ```typescript
 import { useHookFetch } from 'hook-fetch/react';
 
-function UserComponent() {
+function UserProfile({ userId }) {
   const { request, loading, cancel } = useHookFetch({
-    request: (id: string) => api.get(`/users/${id}`),
+    request: (id) => api.get(`/users/${id}`),
     onError: (error) => console.error('Request failed:', error)
   });
 
-  const [userData, setUserData] = useState(null);
+  const [user, setUser] = useState(null);
 
   const loadUser = async () => {
-    const data = await request('123').json();
-    setUserData(data);
+    const userData = await request(userId).json();
+    setUser(userData);
   };
 
   return (
@@ -290,112 +229,44 @@ function UserComponent() {
       <button onClick={loadUser} disabled={loading}>
         {loading ? 'Loading...' : 'Load User'}
       </button>
-      {userData && <div>{JSON.stringify(userData)}</div>}
+      {user && <div>{user.name}</div>}
     </div>
   );
 }
 ```
 
-### How do I use Hook-Fetch with Vue?
+### Q: Vue 3 中如何使用？
+
+**A:** 使用 Vue 版本的 `useHookFetch`：
 
 ```vue
-<template>
-  <div>
-    <button @click="loadUser" :disabled="loading">
-      {{ loading ? 'Loading...' : 'Load User' }}
-    </button>
-    <div v-if="userData">{{ userData }}</div>
-  </div>
-</template>
-
 <script setup>
 import { ref } from 'vue';
 import { useHookFetch } from 'hook-fetch/vue';
 
-const userData = ref(null);
+const user = ref(null);
+const userId = ref('1');
 
-const { request, loading } = useHookFetch({
+const { request, loading, cancel } = useHookFetch({
   request: (id) => api.get(`/users/${id}`),
   onError: (error) => console.error('Request failed:', error)
 });
 
 const loadUser = async () => {
-  const data = await request('123').json();
-  userData.value = data;
+  const userData = await request(userId.value).json();
+  user.value = userData;
 };
 </script>
 ```
 
-## Performance and Optimization
+## 性能优化
 
-### How do I implement request caching?
+### Q: 如何避免重复请求？
 
-```typescript
-function cachePlugin(options = {}) {
-  const defaultOptions = {
-    ttl: 5 * 60 * 1000, // 5 minutes
-  };
-  const config = { ...defaultOptions, ...options };
-  const cache = new Map();
-
-  const getRequestKey = (url: string, method: string, params: any, data: any) => {
-    return `${url}::${method}::${JSON.stringify(params)}::${JSON.stringify(data)}`;
-  };
-
-  return {
-    name: 'cache',
-    async beforeRequest(requestConfig) {
-      if (requestConfig.method !== 'GET')
-        return requestConfig;
-
-      const key = getRequestKey(
-        requestConfig.url,
-        requestConfig.method,
-        requestConfig.params,
-        requestConfig.data
-      );
-      const cached = cache.get(key);
-
-      if (cached && Date.now() - cached.timestamp < config.ttl) {
-        // Return cached data
-        return {
-          ...requestConfig,
-          resolve: () => new Response(JSON.stringify(cached.data), {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' }
-          })
-        };
-      }
-
-      return requestConfig;
-    },
-    async afterResponse(context, requestConfig) {
-      if (requestConfig.method !== 'GET')
-        return context;
-
-      const key = getRequestKey(
-        requestConfig.url,
-        requestConfig.method,
-        requestConfig.params,
-        requestConfig.data
-      );
-      cache.set(key, {
-        data: context.result,
-        timestamp: Date.now()
-      });
-
-      return context;
-    }
-  };
-}
-```
-
-### How do I implement request deduplication?
-
-While we provide an official deduplication plugin, **we do not recommend using it in production**. Better approaches are to prevent duplicate requests at the application level:
+**A:** 虽然我们提供了官方去重插件，但**不推荐在生产环境中使用**。更好的做法是在应用层面避免重复请求：
 
 ```typescript
-// Recommended approach 1: Use button disabled state
+// 推荐方式 1：使用按钮禁用状态
 function SubmitButton() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -413,12 +284,12 @@ function SubmitButton() {
 
   return (
     <button disabled={isSubmitting} onClick={handleSubmit}>
-      {isSubmitting ? 'Submitting...' : 'Submit'}
+      {isSubmitting ? '提交中...' : '提交'}
     </button>
   );
 }
 
-// Recommended approach 2: Use debouncing
+// 推荐方式 2：使用防抖
 import { debounce } from 'lodash-es';
 
 const handleSearch = debounce(async (query) => {
@@ -426,172 +297,299 @@ const handleSearch = debounce(async (query) => {
 }, 300);
 ```
 
-If you really need the deduplication plugin (not recommended):
+如果确实需要使用去重插件（不推荐）：
 
 ```typescript
 import { dedupePlugin, isDedupeError } from 'hook-fetch/plugins/dedupe';
 
 const api = hookFetch.create({
-  plugins: [dedupePlugin({})]
+  plugins: [dedupePlugin()]
 });
 
-// Concurrent identical requests will be deduplicated
+// 并发相同请求会被去重
 try {
   const promises = [
     api.get('/users/1').json(),
-    api.get('/users/1').json(), // Will be deduplicated
+    api.get('/users/1').json(), // 会被去重
   ];
 
   const results = await Promise.allSettled(promises);
   results.forEach((result, index) => {
     if (result.status === 'rejected' && isDedupeError(result.reason)) {
-      console.log(`Request ${index + 1} was deduplicated`);
+      console.log(`请求 ${index + 1} 被去重`);
     }
   });
 }
 catch (error) {
   if (isDedupeError(error)) {
-    console.log('Duplicate request detected');
+    console.log('检测到重复请求');
   }
 }
 ```
 
-### How do I optimize for large files?
+### Q: 如何实现请求缓存？
+
+**A:** 创建缓存插件：
 
 ```typescript
-// For downloads with progress tracking
-async function downloadWithProgress(url, filename) {
-  const request = hookFetch(url);
-  const response = await request;
+function cachePlugin(options = {}) {
+  const defaultOptions = {
+    ttl: 5 * 60 * 1000, // 5分钟
+  };
+  const config = { ...defaultOptions, ...options };
+  const cache = new Map();
 
-  const total = Number.parseInt(response.headers.get('content-length') || '0');
-  let loaded = 0;
+  const getRequestKey = (url: string, method: string, params: any, data: any) => {
+    return `${url}::${method}::${JSON.stringify(params)}::${JSON.stringify(data)}`;
+  };
 
-  const chunks = [];
-
-  for await (const chunk of request.stream()) {
-    chunks.push(chunk.source);
-    loaded += chunk.source.length;
-
-    const progress = (loaded / total) * 100;
-    updateProgressBar(progress);
-  }
-
-  const blob = new Blob(chunks);
-  // Handle blob...
-}
-```
-
-## Debugging and Testing
-
-### How do I debug requests?
-
-```typescript
-function debugPlugin() {
   return {
-    name: 'debug',
-    async beforeRequest(config) {
-      console.log('🚀 Request:', config.method, config.url, config);
-      return config;
+    name: 'cache',
+    async beforeRequest({ config: requestConfig, resolve }) {
+      if (requestConfig.method !== 'GET')
+        return requestConfig;
+
+      const key = getRequestKey(
+        requestConfig.url,
+        requestConfig.method,
+        requestConfig.params,
+        requestConfig.data
+      );
+      const cached = cache.get(key);
+
+      if (cached && Date.now() - cached.timestamp < config.ttl) {
+        // 返回缓存数据，使用 resolve() 短路
+        return resolve(cached.data);
+      }
+
+      return requestConfig;
     },
-    async afterResponse(context, config) {
-      console.log('✅ Response:', config.method, config.url, context.response.status);
-      return context;
-    },
-    async onError(error, config) {
-      console.error('❌ Error:', config.method, config.url, error);
-      return error;
+    async afterResponse(ctx) {
+      if (ctx.config.method !== 'GET')
+        return ctx;
+
+      const key = getRequestKey(
+        ctx.config.url,
+        ctx.config.method,
+        ctx.config.params,
+        ctx.config.data
+      );
+      cache.set(key, {
+        data: ctx.result,
+        timestamp: Date.now()
+      });
+
+      return ctx;
     }
   };
 }
 ```
 
-### How do I mock requests for testing?
+### Q: 如何优化大量并发请求？
+
+**A:** 使用批量请求管理器：
 
 ```typescript
-// Using Jest
-const mockApi = {
-  get: jest.fn(),
-  post: jest.fn(),
-  put: jest.fn(),
-  delete: jest.fn()
-};
+class BatchRequestManager {
+  private queue = [];
+  private batchSize = 10;
+  private delay = 100;
 
-jest.mock('hook-fetch', () => ({
-  create: () => mockApi
-}));
+  async request(url, params) {
+    return new Promise((resolve, reject) => {
+      this.queue.push({ url, params, resolve, reject });
 
-// In tests
-test('should fetch user', async () => {
-  mockApi.get.mockReturnValue({
-    json: jest.fn().mockResolvedValue({ id: 1, name: 'John' })
-  });
+      if (this.queue.length >= this.batchSize) {
+        this.processBatch();
+      }
+      else {
+        setTimeout(() => this.processBatch(), this.delay);
+      }
+    });
+  }
 
-  const result = await UserService.getUser('1');
-  expect(result.name).toBe('John');
-});
-```
+  private async processBatch() {
+    const batch = this.queue.splice(0, this.batchSize);
 
-### How do I test streaming functionality?
+    try {
+      const response = await api.post('/batch', {
+        requests: batch.map(({ url, params }) => ({ url, params }))
+      });
 
-```typescript
-// Mock streaming response
-async function mockStream () {
-  yield { result: 'chunk1', source: new Uint8Array(), error: null };
-  yield { result: 'chunk2', source: new Uint8Array(), error: null };
-}
-
-mockApi.get.mockReturnValue({
-  stream: jest.fn().mockReturnValue(mockStream())
-});
-```
-
-## Common Issues
-
-### Why am I getting CORS errors?
-
-CORS errors occur when making requests from a browser to a different domain. This is a browser security feature, not a Hook-Fetch limitation. Solutions:
-
-1. Configure your server to allow CORS
-2. Use a proxy during development
-3. Make requests from the same origin
-
-### Why are my requests not being sent?
-
-Common causes:
-
-1. Network connectivity issues
-2. Incorrect URL or base URL
-3. Request is being blocked by ad blockers
-4. Server is not responding
-
-### How do I handle timeout errors?
-
-```typescript
-const api = hookFetch.create({
-  timeout: 10000 // 10 seconds
-});
-
-// Or per request
-try {
-  const response = await api.get('/slow-endpoint', {}, {
-    timeout: 30000 // 30 seconds
-  }).json();
-}
-catch (error) {
-  if (error.name === 'TimeoutError') {
-    console.log('Request timed out');
+      response.results.forEach((result, index) => {
+        if (result.success) {
+          batch[index].resolve(result.data);
+        }
+        else {
+          batch[index].reject(new Error(result.error));
+        }
+      });
+    }
+    catch (error) {
+      batch.forEach(({ reject }) => reject(error));
+    }
   }
 }
 ```
 
-### Why is my plugin not working?
+## 调试和测试
 
-Common issues:
+### Q: 如何调试请求？
 
-1. Plugin not registered: Make sure to call `api.use(plugin())`
-2. Wrong hook name: Check the plugin interface
-3. Plugin priority: Lower numbers have higher priority
-4. Async/await: Make sure to handle promises correctly
+**A:** 使用日志插件：
 
-If you have other questions not covered here, please check our [GitHub Issues](https://github.com/JsonLee12138/hook-fetch/issues) or create a new issue.
+```typescript
+function loggerPlugin() {
+  return {
+    name: 'logger',
+    async beforeRequest({ config }) {
+      console.log(`→ ${config.method} ${config.url}`, config);
+      return config;
+    },
+    async afterResponse(ctx) {
+      console.log(`← ${ctx.config.method} ${ctx.config.url}`, ctx.response.status);
+      return ctx;
+    },
+    async onError({ error, config }) {
+      console.error(`✗ ${config.method} ${config.url}`, error);
+      return undefined;
+    }
+  };
+}
+```
+
+### Q: 如何在测试中模拟请求？
+
+**A:** 模拟 fetch API：
+
+```typescript
+// 使用 vitest
+import { vi } from 'vitest';
+
+// 模拟 fetch
+global.fetch = vi.fn();
+
+// 测试中
+test('should fetch user data', async () => {
+  const mockUser = { id: 1, name: 'John' };
+
+  fetch.mockResolvedValueOnce({
+    ok: true,
+    json: async () => mockUser
+  });
+
+  const user = await api.get('/users/1').json();
+
+  expect(user).toEqual(mockUser);
+  expect(fetch).toHaveBeenCalledWith(
+    expect.stringContaining('/users/1'),
+    expect.objectContaining({ method: 'GET' })
+  );
+});
+```
+
+## 常见错误
+
+### Q: 为什么会出现 "TypeError: Failed to fetch" 错误？
+
+**A:** 这通常是由以下原因造成的：
+
+1. **网络连接问题**: 检查网络连接
+2. **CORS 问题**: 确保服务器配置了正确的 CORS 头
+3. **URL 错误**: 检查请求 URL 是否正确
+4. **SSL 证书问题**: 在开发环境中可能遇到
+
+解决方案：
+
+```typescript
+// 添加错误处理
+api.use({
+  name: 'network-error-handler',
+  async onError({ error }) {
+    if (error.message === 'Failed to fetch') {
+      console.error('Network error. Please check your connection.');
+      // 可以显示用户友好的错误消息
+    }
+    return undefined;
+  }
+});
+```
+
+### Q: 为什么流式请求没有数据？
+
+**A:** 检查以下几点：
+
+1. **服务器是否支持流式响应**
+2. **Content-Type 是否正确** (通常是 `text/plain` 或 `text/event-stream`)
+3. **是否使用了正确的插件**
+
+```typescript
+// 确保使用 SSE 插件
+const api = hookFetch.create({
+  plugins: [
+    sseTextDecoderPlugin({
+      json: true,
+      prefix: 'data: '
+    })
+  ]
+});
+
+// 检查响应头
+for await (const chunk of api.get('/stream').stream()) {
+  console.log('Chunk:', chunk);
+}
+```
+
+### Q: 为什么插件没有生效？
+
+**A:** 检查以下几点：
+
+1. **插件是否正确注册**
+2. **插件名称是否唯一**
+3. **优先级设置是否正确**
+
+```typescript
+// 确保插件被正确注册
+const api = hookFetch.create({
+  plugins: [myPlugin()] // 注意要调用函数
+});
+
+// 或者使用 use 方法
+api.use(myPlugin());
+
+// 检查插件是否注册成功
+console.log('Registered plugins:', api.plugins);
+```
+
+## 迁移指南
+
+### Q: 如何从 Axios 迁移到 Hook-Fetch？
+
+**A:** 以下是常见的迁移模式：
+
+```typescript
+// Axios
+const response = await axios.get('/users', { params: { page: 1 } });
+const data = response.data;
+
+// Hook-Fetch
+const data = await hookFetch('/users', { params: { page: 1 } }).json();
+
+// Axios 拦截器
+axios.interceptors.request.use((config) => {
+  config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+// Hook-Fetch 插件
+api.use({
+  name: 'auth',
+  async beforeRequest({ config }) {
+    config.headers = new Headers(config.headers);
+    config.headers.set('Authorization', `Bearer ${token}`);
+    return config;
+  }
+});
+```
+
+如果您有其他问题，请查看 [GitHub Issues](https://github.com/JsonLee12138/hook-fetch/issues) 或提交新的问题。

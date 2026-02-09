@@ -2,11 +2,11 @@
 sidebar_position: 3
 ---
 
-# API Reference
+# API 参考
 
-This document provides a complete API reference for Hook-Fetch, including all methods, configuration options, and type definitions.
+本文档提供了 Hook-Fetch 的完整 API 参考，包括所有方法、配置选项和类型定义。
 
-## Main Exports
+## 主要导出
 
 ```typescript
 import hookFetch, {
@@ -14,35 +14,35 @@ import hookFetch, {
 } from 'hook-fetch';
 ```
 
-## Default Export
+## 默认导出
 
 ### `hookFetch(url, options?)`
 
-The main request function.
+主要的请求函数。
 
-**Parameters:**
-- `url` (string): The request URL
-- `options` (RequestOptions, optional): Request configuration
+**参数：**
+- `url` (string): 请求的 URL
+- `options` (RequestOptions, 可选): 请求配置
 
-**Returns:** `HookFetchRequest<T>` - Request object
+**返回值：** `HookFetchRequest<T>` - 请求对象
 
-**Example:**
+**示例：**
 ```typescript
 const response = await hookFetch('https://api.example.com/users').json();
 ```
 
 ### `hookFetch.create<R extends AnyObject | null = null, K extends keyof R = never, E = AnyObject>(options)`
 
-Creates a configured Hook-Fetch instance.
+创建一个配置好的 Hook-Fetch 实例。
 
-**Parameters:**
-- `options` (BaseOptions): Instance configuration
+**参数：**
+- `options` (BaseOptions): 实例配置
 
-**Returns:** `HookFetch` - Instance object with generics `<R, K, E>`
+**返回值：** `HookFetch` - 携带泛型 `<R, K, E>` 的实例对象
 
-**Example:**
+**示例：**
 ```typescript
-// 1) No wrapper (default <null, never>)
+// 1) 不包裹（默认 <null, never>）
 const api = hookFetch.create({
   baseURL: 'https://api.example.com',
   timeout: 5000,
@@ -51,71 +51,100 @@ const api = hookFetch.create({
   }
 });
 
-// json<User>() returns User directly
+// json<User>() 直接得到 User
 const user = await api.get<User>('/users/1').json();
 
-// 2) Wrapped response with mapped key
+// 2) 需要包裹并映射键
 interface ResponseVO { code: number; message: string; data: never }
 const wrapped = hookFetch.create<ResponseVO, 'data'>({ baseURL: 'https://api.example.com' });
 const res = await wrapped.get<User>('/users/1').json();
-// res.data is User
+// res.data 为 User
 ```
 
-## Convenience Methods
+## 便捷方法
 
 ### `get(url, params?, options?)`
 
-Makes a GET request.
+发起 GET 请求。
 
-**Parameters:**
-- `url` (string): Request URL
-- `params` (object, optional): Query parameters
-- `options` (GetOptions, optional): Request configuration
+**参数：**
+- `url` (string): 请求的 URL
+- `params` (object, 可选): 查询参数
+- `options` (GetOptions, 可选): 请求配置
 
-**Example:**
+**示例：**
 ```typescript
 const users = await get('/users', { page: 1, limit: 10 }).json();
 ```
 
 ### `post(url, data?, options?)`
 
-Makes a POST request.
+发起 POST 请求。
 
-**Parameters:**
-- `url` (string): Request URL
-- `data` (any, optional): Request body data
-- `options` (PostOptions, optional): Request configuration
+**参数：**
+- `url` (string): 请求的 URL
+- `data` (any, 可选): 请求体数据
+- `options` (PostOptions, 可选): 请求配置
 
-**Example:**
+**示例：**
 ```typescript
 const newUser = await post('/users', { name: 'John', email: 'john@example.com' }).json();
 ```
 
 ### `put(url, data?, options?)`
 
-Makes a PUT request.
+发起 PUT 请求。
+
+**参数：**
+- `url` (string): 请求的 URL
+- `data` (any, 可选): 请求体数据
+- `options` (PutOptions, 可选): 请求配置
 
 ### `patch(url, data?, options?)`
 
-Makes a PATCH request.
+发起 PATCH 请求。
+
+**参数：**
+- `url` (string): 请求的 URL
+- `data` (any, 可选): 请求体数据
+- `options` (PatchOptions, 可选): 请求配置
 
 ### `del(url, options?)`
 
-Makes a DELETE request.
+发起 DELETE 请求。
+
+**参数：**
+- `url` (string): 请求的 URL
+- `options` (DeleteOptions, 可选): 请求配置
 
 ### `head(url, params?, options?)`
 
-Makes a HEAD request.
+发起 HEAD 请求。
+
+**参数：**
+- `url` (string): 请求的 URL
+- `params` (object, 可选): 查询参数
+- `options` (HeadOptions, 可选): 请求配置
 
 ### `options(url, params?, options?)`
 
-Makes an OPTIONS request.
+发起 OPTIONS 请求。
+
+**参数：**
+- `url` (string): 请求的 URL
+- `params` (object, 可选): 查询参数
+- `options` (OptionsOptions, 可选): 请求配置
 
 ### `upload(url, data?, options?)`
 
-Makes a file upload request.
+发起文件上传请求。
 
-**Example:**
+**参数：**
+- `url` (string): 请求的 URL
+- `data` (object, 可选): 包含文件的数据对象
+- `options` (PostOptions, 可选): 请求配置
+
+**示例：**
 ```typescript
 const result = await upload('/upload', {
   file: fileInput.files[0],
@@ -123,204 +152,333 @@ const result = await upload('/upload', {
 }).json();
 ```
 
-## HookFetch Instance Methods
+## HookFetch 实例方法
+
+### `request(url, options?)`
+
+实例的主要请求方法。
+
+### `get(url, params?, options?)`
+
+实例的 GET 请求方法。
+
+### `post(url, data?, options?)`
+
+实例的 POST 请求方法。
+
+### `put(url, data?, options?)`
+
+实例的 PUT 请求方法。
+
+### `patch(url, data?, options?)`
+
+实例的 PATCH 请求方法。
+
+### `delete(url, options?)`
+
+实例的 DELETE 请求方法。
+
+### `head(url, params?, options?)`
+
+实例的 HEAD 请求方法。
+
+### `options(url, params?, options?)`
+
+实例的 OPTIONS 请求方法。
+
+### `upload(url, data?, options?)`
+
+实例的文件上传方法。
 
 ### `use(plugin)`
 
-Registers a plugin.
+注册插件。
 
-**Parameters:**
-- `plugin` (HookFetchPlugin): Plugin object
+**参数：**
+- `plugin` (HookFetchPlugin): 插件对象
 
-**Returns:** `this` - The instance itself (supports method chaining)
+**返回值：** `this` - 实例本身（支持链式调用）
 
-**Example:**
+**示例：**
 ```typescript
 api.use(myPlugin());
 ```
 
 ### `abortAll()`
 
-Aborts all ongoing requests.
+中断所有正在进行的请求。
 
-## HookFetchRequest Methods
+**示例：**
+```typescript
+api.abortAll();
+```
 
-### Response Methods
+## HookFetchRequest 方法
 
-- `json()` - Parse response as JSON
-- `text()` - Parse response as text
-- `blob()` - Parse response as Blob
-- `arrayBuffer()` - Parse response as ArrayBuffer
-- `formData()` - Parse response as FormData
-- `bytes()` - Parse response as bytes
+### 响应处理方法
 
-### Stream Methods
+#### `json()`
 
-- `stream()` - Get response as stream
+将响应解析为 JSON。
 
-### Control Methods
+**返回值：** `Promise<T>` - 解析后的 JSON 数据
 
-- `abort()` - Abort the request
-- `retry()` - Retry the request
+#### `text()`
 
-## Configuration Options
+将响应解析为文本。
+
+**返回值：** `Promise<string>` - 响应文本
+
+#### `blob()`
+
+将响应解析为 Blob。
+
+**返回值：** `Promise<Blob>` - 响应 Blob
+
+#### `arrayBuffer()`
+
+将响应解析为 ArrayBuffer。
+
+**返回值：** `Promise<ArrayBuffer>` - 响应 ArrayBuffer
+
+#### `formData()`
+
+将响应解析为 FormData。
+
+**返回值：** `Promise<FormData>` - 响应 FormData
+
+#### `bytes()`
+
+将响应解析为字节数组。
+
+**返回值：** `Promise<Uint8Array>` - 响应字节数组
+
+### 流式处理方法
+
+#### `stream()`
+
+获取响应的流式数据。
+
+**返回值：** `AsyncIterable<StreamContext<T>>` - 流式数据迭代器
+
+**示例：**
+```typescript
+for await (const chunk of request.stream()) {
+  console.log(chunk.result);
+}
+```
+
+### 控制方法
+
+#### `abort()`
+
+中断当前请求。
+
+**示例：**
+```typescript
+const request = api.get('/long-request');
+setTimeout(() => request.abort(), 5000);
+```
+
+#### `response`
+
+获取原始的响应对象。
+
+**返回值：** `Promise<Response>` - 原始 fetch Response
+
+**示例：**
+```typescript
+const request = api.get('/data');
+const response = await request.response;
+console.log(response.headers);
+```
+
+#### `catch(callback)`
+
+捕获请求错误。
+
+**参数：**
+- `callback` (function): 错误处理回调
+
+**返回值：** `HookFetchRequest<T>` - 请求对象
+
+#### `finally(callback)`
+
+请求完成后执行（无论成功还是失败）。
+
+**参数：**
+- `callback` (function): 完成回调
+
+**返回值：** `HookFetchRequest<T>` - 请求对象
+
+## 配置选项
 
 ### BaseOptions
 
+创建实例时的配置选项。
+
 ```typescript
 interface BaseOptions {
-  /** Base URL for requests */
+  /** 基础 URL | Base URL for requests */
   baseURL?: string;
-  /** Request timeout in milliseconds */
+  /** 超时时间(毫秒) | Request timeout in milliseconds */
   timeout?: number;
-  /** Default headers */
+  /** 默认请求头 | Default headers */
   headers?: HeadersInit;
-  /** List of plugins */
+  /** 插件数组 | List of plugins */
   plugins?: HookFetchPlugin[];
-  /** Include credentials */
+  /** 是否发送凭证 | Whether to include credentials */
   withCredentials?: boolean;
+  /** 传递给插件的额外数据 | Extra data passed to plugins */
+  extra?: Record<string, any>;
+  /** 查询参数序列化配置 | Query string configuration */
+  qsConfig?: QueryString.IStringifyOptions;
 }
 ```
 
 ### RequestOptions
 
+单个请求的配置选项。
+
 ```typescript
-interface RequestOptions<P, D, E> {
-  /** HTTP method */
+interface RequestOptions<P = any, D = any, E = any> {
+  /** HTTP 方法 | HTTP method */
   method?: RequestMethod;
-  /** Query parameters */
-  params?: P;
-  /** Request body data */
-  data?: D;
-  /** Request headers */
+  /** 请求头 | Request headers */
   headers?: HeadersInit;
-  /** Request timeout */
+  /** 超时时间 | Request timeout */
   timeout?: number;
-  /** Extra data for plugins */
-  extra?: E;
-  /** Include credentials */
+  /** 查询参数 | Query parameters */
+  params?: P;
+  /** 请求体数据 | Request body data */
+  data?: D;
+  /** 是否发送凭证 | Whether to include credentials */
   withCredentials?: boolean;
-  /** Array format in query string */
+  /** 传递给插件的额外数据 | Extra data passed to plugins */
+  extra?: E;
+  /** 查询参数序列化格式 | Array format in query string */
   qsArrayFormat?: 'indices' | 'brackets' | 'repeat' | 'comma';
+  /** 插件数组，当前请求会使用这些插件 | Request-level plugins */
+  plugins?: HookFetchPlugin[];
 }
 ```
 
-## Plugin System
+## 类型定义
 
-### HookFetchPlugin Interface
+### RequestMethod
 
 ```typescript
-interface HookFetchPlugin<T, E, P, D> {
-  /** Plugin name (required) */
+type RequestMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS';
+```
+
+### FetchResponseType
+
+```typescript
+type FetchResponseType = 'json' | 'text' | 'blob' | 'arrayBuffer' | 'formData' | 'bytes';
+```
+
+### StreamContext
+
+```typescript
+interface StreamContext<T = unknown> {
+  /** 当前数据块 | Current data chunk */
+  result: T;
+  /** 原始字节数据 | Raw byte data */
+  source: Uint8Array;
+  /** 错误信息 | Error information */
+  error: unknown | null;
+}
+```
+
+### HookFetchPlugin
+
+```typescript
+interface HookFetchPlugin<T = unknown, E = unknown> {
+  /** 插件名称 (必需) | Plugin name (required) */
   name: string;
-  /** Priority (optional, default 0) */
+  /** 插件优先级, 数字越小越高 (可选) | Plugin priority, smaller number means higher priority (optional) */
   priority?: number;
-  /** Hook before request is sent */
-  beforeRequest?: BeforeRequestHandler<E, P, D>;
-  /** Hook after response is received */
-  afterResponse?: AfterResponseHandler<T, E, P, D>;
-  /** Hook before stream processing */
-  beforeStream?: BeforeStreamHandler<E, P, D>;
-  /** Hook for transforming stream chunks */
-  transformStreamChunk?: TransformStreamChunkHandler<E, P, D>;
-  /** Hook for error handling */
-  onError?: OnErrorHandler<E, P, D>;
-  /** Hook when request is finalized */
-  onFinally?: OnFinallyHandler<E, P, D>;
+  /** 请求发送前钩子 | Hook before request is sent */
+  beforeRequest?: (ctx: BeforeRequestCtx<E>) => RequestConfig | PipelineDecision | Promise<RequestConfig | PipelineDecision>;
+  /** 响应接收后钩子 | Hook after response is received */
+  afterResponse?: (ctx: AfterResponseCtx<T, E>) => AfterResponseCtx<T, E> | PipelineDecision | Promise<AfterResponseCtx<T, E> | PipelineDecision>;
+  /** 流式处理前钩子 | Hook before stream processing */
+  beforeStream?: (ctx: BeforeStreamCtx<E>) => ReadableStream | Promise<ReadableStream>;
+  /** 流式数据块转换钩子 | Hook for transforming stream chunks */
+  transformStreamChunk?: (ctx: TransformChunkCtx<E>) => StreamContext | Promise<StreamContext>;
+  /** 错误处理钩子 | Hook for error handling */
+  onError?: (ctx: OnErrorCtx<E>) => PipelineDecision | void | Promise<PipelineDecision | void>;
+  /** 流式处理后钩子 | Hook after stream processing */
+  afterStream?: (ctx: AfterStreamCtx<E>) => void | Promise<void>;
+  /** 请求完成时钩子(无论成功或失败) | Hook when request is finalized (whether success or failure) */
+  onFinally?: (ctx: OnFinallyCtx<E>) => void | Promise<void>;
 }
 ```
 
-### Plugin Lifecycle
-
-1. **beforeRequest** - Before request is sent
-2. **beforeStream** - Before stream processing (stream requests only)
-3. **transformStreamChunk** - Transform stream chunks (stream requests only)
-4. **afterResponse** - After response is received
-5. **onError** - Error handling
-6. **onFinally** - Final cleanup
-
-## TypeScript Support
-
-Hook-Fetch provides complete TypeScript support with generic types:
-
-```typescript
-interface User {
-  id: number;
-  name: string;
-  email: string;
-}
-
-// Type-safe request
-const user = await api.get<User>('/users/1').json();
-console.log(user.name); // TypeScript provides full type hints
-```
-
-## Error Handling
+## 错误处理
 
 ### ResponseError
 
+Hook-Fetch 会抛出 `ResponseError` 类型的错误：
+
 ```typescript
-interface ResponseError<E = any> extends Error {
-  /** The response object */
-  response?: Response;
-  /** The request object */
-  request?: Request;
-  /** The request configuration */
-  config?: RequestConfig<any, any, E>;
-  /** HTTP status code */
-  status?: number;
-  /** HTTP status text */
-  statusText?: string;
+class ResponseError<E = any> extends Error {
+  /** 错误信息 | Error message */
+  readonly message: string;
+  /** 错误名称 | Error name */
+  readonly name: string;
+  /** HTTP 状态码 | HTTP status code */
+  readonly status?: number;
+  /** HTTP 状态文本 | HTTP status text */
+  readonly statusText?: string;
+  /** 响应对象 | The response object */
+  readonly response?: Response;
+  /** 请求配置 | The request configuration */
+  readonly config?: RequestConfig;
 }
 ```
 
-## Examples
+### 错误类型
 
-### Basic Usage
+- **网络错误**: 网络连接失败
+- **超时错误**: 请求超时
+- **中断错误**: 请求被中断
+- **HTTP 错误**: HTTP 状态码错误（4xx, 5xx）
+- **解析错误**: 响应数据解析失败
 
-```typescript
-// Simple GET request
-const data = await hookFetch('https://api.example.com/data').json();
+## 示例
 
-// POST with data
-const result = await hookFetch('https://api.example.com/users', {
-  method: 'POST',
-  data: { name: 'John', email: 'john@example.com' }
-}).json();
-```
-
-### Instance Usage
+### 完整的 API 使用示例
 
 ```typescript
+import hookFetch from 'hook-fetch';
+
+// 创建实例
 const api = hookFetch.create({
   baseURL: 'https://api.example.com',
-  headers: { 'Authorization': 'Bearer token' }
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer token'
+  }
 });
 
-const users = await api.get('/users').json();
-const newUser = await api.post('/users', userData).json();
-```
+// 使用各种方法
+const users = await api.get('/users', { page: 1 }).json();
+const newUser = await api.post('/users', { name: 'John' }).json();
+const updatedUser = await api.put('/users/1', { name: 'Jane' }).json();
+const patchedUser = await api.patch('/users/1', { email: 'jane@example.com' }).json();
+const deleted = await api.delete('/users/1').json();
 
-### Plugin Usage
-
-```typescript
-const loggerPlugin = {
-  name: 'logger',
-  beforeRequest: (config) => {
-    console.log(`Making request to: ${config.url}`);
-    return config;
-  }
-};
-
-api.use(loggerPlugin);
-```
-
-### Streaming Usage
-
-```typescript
+// 流式处理
 for await (const chunk of api.get('/stream').stream()) {
-  console.log('Received:', chunk.result);
+  console.log(chunk.result);
+}
+
+// 错误处理
+try {
+  const response = await api.get('/error').json();
+} catch (error) {
+  console.error('Request failed:', error.message);
 }
 ```
-
-This covers the main API surface of Hook-Fetch. For more detailed examples and advanced usage, see the other documentation sections.

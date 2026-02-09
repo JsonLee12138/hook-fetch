@@ -9,7 +9,7 @@ describe('sSE server + hook-fetch integration', () => {
   let server: TestServer;
 
   beforeAll(async () => {
-    server = await startTestSseServer(9999, (app) => {
+    server = await startTestSseServer(9994, (app) => {
       app.post('/sse', (_, res) => {
         res.writeHead(200, {
           'Content-Type': 'text/event-stream',
@@ -45,7 +45,6 @@ describe('sSE server + hook-fetch integration', () => {
       headers: { 'Content-Type': 'application/json' },
     });
 
-    // Decode to text, split by blank line, strip 'data:' prefix, parse JSON, stop on [DONE]
     request.use(
       sseTextDecoderPlugin({
         json: true,
@@ -63,7 +62,6 @@ describe('sSE server + hook-fetch integration', () => {
     const received: Array<SseResponse> = [];
 
     for await (const chunk of req.stream()) {
-      // When doneSymbol is encountered, plugin terminates the stream, so we only get JSON objects here
       if (!chunk.error) {
         received.push(chunk.result!);
       }
@@ -73,6 +71,7 @@ describe('sSE server + hook-fetch integration', () => {
     expect(received[0]).toEqual({ id: 1, text: 'hello 1' });
     expect(received[1]).toEqual({ id: 2, text: 'hello 2' });
   });
+
   it('consumes SSE stream with sseTextDecoderPlugin Error', async () => {
     const request = hookFetch.create({
       baseURL: server.baseURL,
@@ -83,23 +82,16 @@ describe('sSE server + hook-fetch integration', () => {
       return {
         name: 'auth',
         priority: 1,
-        async beforeRequest(config: any) {
+        async beforeRequest({ config }: any) {
           console.log('beforeRequest', config);
-          // const token = sessionStorage.getItem('authToken');
-          // if (token) {
-          //   config.headers = new Headers(config.headers);
-          //   config.headers.set('Authorization', `Bearer ${token}`);
-          // }
           return config;
         },
-        async onError(error: ResponseError) {
+        async onError({ error }: any) {
           console.log('onError', error.status);
-          return error;
         },
       };
     }
 
-    // Decode to text, split by blank line, strip 'data:' prefix, parse JSON, stop on [DONE]
     request.use(
       sseTextDecoderPlugin({
         json: true,
@@ -109,13 +101,11 @@ describe('sSE server + hook-fetch integration', () => {
     );
     request.use(authPlugin());
 
-    // try {
     const req = request.post('/sse-error');
     const received: Array<{ id: number; text: string }> = [];
 
     try {
       for await (const chunk of req.stream<{ id: number; text: string }>()) {
-        // When doneSymbol is encountered, plugin terminates the stream, so we only get JSON objects here
         received.push(chunk.result as { id: number; text: string });
       }
     }

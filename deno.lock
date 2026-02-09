@@ -1,0 +1,34 @@
+{
+  "version": "4",
+  "specifiers": {
+    "jsr:@std/assert@*": "1.0.18",
+    "jsr:@std/internal@^1.0.12": "1.0.12"
+  },
+  "jsr": {
+    "@std/assert@1.0.18": {
+      "integrity": "270245e9c2c13b446286de475131dc688ca9abcd94fc5db41d43a219b34d1c78",
+      "dependencies": [
+        "jsr:@std/internal"
+      ]
+    },
+    "@std/internal@1.0.12": {
+      "integrity": "972a634fd5bc34b242024402972cd5143eac68d8dffaca5eaa4dba30ce17b027"
+    }
+  },
+  "workspace": {
+    "packageJson": {
+      "dependencies": [
+        "npm:@changesets/cli@^2.29.7",
+        "npm:@commitlint/cli@^19.8.1",
+        "npm:@commitlint/config-conventional@^19.8.1",
+        "npm:cz-git@^1.12.0",
+        "npm:deno@^2.5.0",
+        "npm:eslint@^8.57.1",
+        "npm:husky@^9.1.7",
+        "npm:oxlint@^1.16.0",
+        "npm:prettier@^3.6.2",
+        "npm:turbo@^2.5.6"
+      ]
+    }
+  }
+}

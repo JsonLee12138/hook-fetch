@@ -4,13 +4,9 @@
   "baseBranch": "main",
   "commit": false,
   "fixed": [],
-  "linked": [["hook-fetch", "hook-fetch-docs"]],
+  "linked": [],
   "access": "public",
-  "ignore": ["hook-fetch-docs"],
+  "ignore": ["hook-fetch-docs", "hook-fetch-demo"],
   "updateInternalDependencies": "patch",
-  "prerelease": "beta",
-  "privatePackages": {
-    "version": true,
-    "tag": false
-  }
+  "prerelease": "beta"
 }

@@ -2,41 +2,22 @@
 sidebar_position: 1
 ---
 
-# Chat Application Example
+# 聊天应用示例
 
-This example demonstrates how to build a real-time streaming chat application using Hook-Fetch's SSE capabilities.
+本示例展示如何使用 Hook-Fetch 构建一个完整的流式聊天应用，支持实时消息传输和 AI 对话。
 
-## Overview
+## 完整示例
 
-We'll build a chat application that:
-- Sends messages to an AI service (like OpenAI)
-- Receives streaming responses in real-time
-- Displays messages with typing indicators
-- Handles errors gracefully
-- Works in both React and Vue
-
-## React Implementation
-
-### Basic Setup
+### 1. API 配置
 
 ```typescript
-// hooks/useChat.ts
-import { useState, useCallback } from 'react';
-import { useHookFetch } from 'hook-fetch/react';
-import { sseTextDecoderPlugin } from 'hook-fetch/plugins/sse';
+// src/api/chat.ts
 import hookFetch from 'hook-fetch';
+import { sseTextDecoderPlugin } from 'hook-fetch/plugins/sse';
 
-interface Message {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: Date;
-}
-
-const chatApi = hookFetch.create({
+export const chatApi = hookFetch.create({
   baseURL: 'https://api.openai.com/v1',
   headers: {
-    'Authorization': `Bearer ${process.env.REACT_APP_OPENAI_API_KEY}`,
     'Content-Type': 'application/json'
   },
   plugins: [
@@ -48,93 +29,98 @@ const chatApi = hookFetch.create({
   ]
 });
 
-export const useChat = () => {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [currentMessage, setCurrentMessage] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-
-  const { stream, loading, cancel } = useHookFetch({
-    request: (message: string) => chatApi.post('/chat/completions', {
-      model: 'gpt-3.5-turbo',
-      messages: [
-        ...messages.map(msg => ({ role: msg.role, content: msg.content })),
-        { role: 'user', content: message }
-      ],
-      stream: true,
-      max_tokens: 1000
-    }),
-    onError: (error) => {
-      console.error('Chat error:', error);
-      setIsTyping(false);
+// 设置认证
+export const setChatApiKey = (apiKey: string) => {
+  chatApi.use({
+    name: 'auth',
+    priority: 1,
+    async beforeRequest({ config }) {
+      config.headers = new Headers(config.headers);
+      config.headers.set('Authorization', `Bearer ${apiKey}`);
+      return config;
     }
   });
-
-  const sendMessage = useCallback(async (content: string) => {
-    if (!content.trim() || loading) return;
-
-    // Add user message
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: content.trim(),
-      timestamp: new Date()
-    };
-
-    setMessages(prev => [...prev, userMessage]);
-    setCurrentMessage('');
-    setIsTyping(true);
-
-    try {
-      let assistantContent = '';
-
-      for await (const chunk of stream(content)) {
-        const delta = chunk.result?.choices?.[0]?.delta?.content;
-        if (delta) {
-          assistantContent += delta;
-          setCurrentMessage(assistantContent);
-        }
-      }
-
-      // Add complete assistant message
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: assistantContent,
-        timestamp: new Date()
-      };
-
-      setMessages(prev => [...prev, assistantMessage]);
-      setCurrentMessage('');
-    } catch (error) {
-      console.error('Streaming error:', error);
-    } finally {
-      setIsTyping(false);
-    }
-  }, [messages, loading, stream]);
-
-  return {
-    messages,
-    currentMessage,
-    isTyping,
-    loading,
-    sendMessage,
-    cancel
-  };
 };
 ```
 
-### Chat Component
+### 2. 消息类型定义
 
-```tsx
-// components/ChatApp.tsx
+```typescript
+// src/types/chat.ts
+export interface Message {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  timestamp: number;
+  streaming?: boolean;
+}
+
+export interface ChatConfig {
+  model: string;
+  temperature: number;
+  maxTokens: number;
+  stream: boolean;
+}
+
+export interface ChatRequest {
+  model: string;
+  messages: Array<{
+    role: string;
+    content: string;
+  }>;
+  temperature?: number;
+  max_tokens?: number;
+  stream?: boolean;
+}
+```
+
+### 3. React 聊天组件
+
+```typescript
+// src/components/ChatApp.tsx
 import React, { useState, useRef, useEffect } from 'react';
-import { useChat } from '../hooks/useChat';
+import { useHookFetch } from 'hook-fetch/react';
+import { chatApi } from '../api/chat';
+import { Message, ChatConfig } from '../types/chat';
 import './ChatApp.css';
 
-const ChatApp: React.FC = () => {
+const DEFAULT_CONFIG: ChatConfig = {
+  model: 'gpt-3.5-turbo',
+  temperature: 0.7,
+  maxTokens: 1000,
+  stream: true
+};
+
+export function ChatApp() {
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
+  const [config, setConfig] = useState<ChatConfig>(DEFAULT_CONFIG);
+  const [streamingMessage, setStreamingMessage] = useState<Message | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { messages, currentMessage, isTyping, loading, sendMessage, cancel } = useChat();
+
+  const { stream, loading, cancel } = useHookFetch({
+    request: (messages: Message[], config: ChatConfig) =>
+      chatApi.post('/chat/completions', {
+        model: config.model,
+        messages: messages.map(msg => ({
+          role: msg.role,
+          content: msg.content
+        })),
+        temperature: config.temperature,
+        max_tokens: config.maxTokens,
+        stream: config.stream
+      }),
+    onError: (error) => {
+      console.error('Chat error:', error);
+      setStreamingMessage(null);
+      addMessage({
+        id: Date.now().toString(),
+        role: 'system',
+        content: '抱歉，发生了错误。请稍后重试。',
+        timestamp: Date.now()
+      });
+    }
+  });
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -142,91 +128,164 @@ const ChatApp: React.FC = () => {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, currentMessage]);
+  }, [messages, streamingMessage]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (input.trim()) {
-      sendMessage(input);
-      setInput('');
+  const addMessage = (message: Message) => {
+    setMessages(prev => [...prev, message]);
+  };
+
+  const sendMessage = async () => {
+    if (!input.trim() || loading) return;
+
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: input.trim(),
+      timestamp: Date.now()
+    };
+
+    const newMessages = [...messages, userMessage];
+    setMessages(newMessages);
+    setInput('');
+
+    // 创建流式消息
+    const assistantMessage: Message = {
+      id: (Date.now() + 1).toString(),
+      role: 'assistant',
+      content: '',
+      timestamp: Date.now(),
+      streaming: true
+    };
+    setStreamingMessage(assistantMessage);
+
+    try {
+      for await (const chunk of stream(newMessages, config)) {
+        const delta = chunk.result?.choices?.[0]?.delta?.content;
+        if (delta) {
+          setStreamingMessage(prev => prev ? {
+            ...prev,
+            content: prev.content + delta
+          } : null);
+        }
+      }
+
+      // 流式完成，添加到消息列表
+      if (streamingMessage) {
+        addMessage({
+          ...streamingMessage,
+          streaming: false
+        });
+      }
+    } catch (error) {
+      console.error('Streaming error:', error);
+    } finally {
+      setStreamingMessage(null);
     }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
+
+  const clearChat = () => {
+    setMessages([]);
+    setStreamingMessage(null);
   };
 
   return (
     <div className="chat-app">
       <div className="chat-header">
-        <h1>AI Chat Assistant</h1>
-        {loading && (
-          <button onClick={cancel} className="cancel-btn">
-            Cancel
+        <h1>AI 聊天助手</h1>
+        <div className="chat-controls">
+          <select
+            value={config.model}
+            onChange={(e) => setConfig(prev => ({ ...prev, model: e.target.value }))}
+          >
+            <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+            <option value="gpt-4">GPT-4</option>
+          </select>
+          <button onClick={clearChat} disabled={loading}>
+            清空对话
           </button>
-        )}
+        </div>
       </div>
 
       <div className="chat-messages">
         {messages.map((message) => (
-          <div
-            key={message.id}
-            className={`message ${message.role === 'user' ? 'user' : 'assistant'}`}
-          >
-            <div className="message-content">
-              <div className="message-text">{message.content}</div>
-              <div className="message-time">
-                {message.timestamp.toLocaleTimeString()}
-              </div>
-            </div>
-          </div>
+          <MessageBubble key={message.id} message={message} />
         ))}
-
-        {(isTyping || currentMessage) && (
-          <div className="message assistant">
-            <div className="message-content">
-              <div className="message-text">
-                {currentMessage}
-                {isTyping && <span className="typing-cursor">|</span>}
-              </div>
-            </div>
-          </div>
+        {streamingMessage && (
+          <MessageBubble message={streamingMessage} />
         )}
-
         <div ref={messagesEndRef} />
       </div>
 
-      <form onSubmit={handleSubmit} className="chat-input">
-        <input
-          type="text"
+      <div className="chat-input">
+        <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Type your message..."
+          onKeyPress={handleKeyPress}
+          placeholder="输入您的消息..."
           disabled={loading}
-          className="input-field"
+          rows={3}
         />
-        <button
-          type="submit"
-          disabled={loading || !input.trim()}
-          className="send-btn"
-        >
-          {loading ? 'Sending...' : 'Send'}
-        </button>
-      </form>
+        <div className="input-actions">
+          <button onClick={sendMessage} disabled={loading || !input.trim()}>
+            {loading ? '发送中...' : '发送'}
+          </button>
+          {loading && (
+            <button onClick={cancel} className="cancel-btn">
+              取消
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
-};
+}
 
-export default ChatApp;
+// 消息气泡组件
+function MessageBubble({ message }: { message: Message }) {
+  return (
+    <div className={`message ${message.role}`}>
+      <div className="message-header">
+        <span className="role">{getRoleLabel(message.role)}</span>
+        <span className="timestamp">
+          {new Date(message.timestamp).toLocaleTimeString()}
+        </span>
+      </div>
+      <div className="message-content">
+        {message.content}
+        {message.streaming && <span className="cursor">|</span>}
+      </div>
+    </div>
+  );
+}
+
+function getRoleLabel(role: string): string {
+  switch (role) {
+    case 'user': return '用户';
+    case 'assistant': return 'AI';
+    case 'system': return '系统';
+    default: return role;
+  }
+}
 ```
 
-### Styles
+### 4. 样式文件
 
 ```css
-/* components/ChatApp.css */
+/* src/components/ChatApp.css */
 .chat-app {
   display: flex;
   flex-direction: column;
   height: 100vh;
   max-width: 800px;
   margin: 0 auto;
-  border: 1px solid #e0e0e0;
+  border: 1px solid #e1e5e9;
   border-radius: 8px;
   overflow: hidden;
 }
@@ -236,75 +295,113 @@ export default ChatApp;
   justify-content: space-between;
   align-items: center;
   padding: 1rem;
-  background-color: #f5f5f5;
-  border-bottom: 1px solid #e0e0e0;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e1e5e9;
 }
 
 .chat-header h1 {
   margin: 0;
-  font-size: 1.5rem;
-  color: #333;
+  font-size: 1.25rem;
+  color: #2c3e50;
 }
 
-.cancel-btn {
-  padding: 0.5rem 1rem;
-  background-color: #ff4444;
+.chat-controls {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.chat-controls select {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.chat-controls button {
+  padding: 0.25rem 0.75rem;
+  background: #dc3545;
   color: white;
   border: none;
   border-radius: 4px;
   cursor: pointer;
 }
 
+.chat-controls button:hover {
+  background: #c82333;
+}
+
+.chat-controls button:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+}
+
 .chat-messages {
   flex: 1;
   overflow-y: auto;
   padding: 1rem;
-  background-color: #fafafa;
+  background: #ffffff;
 }
 
 .message {
   margin-bottom: 1rem;
-  display: flex;
+  max-width: 70%;
 }
 
 .message.user {
-  justify-content: flex-end;
+  margin-left: auto;
 }
 
 .message.assistant {
-  justify-content: flex-start;
+  margin-right: auto;
+}
+
+.message.system {
+  margin: 0 auto;
+  max-width: 90%;
+  text-align: center;
+}
+
+.message-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25rem;
+  font-size: 0.75rem;
+  color: #6c757d;
+}
+
+.role {
+  font-weight: 600;
 }
 
 .message-content {
-  max-width: 70%;
   padding: 0.75rem 1rem;
-  border-radius: 18px;
-  position: relative;
+  border-radius: 1rem;
+  word-wrap: break-word;
+  white-space: pre-wrap;
 }
 
 .message.user .message-content {
-  background-color: #007bff;
+  background: #007bff;
   color: white;
+  border-bottom-right-radius: 0.25rem;
 }
 
 .message.assistant .message-content {
-  background-color: white;
-  border: 1px solid #e0e0e0;
-  color: #333;
+  background: #f8f9fa;
+  color: #2c3e50;
+  border: 1px solid #e1e5e9;
+  border-bottom-left-radius: 0.25rem;
 }
 
-.message-text {
-  line-height: 1.4;
-  word-wrap: break-word;
+.message.system .message-content {
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeaa7;
+  border-radius: 0.5rem;
 }
 
-.message-time {
-  font-size: 0.75rem;
-  opacity: 0.7;
-  margin-top: 0.25rem;
-}
-
-.typing-cursor {
+.cursor {
   animation: blink 1s infinite;
   font-weight: bold;
 }
@@ -315,305 +412,298 @@ export default ChatApp;
 }
 
 .chat-input {
-  display: flex;
   padding: 1rem;
-  background-color: white;
-  border-top: 1px solid #e0e0e0;
+  background: #f8f9fa;
+  border-top: 1px solid #e1e5e9;
 }
 
-.input-field {
-  flex: 1;
+.chat-input textarea {
+  width: 100%;
   padding: 0.75rem;
-  border: 1px solid #ccc;
-  border-radius: 20px;
-  margin-right: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 0.5rem;
+  resize: vertical;
+  font-family: inherit;
+  font-size: 0.875rem;
+}
+
+.chat-input textarea:focus {
   outline: none;
-}
-
-.input-field:focus {
   border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
 }
 
-.send-btn {
-  padding: 0.75rem 1.5rem;
-  background-color: #007bff;
-  color: white;
+.input-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.input-actions button {
+  padding: 0.5rem 1rem;
   border: none;
-  border-radius: 20px;
+  border-radius: 0.25rem;
   cursor: pointer;
-  font-weight: bold;
+  font-weight: 500;
 }
 
-.send-btn:disabled {
-  background-color: #ccc;
+.input-actions button:first-child {
+  background: #007bff;
+  color: white;
+}
+
+.input-actions button:first-child:hover {
+  background: #0056b3;
+}
+
+.input-actions button:first-child:disabled {
+  background: #6c757d;
   cursor: not-allowed;
 }
 
-.send-btn:hover:not(:disabled) {
-  background-color: #0056b3;
+.cancel-btn {
+  background: #6c757d;
+  color: white;
+}
+
+.cancel-btn:hover {
+  background: #5a6268;
 }
 ```
 
-## Vue Implementation
-
-### Composable
-
-```typescript
-// composables/useChat.ts
-import { ref, computed } from 'vue';
-import { useHookFetch } from 'hook-fetch/vue';
-import { sseTextDecoderPlugin } from 'hook-fetch/plugins/sse';
-import hookFetch from 'hook-fetch';
-
-interface Message {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: Date;
-}
-
-const chatApi = hookFetch.create({
-  baseURL: 'https://api.openai.com/v1',
-  headers: {
-    'Authorization': `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`,
-    'Content-Type': 'application/json'
-  },
-  plugins: [
-    sseTextDecoderPlugin({
-      json: true,
-      prefix: 'data: ',
-      doneSymbol: '[DONE]'
-    })
-  ]
-});
-
-export const useChat = () => {
-  const messages = ref<Message[]>([]);
-  const currentMessage = ref('');
-  const isTyping = ref(false);
-
-  const { stream, loading, cancel } = useHookFetch({
-    request: (message: string) => chatApi.post('/chat/completions', {
-      model: 'gpt-3.5-turbo',
-      messages: [
-        ...messages.value.map(msg => ({ role: msg.role, content: msg.content })),
-        { role: 'user', content: message }
-      ],
-      stream: true,
-      max_tokens: 1000
-    }),
-    onError: (error) => {
-      console.error('Chat error:', error);
-      isTyping.value = false;
-    }
-  });
-
-  const sendMessage = async (content: string) => {
-    if (!content.trim() || loading.value) return;
-
-    // Add user message
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: content.trim(),
-      timestamp: new Date()
-    };
-
-    messages.value.push(userMessage);
-    currentMessage.value = '';
-    isTyping.value = true;
-
-    try {
-      let assistantContent = '';
-
-      for await (const chunk of stream(content)) {
-        const delta = chunk.result?.choices?.[0]?.delta?.content;
-        if (delta) {
-          assistantContent += delta;
-          currentMessage.value = assistantContent;
-        }
-      }
-
-      // Add complete assistant message
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: assistantContent,
-        timestamp: new Date()
-      };
-
-      messages.value.push(assistantMessage);
-      currentMessage.value = '';
-    } catch (error) {
-      console.error('Streaming error:', error);
-    } finally {
-      isTyping.value = false;
-    }
-  };
-
-  return {
-    messages: computed(() => messages.value),
-    currentMessage: computed(() => currentMessage.value),
-    isTyping: computed(() => isTyping.value),
-    loading,
-    sendMessage,
-    cancel
-  };
-};
-```
-
-### Vue Component
+### 5. Vue 版本
 
 ```vue
-<!-- components/ChatApp.vue -->
+<!-- src/components/ChatApp.vue -->
 <template>
   <div class="chat-app">
     <div class="chat-header">
-      <h1>AI Chat Assistant</h1>
-      <button v-if="loading" @click="cancel" class="cancel-btn">
-        Cancel
-      </button>
+      <h1>AI 聊天助手</h1>
+      <div class="chat-controls">
+        <select v-model="config.model">
+          <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+          <option value="gpt-4">GPT-4</option>
+        </select>
+        <button @click="clearChat" :disabled="loading">
+          清空对话
+        </button>
+      </div>
     </div>
 
-    <div ref="messagesContainer" class="chat-messages">
-      <div
+    <div class="chat-messages" ref="messagesContainer">
+      <MessageBubble
         v-for="message in messages"
         :key="message.id"
-        :class="['message', message.role]"
-      >
-        <div class="message-content">
-          <div class="message-text">{{ message.content }}</div>
-          <div class="message-time">
-            {{ message.timestamp.toLocaleTimeString() }}
-          </div>
-        </div>
-      </div>
-
-      <div v-if="isTyping || currentMessage" class="message assistant">
-        <div class="message-content">
-          <div class="message-text">
-            {{ currentMessage }}
-            <span v-if="isTyping" class="typing-cursor">|</span>
-          </div>
-        </div>
-      </div>
+        :message="message"
+      />
+      <MessageBubble
+        v-if="streamingMessage"
+        :message="streamingMessage"
+      />
     </div>
 
-    <form @submit.prevent="handleSubmit" class="chat-input">
-      <input
+    <div class="chat-input">
+      <textarea
         v-model="input"
-        type="text"
-        placeholder="Type your message..."
+        @keypress="handleKeyPress"
+        placeholder="输入您的消息..."
         :disabled="loading"
-        class="input-field"
+        rows="3"
       />
-      <button
-        type="submit"
-        :disabled="loading || !input.trim()"
-        class="send-btn"
-      >
-        {{ loading ? 'Sending...' : 'Send' }}
-      </button>
-    </form>
+      <div class="input-actions">
+        <button @click="sendMessage" :disabled="loading || !input.trim()">
+          {{ loading ? '发送中...' : '发送' }}
+        </button>
+        <button v-if="loading" @click="cancel" class="cancel-btn">
+          取消
+        </button>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, watch } from 'vue';
-import { useChat } from '../composables/useChat';
+import { ref, reactive, nextTick, watch } from 'vue';
+import { useHookFetch } from 'hook-fetch/vue';
+import { chatApi } from '../api/chat';
+import type { Message, ChatConfig } from '../types/chat';
 
+const messages = ref<Message[]>([]);
 const input = ref('');
+const streamingMessage = ref<Message | null>(null);
 const messagesContainer = ref<HTMLElement>();
 
-const { messages, currentMessage, isTyping, loading, sendMessage, cancel } = useChat();
+const config = reactive<ChatConfig>({
+  model: 'gpt-3.5-turbo',
+  temperature: 0.7,
+  maxTokens: 1000,
+  stream: true
+});
 
-const scrollToBottom = async () => {
-  await nextTick();
-  if (messagesContainer.value) {
-    messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
-  }
-};
-
-watch([messages, currentMessage], scrollToBottom);
-
-const handleSubmit = () => {
-  if (input.value.trim()) {
-    sendMessage(input.value);
-    input.value = '';
-  }
-};
-</script>
-
-<style scoped>
-/* Same CSS as React version */
-</style>
-```
-
-## Advanced Features
-
-### Message Persistence
-
-```typescript
-// utils/messageStorage.ts
-export const saveMessages = (messages: Message[]) => {
-  localStorage.setItem('chat-messages', JSON.stringify(messages));
-};
-
-export const loadMessages = (): Message[] => {
-  const stored = localStorage.getItem('chat-messages');
-  if (stored) {
-    return JSON.parse(stored).map((msg: any) => ({
-      ...msg,
-      timestamp: new Date(msg.timestamp)
-    }));
-  }
-  return [];
-};
-
-export const clearMessages = () => {
-  localStorage.removeItem('chat-messages');
-};
-```
-
-### Custom Plugins
-
-```typescript
-// plugins/chatLogger.ts
-export const chatLoggerPlugin = () => ({
-  name: 'chat-logger',
-  async beforeRequest(config) {
-    console.log('Sending chat request:', config.data);
-    return config;
-  },
-  async transformStreamChunk(chunk, config) {
-    if (chunk.result?.choices?.[0]?.delta?.content) {
-      console.log('Received chunk:', chunk.result.choices[0].delta.content);
-    }
-    return chunk;
+const { stream, loading, cancel } = useHookFetch({
+  request: (messages: Message[], config: ChatConfig) =>
+    chatApi.post('/chat/completions', {
+      model: config.model,
+      messages: messages.map(msg => ({
+        role: msg.role,
+        content: msg.content
+      })),
+      temperature: config.temperature,
+      max_tokens: config.maxTokens,
+      stream: config.stream
+    }),
+  onError: (error) => {
+    console.error('Chat error:', error);
+    streamingMessage.value = null;
+    addMessage({
+      id: Date.now().toString(),
+      role: 'system',
+      content: '抱歉，发生了错误。请稍后重试。',
+      timestamp: Date.now()
+    });
   }
 });
-```
 
-### Error Recovery
-
-```typescript
-// utils/errorRecovery.ts
-export const retryWithBackoff = async (
-  fn: () => Promise<any>,
-  maxRetries = 3,
-  baseDelay = 1000
-) => {
-  for (let i = 0; i < maxRetries; i++) {
-    try {
-      return await fn();
-    } catch (error) {
-      if (i === maxRetries - 1) throw error;
-
-      const delay = baseDelay * Math.pow(2, i);
-      await new Promise(resolve => setTimeout(resolve, delay));
+const scrollToBottom = () => {
+  nextTick(() => {
+    if (messagesContainer.value) {
+      messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
     }
+  });
+};
+
+watch([messages, streamingMessage], scrollToBottom, { deep: true });
+
+const addMessage = (message: Message) => {
+  messages.value.push(message);
+};
+
+const sendMessage = async () => {
+  if (!input.value.trim() || loading.value) return;
+
+  const userMessage: Message = {
+    id: Date.now().toString(),
+    role: 'user',
+    content: input.value.trim(),
+    timestamp: Date.now()
+  };
+
+  const newMessages = [...messages.value, userMessage];
+  messages.value = newMessages;
+  input.value = '';
+
+  const assistantMessage: Message = {
+    id: (Date.now() + 1).toString(),
+    role: 'assistant',
+    content: '',
+    timestamp: Date.now(),
+    streaming: true
+  };
+  streamingMessage.value = assistantMessage;
+
+  try {
+    for await (const chunk of stream(newMessages, config)) {
+      const delta = chunk.result?.choices?.[0]?.delta?.content;
+      if (delta && streamingMessage.value) {
+        streamingMessage.value.content += delta;
+      }
+    }
+
+    if (streamingMessage.value) {
+      addMessage({
+        ...streamingMessage.value,
+        streaming: false
+      });
+    }
+  } catch (error) {
+    console.error('Streaming error:', error);
+  } finally {
+    streamingMessage.value = null;
   }
 };
+
+const handleKeyPress = (e: KeyboardEvent) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+};
+
+const clearChat = () => {
+  messages.value = [];
+  streamingMessage.value = null;
+};
+</script>
 ```
 
-This chat application example demonstrates the power of Hook-Fetch's streaming capabilities for building real-time, interactive applications.
+### 6. 高级功能
+
+#### 消息持久化
+
+```typescript
+// src/hooks/useChatPersistence.ts
+import { useEffect } from 'react';
+import { Message } from '../types/chat';
+
+export function useChatPersistence(
+  messages: Message[],
+  setMessages: (messages: Message[]) => void
+) {
+  const STORAGE_KEY = 'chat-messages';
+
+  // 加载消息
+  useEffect(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        const parsedMessages = JSON.parse(saved);
+        setMessages(parsedMessages);
+      } catch (error) {
+        console.error('Failed to load messages:', error);
+      }
+    }
+  }, [setMessages]);
+
+  // 保存消息
+  useEffect(() => {
+    if (messages.length > 0) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+    }
+  }, [messages]);
+
+  const clearStorage = () => {
+    localStorage.removeItem(STORAGE_KEY);
+  };
+
+  return { clearStorage };
+}
+```
+
+#### 消息搜索
+
+```typescript
+// src/hooks/useMessageSearch.ts
+import { useMemo, useState } from 'react';
+import { Message } from '../types/chat';
+
+export function useMessageSearch(messages: Message[]) {
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredMessages = useMemo(() => {
+    if (!searchQuery.trim()) return messages;
+
+    return messages.filter(message =>
+      message.content.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [messages, searchQuery]);
+
+  return {
+    searchQuery,
+    setSearchQuery,
+    filteredMessages
+  };
+}
+```
+
+这个完整的聊天应用示例展示了 Hook-Fetch 在处理流式数据方面的强大能力，包括实时消息传输、错误处理、状态管理等关键功能。

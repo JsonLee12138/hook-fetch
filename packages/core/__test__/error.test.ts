@@ -17,11 +17,6 @@ describe('test hook-fetch', () => {
         });
       });
       app.get('/api/unauthorized', (_, res) => {
-        // res.json({
-        //   code: 422,
-        //   message: 'test',
-        //   msg: 'test',
-        // });
         res.status(422);
         res.send('Unauthorized');
         res.end();
@@ -37,10 +32,9 @@ describe('test hook-fetch', () => {
     function errorHandlerPlugin(): HookFetchPlugin {
       return {
         name: 'error-handler',
-        async onError(error) {
+        async onError({ error }) {
           expect(error.status).toBe(422);
-
-          return error;
+          // Don't handle — let error propagate
         },
       };
     }

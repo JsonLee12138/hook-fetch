@@ -19,7 +19,7 @@ export function buildUrl(url: string, params?: AnyObject, qsConfig: QueryString.
 }
 
 export function mergeHeaders(_baseHeaders: HeadersInit | Headers = {}, _newHeaders: HeadersInit | Headers = {}): Headers {
-  const _result = _baseHeaders instanceof Headers ? _baseHeaders : new Headers(_baseHeaders);
+  const _result = new Headers(_baseHeaders);
   const combineHeaders = (_headers: HeadersInit | Headers) => {
     if (!(_headers instanceof Headers)) {
       _headers = new Headers(_headers);

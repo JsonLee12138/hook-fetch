@@ -280,16 +280,17 @@ const request = api.get('/long-request');
 setTimeout(() => request.abort(), 5000);
 ```
 
-#### `retry()`
+#### `response`
 
-重试请求。
+获取原始的响应对象。
 
-**返回值：** `HookFetchRequest<T>` - 新的请求对象
+**返回值：** `Promise<Response>` - 原始 fetch Response
 
 **示例：**
 ```typescript
-const newRequest = request.retry();
-const response = await newRequest.json();
+const request = api.get('/data');
+const response = await request.response;
+console.log(response.headers);
 ```
 
 #### `catch(callback)`
@@ -328,6 +329,10 @@ interface BaseOptions {
   plugins?: HookFetchPlugin[];
   /** 是否发送凭证 | Whether to include credentials */
   withCredentials?: boolean;
+  /** 传递给插件的额外数据 | Extra data passed to plugins */
+  extra?: Record<string, any>;
+  /** 查询参数序列化配置 | Query string configuration */
+  qsConfig?: QueryString.IStringifyOptions;
 }
 ```
 
@@ -351,8 +356,10 @@ interface RequestOptions<P = any, D = any, E = any> {
   withCredentials?: boolean;
   /** 传递给插件的额外数据 | Extra data passed to plugins */
   extra?: E;
-  /** 查询参数中数组的序列化格式 | Array format in query string */
+  /** 查询参数序列化格式 | Array format in query string */
   qsArrayFormat?: 'indices' | 'brackets' | 'repeat' | 'comma';
+  /** 插件数组，当前请求会使用这些插件 | Request-level plugins */
+  plugins?: HookFetchPlugin[];
 }
 ```
 
@@ -386,23 +393,25 @@ interface StreamContext<T = unknown> {
 ### HookFetchPlugin
 
 ```typescript
-interface HookFetchPlugin<T = unknown, E = unknown, P = unknown, D = unknown> {
+interface HookFetchPlugin<T = unknown, E = unknown> {
   /** 插件名称 (必需) | Plugin name (required) */
   name: string;
   /** 插件优先级, 数字越小越高 (可选) | Plugin priority, smaller number means higher priority (optional) */
   priority?: number;
   /** 请求发送前钩子 | Hook before request is sent */
-  beforeRequest?: (config: RequestConfig<P, D, E>) => RequestConfig<P, D, E> | Promise<RequestConfig<P, D, E>>;
+  beforeRequest?: (ctx: BeforeRequestCtx<E>) => RequestConfig | PipelineDecision | Promise<RequestConfig | PipelineDecision>;
   /** 响应接收后钩子 | Hook after response is received */
-  afterResponse?: (context: FetchPluginContext<T>, config: RequestConfig<P, D, E>) => FetchPluginContext<T> | Promise<FetchPluginContext<T>>;
+  afterResponse?: (ctx: AfterResponseCtx<T, E>) => AfterResponseCtx<T, E> | PipelineDecision | Promise<AfterResponseCtx<T, E> | PipelineDecision>;
   /** 流式处理前钩子 | Hook before stream processing */
-  beforeStream?: (body: ReadableStream<any>, config: RequestConfig<P, D, E>) => ReadableStream<any> | Promise<ReadableStream<any>>;
+  beforeStream?: (ctx: BeforeStreamCtx<E>) => ReadableStream | Promise<ReadableStream>;
   /** 流式数据块转换钩子 | Hook for transforming stream chunks */
-  transformStreamChunk?: (chunk: StreamContext<any>, config: RequestConfig<P, D, E>) => StreamContext | Promise<StreamContext>;
+  transformStreamChunk?: (ctx: TransformChunkCtx<E>) => StreamContext | Promise<StreamContext>;
   /** 错误处理钩子 | Hook for error handling */
-  onError?: (error: ResponseError, config: RequestConfig<P, D, E>) => Promise<Error | void | ResponseError<E>>;
+  onError?: (ctx: OnErrorCtx<E>) => PipelineDecision | void | Promise<PipelineDecision | void>;
+  /** 流式处理后钩子 | Hook after stream processing */
+  afterStream?: (ctx: AfterStreamCtx<E>) => void | Promise<void>;
   /** 请求完成时钩子(无论成功或失败) | Hook when request is finalized (whether success or failure) */
-  onFinally?: (res: Pick<FetchPluginContext<unknown, E, P, D>, 'config' | 'response'>) => void | Promise<void>;
+  onFinally?: (ctx: OnFinallyCtx<E>) => void | Promise<void>;
 }
 ```
 
@@ -414,12 +423,18 @@ Hook-Fetch 会抛出 `ResponseError` 类型的错误：
 
 ```typescript
 class ResponseError<E = any> extends Error {
+  /** 错误信息 | Error message */
+  readonly message: string;
+  /** 错误名称 | Error name */
+  readonly name: string;
+  /** HTTP 状态码 | HTTP status code */
+  readonly status?: number;
+  /** HTTP 状态文本 | HTTP status text */
+  readonly statusText?: string;
   /** 响应对象 | The response object */
-  response: Response;
+  readonly response?: Response;
   /** 请求配置 | The request configuration */
-  config: RequestConfig;
-  /** 额外数据 | Extra data */
-  extra?: E;
+  readonly config?: RequestConfig;
 }
 ```
 

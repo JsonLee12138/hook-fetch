@@ -157,14 +157,11 @@ try {
   const response = await api.get('/posts/999').json();
 }
 catch (error) {
-  if (error.response) {
-    // 服务器响应了错误状态码
-    console.log('Error status:', error.response.status);
-    console.log('Error data:', error.response.data);
-  }
-  else if (error.request) {
-    // 请求已发送但没有收到响应
-    console.log('No response received');
+  if (error instanceof ResponseError) {
+    // HTTP 错误
+    console.log('Error status:', error.status);
+    console.log('Error message:', error.message);
+    console.log('Error statusText:', error.statusText);
   }
   else {
     // 其他错误
@@ -239,16 +236,36 @@ catch (error) {
 
 ## 请求重试
 
-```typescript
-const request = api.get('/unstable-endpoint');
+推荐使用内置的 `retryPlugin` 进行自动重试：
 
-// 如果请求失败，可以重试
+```typescript
+import { retryPlugin } from 'hook-fetch/plugins/retry';
+
+// 使用内置重试插件
+const api = hookFetch.create({
+  plugins: [
+    retryPlugin({
+      maxAttempts: 3,              // 最大重试次数
+      retryableStatuses: [408, 429, 500, 502, 503, 504]
+    })
+  ]
+});
+
+// 自动重试逻辑由插件处理
+const response = await api.get('/unstable-endpoint').json();
+```
+
+或者使用错误处理手动重试：
+
+```typescript
+const request = api.get('/endpoint');
+
 try {
   const response = await request.json();
 }
 catch (error) {
-  // 重试请求
-  const retryRequest = request.retry();
+  // 手动创建新请求进行重试
+  const retryRequest = api.get('/endpoint');
   const response = await retryRequest.json();
 }
 ```

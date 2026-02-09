@@ -12,45 +12,37 @@ function cachePlugin(): HookFetchPlugin<unknown, { ttl: number }> {
   const cache = new Map();
   return {
     name: 'cache',
-    beforeRequest: (config) => {
+    beforeRequest({ config, resolve }) {
       const key = getRequestKey(
         config.url,
         config.method,
-        config.params,
-        config.data,
+        (config as any).params,
+        (config as any).data,
       );
       const cached = cache.get(key);
       if (cached) {
-        // 修复：如果缓存未过期，返回缓存数据
-        if (cached.timestamp + (config.extra?.ttl ?? 1000) > Date.now()) {
-          return {
-            ...config,
-            resolve: () => new Response(JSON.stringify(cached.data), {
-              status: 302,
-              headers: { 'Content-Type': 'application/json' },
-            }),
-          };
+        if (cached.timestamp + ((config.extra as any)?.ttl ?? 1000) > Date.now()) {
+          return resolve(cached.data);
         }
         else {
-          // 缓存已过期，删除缓存
           cache.delete(key);
         }
       }
       return config;
     },
-    afterResponse: (context) => {
-      const { config } = context;
+    afterResponse(ctx) {
+      const { config } = ctx;
       const key = getRequestKey(
         config.url,
         config.method,
-        config.params,
-        config.data,
+        (config as any).params,
+        (config as any).data,
       );
       cache.set(key, {
-        data: context.result,
+        data: ctx.result,
         timestamp: Date.now(),
       });
-      return context;
+      return ctx;
     },
   };
 }
@@ -106,21 +98,17 @@ describe('test cache plugin', () => {
       plugins: [cachePlugin()],
     });
 
-    // 第一次请求，应该发起实际请求
     const firstResponse = await instance.request<{ message: string; count: number }>('/api/data', {
-      // extra: { ttl: 5000 }, // 5秒缓存
     }).json();
 
     expect(firstResponse.count).toBe(1);
     expect(requestCount).toBe(1);
 
-    // 第二次请求，应该返回缓存数据
     const secondResponse = await instance.request<{ message: string; count: number }>('/api/data', {
-      // extra: { ttl: 5000 },
     }).json();
 
-    expect(secondResponse.count).toBe(1); // 返回缓存的 count
-    expect(requestCount).toBe(1); // 请求计数不增加
+    expect(secondResponse.count).toBe(1);
+    expect(requestCount).toBe(1);
   });
 
   it('should make new request when cache expires', async () => {
@@ -130,24 +118,21 @@ describe('test cache plugin', () => {
       plugins: [cachePlugin()],
     });
 
-    // 第一次请求
     const firstResponse = await instance.request<{ message: string; count: number }>('/api/data', {
-      extra: { ttl: 100 }, // 100ms 缓存
+      extra: { ttl: 100 },
     }).json();
 
     expect(firstResponse.count).toBe(1);
     expect(requestCount).toBe(1);
 
-    // 等待缓存过期
     await new Promise(resolve => setTimeout(resolve, 150));
 
-    // 缓存过期后，应该发起新请求
     const secondResponse = await instance.request<{ message: string; count: number }>('/api/data', {
       extra: { ttl: 100 },
     }).json();
 
-    expect(secondResponse.count).toBe(2); // 新的请求返回新的 count
-    expect(requestCount).toBe(2); // 请求计数增加
+    expect(secondResponse.count).toBe(2);
+    expect(requestCount).toBe(2);
   });
 
   it('should use different cache keys for different URLs', async () => {
@@ -157,7 +142,6 @@ describe('test cache plugin', () => {
       plugins: [cachePlugin()],
     });
 
-    // 请求不同的 URL
     const response1 = await instance.request<{ message: string; count: number }>('/api/data', {
       extra: { ttl: 5000 },
     }).json();
@@ -168,7 +152,7 @@ describe('test cache plugin', () => {
 
     expect(response1.count).toBe(1);
     expect(response2.count).toBe(2);
-    expect(requestCount).toBe(2); // 两个不同的请求
+    expect(requestCount).toBe(2);
   });
 
   it('should use different cache keys for different methods', async () => {
@@ -178,19 +162,17 @@ describe('test cache plugin', () => {
       plugins: [cachePlugin()],
     });
 
-    // GET 请求
     const getResponse = await instance.get<{ message: string; count: number }>('/api/data', {}, {
       extra: { ttl: 5000 },
     }).json();
 
-    // POST 请求到同一个路径
     const postResponse = await instance.post<{ message: string; count: number }>('/api/create', void 0, {
       extra: { ttl: 5000 },
     }).json();
 
     expect(getResponse.count).toBe(1);
     expect(postResponse.count).toBe(2);
-    expect(requestCount).toBe(2); // 不同方法应该分别缓存
+    expect(requestCount).toBe(2);
   });
 
   it('should use different cache keys for different params', async () => {
@@ -200,7 +182,6 @@ describe('test cache plugin', () => {
       plugins: [cachePlugin()],
     });
 
-    // 带不同参数的请求
     const response1 = await instance.get<{ message: string; count: number }>('/api/data', {
       params: { page: 1 },
       extra: { ttl: 5000 },
@@ -213,7 +194,7 @@ describe('test cache plugin', () => {
 
     expect(response1.count).toBe(1);
     expect(response2.count).toBe(2);
-    expect(requestCount).toBe(2); // 不同参数应该分别缓存
+    expect(requestCount).toBe(2);
   });
 
   it('should use different cache keys for different data', async () => {
@@ -223,7 +204,6 @@ describe('test cache plugin', () => {
       plugins: [cachePlugin()],
     });
 
-    // 带不同 body 数据的请求
     const response1 = await instance.post<{ message: string; count: number }>('/api/create', {
       name: 'test1',
     }, {
@@ -238,7 +218,7 @@ describe('test cache plugin', () => {
 
     expect(response1.count).toBe(1);
     expect(response2.count).toBe(2);
-    expect(requestCount).toBe(2); // 不同 body 应该分别缓存
+    expect(requestCount).toBe(2);
   });
 
   it('should use default ttl when not specified', async () => {
@@ -248,13 +228,11 @@ describe('test cache plugin', () => {
       plugins: [cachePlugin()],
     });
 
-    // 不指定 ttl，使用默认值 1000ms
     const firstResponse = await instance.get<{ message: string; count: number }>('/api/data').json();
 
     expect(firstResponse.count).toBe(1);
     expect(requestCount).toBe(1);
 
-    // 在默认 ttl 内再次请求，应该返回缓存
     const secondResponse = await instance.get<{ message: string; count: number }>('/api/data').json();
 
     expect(secondResponse.count).toBe(1);
@@ -266,7 +244,6 @@ describe('test cache plugin', () => {
       plugins: [cachePlugin()],
     });
 
-    // 第一次请求外部 API
     const firstResponse = await instance.get<TodoDTO>('https://jsonplaceholder.typicode.com/todos/1', {
       extra: { ttl: 10000 },
     }).json();
@@ -274,12 +251,10 @@ describe('test cache plugin', () => {
     expect(firstResponse.id).toBe(1);
     expect(firstResponse.title).toBeTruthy();
 
-    // 第二次请求应该返回缓存
     const secondResponse = await instance.get<TodoDTO>('https://jsonplaceholder.typicode.com/todos/1', {
       extra: { ttl: 10000 },
     }).json();
 
-    // 验证返回相同的数据
     expect(secondResponse).toEqual(firstResponse);
   });
 });

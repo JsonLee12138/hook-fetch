@@ -138,7 +138,7 @@ async function streamChat(message: string) {
 function customChatPlugin() {
   return {
     name: 'custom-chat',
-    async transformStreamChunk(chunk, config) {
+    async transformStreamChunk({ chunk }) {
       if (!chunk.error && chunk.result) {
         try {
           const data = JSON.parse(chunk.result);
@@ -282,7 +282,7 @@ async function monitorServerStatus() {
 function logStreamPlugin() {
   return {
     name: 'log-stream',
-    async transformStreamChunk(chunk, config) {
+    async transformStreamChunk({ chunk }) {
       if (!chunk.error && typeof chunk.result === 'string') {
         try {
         // 解析日志行
@@ -347,27 +347,21 @@ async function streamLogs() {
 function reconnectingStreamPlugin(maxRetries = 3, delay = 1000) {
   return {
     name: 'reconnecting-stream',
-    async onError(error, config) {
-      const retryCount = config.extra?.retryCount || 0;
+    async onError({ error, config }) {
+      const retryCount = (config.extra as any)?.retryCount || 0;
 
-      if (retryCount < maxRetries && error.response?.status >= 500) {
+      if (retryCount < maxRetries && error.status && error.status >= 500) {
         console.log(`流连接失败，建议重试... (${retryCount + 1}/${maxRetries})`);
 
         // 延迟建议
         await new Promise(resolve => setTimeout(resolve, delay * 2 ** retryCount));
-
-        // 将重试信息附加到错误中，由应用层决定是否重试
-        error.retryInfo = {
-          retryCount,
-          maxRetries,
-          shouldRetry: true
-        };
       }
       else {
         console.error('流连接失败，已达到最大重试次数');
       }
 
-      return error;
+      // 返回 undefined 让错误继续传播，由应用层决定是否重试
+      return undefined;
     }
   };
 }
@@ -489,14 +483,14 @@ function streamCachePlugin(maxSize = 1000) {
 function compressionPlugin() {
   return {
     name: 'compression',
-    async beforeRequest(config) {
+    async beforeRequest({ config }) {
       config.headers = new Headers(config.headers);
       config.headers.set('Accept-Encoding', 'gzip, deflate, br');
       return config;
     },
-    async beforeStream(body, config) {
+    async beforeStream({ body, response }) {
     // 如果响应被压缩，自动解压
-      const contentEncoding = config.headers?.get?.('content-encoding');
+      const contentEncoding = response.headers?.get?.('content-encoding');
       if (contentEncoding === 'gzip') {
         return body.pipeThrough(new DecompressionStream('gzip'));
       }
@@ -514,7 +508,7 @@ function batchProcessingPlugin(batchSize = 10) {
 
   return {
     name: 'batch-processing',
-    async transformStreamChunk(chunk, config) {
+    async transformStreamChunk({ chunk }) {
       if (!chunk.error) {
         batch.push(chunk.result);
 

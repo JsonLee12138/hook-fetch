@@ -66,9 +66,9 @@ const data = await api.get('/users')
 // 3. 插件处理
 api.use({
   name: 'error-handler',
-  async onError(error, config) {
+  async onError({ error, config }) {
     console.error(`Error in ${config.url}:`, error);
-    return error;
+    return undefined;
   }
 });
 ```
@@ -148,15 +148,15 @@ function myPlugin() {
   return {
     name: 'my-plugin',
     priority: 1, // 可选，数字越小优先级越高
-    async beforeRequest(config) {
+    async beforeRequest({ config }) {
     // 请求前处理
       console.log('Before request:', config.url);
       return config;
     },
-    async afterResponse(context, config) {
+    async afterResponse(ctx) {
     // 响应后处理
-      console.log('After response:', context.response.status);
-      return context;
+      console.log('After response:', ctx.response.status);
+      return ctx;
     }
   };
 }
@@ -183,7 +183,7 @@ api.use(myPlugin());
 function plugin1() {
   return {
     name: 'plugin1',
-    async beforeRequest(config) {
+    async beforeRequest({ config }) {
       config.extra = { ...config.extra, startTime: Date.now() };
       return config;
     }
@@ -193,10 +193,10 @@ function plugin1() {
 function plugin2() {
   return {
     name: 'plugin2',
-    async afterResponse(context, config) {
-      const duration = Date.now() - config.extra.startTime;
+    async afterResponse(ctx) {
+      const duration = Date.now() - (ctx.config.extra as any).startTime;
       console.log(`Request took ${duration}ms`);
-      return context;
+      return ctx;
     }
   };
 }
@@ -345,7 +345,7 @@ function cachePlugin(options = {}) {
 
   return {
     name: 'cache',
-    async beforeRequest(requestConfig) {
+    async beforeRequest({ config: requestConfig, resolve }) {
       if (requestConfig.method !== 'GET')
         return requestConfig;
 
@@ -358,34 +358,28 @@ function cachePlugin(options = {}) {
       const cached = cache.get(key);
 
       if (cached && Date.now() - cached.timestamp < config.ttl) {
-        // 返回缓存数据
-        return {
-          ...requestConfig,
-          resolve: () => new Response(JSON.stringify(cached.data), {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' }
-          })
-        };
+        // 返回缓存数据，使用 resolve() 短路
+        return resolve(cached.data);
       }
 
       return requestConfig;
     },
-    async afterResponse(context, requestConfig) {
-      if (requestConfig.method !== 'GET')
-        return context;
+    async afterResponse(ctx) {
+      if (ctx.config.method !== 'GET')
+        return ctx;
 
       const key = getRequestKey(
-        requestConfig.url,
-        requestConfig.method,
-        requestConfig.params,
-        requestConfig.data
+        ctx.config.url,
+        ctx.config.method,
+        ctx.config.params,
+        ctx.config.data
       );
       cache.set(key, {
-        data: context.result,
+        data: ctx.result,
         timestamp: Date.now()
       });
 
-      return context;
+      return ctx;
     }
   };
 }
@@ -448,17 +442,17 @@ class BatchRequestManager {
 function loggerPlugin() {
   return {
     name: 'logger',
-    async beforeRequest(config) {
+    async beforeRequest({ config }) {
       console.log(`→ ${config.method} ${config.url}`, config);
       return config;
     },
-    async afterResponse(context, config) {
-      console.log(`← ${config.method} ${config.url}`, context.response.status);
-      return context;
+    async afterResponse(ctx) {
+      console.log(`← ${ctx.config.method} ${ctx.config.url}`, ctx.response.status);
+      return ctx;
     },
-    async onError(error, config) {
+    async onError({ error, config }) {
       console.error(`✗ ${config.method} ${config.url}`, error);
-      return error;
+      return undefined;
     }
   };
 }
@@ -511,12 +505,12 @@ test('should fetch user data', async () => {
 // 添加错误处理
 api.use({
   name: 'network-error-handler',
-  async onError(error, config) {
+  async onError({ error }) {
     if (error.message === 'Failed to fetch') {
       console.error('Network error. Please check your connection.');
       // 可以显示用户友好的错误消息
     }
-    return error;
+    return undefined;
   }
 });
 ```
@@ -590,7 +584,7 @@ axios.interceptors.request.use((config) => {
 // Hook-Fetch 插件
 api.use({
   name: 'auth',
-  async beforeRequest(config) {
+  async beforeRequest({ config }) {
     config.headers = new Headers(config.headers);
     config.headers.set('Authorization', `Bearer ${token}`);
     return config;

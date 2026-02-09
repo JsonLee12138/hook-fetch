@@ -17,7 +17,7 @@ describe('test hook-fetch', () => {
 
   beforeAll(async () => {
     server = await startTestSseServer(9999, (app) => {
-      app.get('/api/test', (req, res) => {
+      app.get('/api/test', (_req, res) => {
         res.json({
           code: 401,
           message: 'test',
@@ -33,15 +33,6 @@ describe('test hook-fetch', () => {
 
   it('test normal request', async () => {
     const res = await hookFetch<TodoDTO>('https://jsonplaceholder.typicode.com/todos/1').json();
-    const result = { userId: 1, id: 1, title: 'delectus aut autem', completed: false };
-    expect(res).toEqual(result);
-  });
-
-  it('test normal request retry', async () => {
-    const req = hookFetch('https://jsonplaceholder.typicode.com/todos/1');
-    req.abort();
-    const newReq = req.retry().json();
-    const res = await newReq;
     const result = { userId: 1, id: 1, title: 'delectus aut autem', completed: false };
     expect(res).toEqual(result);
   });
@@ -136,7 +127,6 @@ describe('test hook-fetch', () => {
       },
     });
 
-    // console.log(instance)
     const res = await instance.post<TodoDTO>('/posts', body).json();
 
     console.log(res);
@@ -147,28 +137,6 @@ describe('test hook-fetch', () => {
       msg: 'ok',
       id: 101,
     };
-    expect(res).toEqual(result);
-  });
-
-  it('test instance get retry', async () => {
-    const instance = hookFetch.create({
-      baseURL: 'https://jsonplaceholder.typicode.com',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    const req = instance.get<TodoDTO>('/todos/1');
-
-    req.abort();
-
-    const newReq = req.retry().json();
-
-    const res = await newReq;
-    console.log(res);
-
-    const result = { userId: 1, id: 1, title: 'delectus aut autem', completed: false };
-
     expect(res).toEqual(result);
   });
 
@@ -200,12 +168,11 @@ describe('test hook-fetch', () => {
       },
     });
 
-    // 目前自带一下插件, 可在 hook-fetch/plugins 中引入, 名为 `sseTextDecoderPlugin`
     const ssePlugin = (): HookFetchPlugin => {
       const decoder = new TextDecoder('utf-8');
       return {
         name: 'sse',
-        async transformStreamChunk(chunk) {
+        async transformStreamChunk({ chunk }) {
           if (!chunk.error) {
             chunk.result = decoder.decode(chunk.result as AllowSharedBufferSource, { stream: true });
           }
@@ -241,17 +208,16 @@ describe('test hook-fetch', () => {
     const requestPlugin = (): HookFetchPlugin<TodoDTO> => {
       return {
         name: 'request',
-        async afterResponse(response) {
-          // console.log(response, 'response');
-          if (response.result?.completed) {
-            return response;
+        async afterResponse(ctx) {
+          if (ctx.result?.completed) {
+            return ctx;
           }
           else {
             throw new Error('not completed');
           }
         },
-        async onError(error) {
-          return new Error('customError', error);
+        async onError() {
+          // Don't handle — let error propagate
         },
         onFinally() {
           console.log('request plugin finally');
@@ -265,8 +231,7 @@ describe('test hook-fetch', () => {
       await instance.get('/todos/1', { }).json();
     }
     catch (error) {
-      // console.log(error);
-      expect((error as Error).message).toBe('customError');
+      expect((error as Error).message).toBe('not completed');
     }
   });
 
@@ -287,8 +252,8 @@ describe('test hook-fetch', () => {
             name: 'jwt',
           });
         },
-        onError(error) {
-          return error;
+        onError() {
+          // Don't handle — let error propagate
         },
       };
     };
@@ -302,8 +267,8 @@ describe('test hook-fetch', () => {
     const requestPlugin = (): HookFetchPlugin<any> => {
       return {
         name: 'error',
-        async onError(error) {
-          return error;
+        async onError() {
+          // Don't handle — let error propagate
         },
       };
     };

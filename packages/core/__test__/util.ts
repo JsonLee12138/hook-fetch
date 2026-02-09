@@ -17,9 +17,9 @@ export function startTestSseServer(port: number, handlers: (_app: express.Applic
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     res.header('Access-Control-Allow-Credentials', 'true');
 
-    // 处理 OPTIONS 预检请求
     if (req.method === 'OPTIONS') {
-      return res.sendStatus(200);
+      res.sendStatus(200);
+      return;
     }
 
     next();

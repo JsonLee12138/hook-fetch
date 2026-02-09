@@ -34,7 +34,7 @@ export const setChatApiKey = (apiKey: string) => {
   chatApi.use({
     name: 'auth',
     priority: 1,
-    async beforeRequest(config) {
+    async beforeRequest({ config }) {
       config.headers = new Headers(config.headers);
       config.headers.set('Authorization', `Bearer ${apiKey}`);
       return config;

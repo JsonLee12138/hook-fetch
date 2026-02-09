@@ -106,8 +106,8 @@ importers:
         specifier: ^5.0.1
         version: 5.0.1
       hook-fetch:
-        specifier: ^2.2.3
-        version: 2.3.1(react@19.2.3)(typescript-api-pro@1.0.1)(vue@3.5.18(typescript@5.9.3))
+        specifier: workspace:*
+        version: link:../../packages/core
       react:
         specifier: ^19.2.0
         version: 19.2.3
@@ -4950,13 +4950,6 @@ packages:
 
   hoist-non-react-statics@3.3.2:
     resolution: {integrity: sha512-/gGivxi8JPKWNm/W0jSmzcMPpfpPLc3dY/6GxhX2hQ9iGj3aDfklV4ET7NjKpSinLpJ5vafa9iiGIEZg10SfBw==}
-
-  hook-fetch@2.3.1:
-    resolution: {integrity: sha512-zpkC9p0NFGLpv3kHAurO3EOp1dI163l4+skpBsU/cRevysw9TvT3zXnu3RG+c3fimvKcDnIjpwd0uGWngyOmLg==}
-    peerDependencies:
-      react: '>=19.1.0'
-      typescript-api-pro: '>=0.0.6'
-      vue: '>=3.5.16'
 
   hpack.js@2.1.6:
     resolution: {integrity: sha512-zJxVehUdMGIKsRaNt7apO2Gqp0BdqW5yaiGHXXmbpvxgBYVZnAql+BJb4RO5ad2MgpbZKn5G6nMnegrH1FcNYQ==}
@@ -12103,12 +12096,6 @@ snapshots:
       '@vue/shared': 3.5.18
       vue: 3.5.18(typescript@5.8.3)
 
-  '@vue/server-renderer@3.5.18(vue@3.5.18(typescript@5.9.3))':
-    dependencies:
-      '@vue/compiler-ssr': 3.5.18
-      '@vue/shared': 3.5.18
-      vue: 3.5.18(typescript@5.9.3)
-
   '@vue/shared@3.5.17': {}
 
   '@vue/shared@3.5.18': {}
@@ -14401,14 +14388,6 @@ snapshots:
   hoist-non-react-statics@3.3.2:
     dependencies:
       react-is: 16.13.1
-
-  hook-fetch@2.3.1(react@19.2.3)(typescript-api-pro@1.0.1)(vue@3.5.18(typescript@5.9.3)):
-    dependencies:
-      qs: 6.14.0
-      radash: 12.1.1
-      react: 19.2.3
-      typescript-api-pro: 1.0.1
-      vue: 3.5.18(typescript@5.9.3)
 
   hpack.js@2.1.6:
     dependencies:
@@ -17723,16 +17702,6 @@ snapshots:
       '@vue/shared': 3.5.18
     optionalDependencies:
       typescript: 5.8.3
-
-  vue@3.5.18(typescript@5.9.3):
-    dependencies:
-      '@vue/compiler-dom': 3.5.18
-      '@vue/compiler-sfc': 3.5.18
-      '@vue/runtime-dom': 3.5.18
-      '@vue/server-renderer': 3.5.18(vue@3.5.18(typescript@5.9.3))
-      '@vue/shared': 3.5.18
-    optionalDependencies:
-      typescript: 5.9.3
 
   watchpack@2.4.4:
     dependencies:

@@ -141,7 +141,7 @@ export interface StreamMessage {
 export function errorHandlerPlugin() {
   return {
     name: 'error-handler',
-    async onError(error, config) {
+    async onError({ error, config }) {
     // 记录错误
       console.error(`[API Error] ${config.method} ${config.url}:`, error);
 
@@ -179,7 +179,8 @@ export function errorHandlerPlugin() {
         showNotification('网络连接失败，请检查网络设置', 'error');
       }
 
-      return error;
+      // 返回 undefined 让错误继续传播
+      return undefined;
     }
   };
 }
@@ -245,7 +246,7 @@ export function cachePlugin(options = {}) {
 
   return {
     name: 'cache',
-    async beforeRequest(requestConfig) {
+    async beforeRequest({ config: requestConfig, resolve }) {
       if (config.excludeMethods.includes(requestConfig.method)) {
         return requestConfig;
       }
@@ -261,14 +262,8 @@ export function cachePlugin(options = {}) {
       if (cached) {
         // 检查缓存是否过期
         if (cached.timestamp + config.ttl > Date.now()) {
-          // 返回缓存数据，使用 resolve 属性
-          return {
-            ...requestConfig,
-            resolve: () => new Response(JSON.stringify(cached.data), {
-              status: 200,
-              headers: { 'Content-Type': 'application/json' }
-            })
-          };
+          // 返回缓存数据，使用 resolve() 短路
+          return resolve(cached.data);
         }
         else {
           // 缓存已过期，删除缓存
@@ -278,16 +273,16 @@ export function cachePlugin(options = {}) {
 
       return requestConfig;
     },
-    async afterResponse(context, requestConfig) {
-      if (config.excludeMethods.includes(requestConfig.method)) {
-        return context;
+    async afterResponse(ctx) {
+      if (config.excludeMethods.includes(ctx.config.method)) {
+        return ctx;
       }
 
       const key = getRequestKey(
-        requestConfig.url,
-        requestConfig.method,
-        requestConfig.params,
-        requestConfig.data
+        ctx.config.url,
+        ctx.config.method,
+        ctx.config.params,
+        ctx.config.data
       );
 
       // 限制缓存大小
@@ -298,11 +293,11 @@ export function cachePlugin(options = {}) {
 
       // 缓存响应
       cache.set(key, {
-        data: context.result,
+        data: ctx.result,
         timestamp: Date.now()
       });
 
-      return context;
+      return ctx;
     }
   };
 }
@@ -651,7 +646,7 @@ export function authPlugin() {
   return {
     name: 'auth',
     priority: 1,
-    async beforeRequest(config) {
+    async beforeRequest({ config }) {
       const token = localStorage.getItem('authToken');
 
       if (token) {
@@ -661,8 +656,8 @@ export function authPlugin() {
 
       return config;
     },
-    async onError(error) {
-      if (error.response?.status === 401) {
+    async onError({ error }) {
+      if (error.status === 401) {
       // Token 过期，提示用户重新登录
         console.error('认证失败，请重新登录');
         localStorage.removeItem('authToken');
@@ -678,7 +673,7 @@ export function authPlugin() {
       // window.location.href = '/login';
       }
 
-      return error;
+      return undefined;
     }
   };
 }
@@ -723,31 +718,31 @@ export function signaturePlugin(secretKey: string) {
 export function performancePlugin() {
   return {
     name: 'performance',
-    async beforeRequest(config) {
+    async beforeRequest({ config }) {
       config.extra = {
         ...config.extra,
         startTime: performance.now()
       };
       return config;
     },
-    async afterResponse(context, config) {
+    async afterResponse(ctx) {
       const endTime = performance.now();
-      const duration = endTime - (config.extra?.startTime || 0);
+      const duration = endTime - ((ctx.config.extra as any)?.startTime || 0);
 
       // 记录性能指标
-      console.log(`[Performance] ${config.method} ${config.url}: ${duration.toFixed(2)}ms`);
+      console.log(`[Performance] ${ctx.config.method} ${ctx.config.url}: ${duration.toFixed(2)}ms`);
 
       // 发送到监控系统
       if (duration > 5000) { // 超过5秒的请求
         sendToMonitoring({
           type: 'slow_request',
-          url: config.url,
-          method: config.method,
+          url: ctx.config.url,
+          method: ctx.config.method,
           duration
         });
       }
 
-      return context;
+      return ctx;
     }
   };
 }

@@ -1,8 +1,9 @@
 import type QueryString from 'qs';
 import type { AnyObject } from 'typescript-api-pro';
 import type { ResponseError } from './errors';
+import type { PipelineDecision, RejectDecision, ResolveDecision } from './utils/decision';
 
-export type FetchResponseType = 'json' | 'text' | 'blob' | 'arrayBuffer' | 'formData' | 'bytes';
+export type FetchResponseType = 'json' | 'text' | 'blob' | 'arrayBuffer' | 'formData' | 'bytes' | 'response';
 
 export type RequestMethodWithParams = 'GET' | 'HEAD';
 
@@ -12,7 +13,7 @@ export type RequestMethod = RequestMethodWithParams | RequestMethodWithBody;
 
 export type BodyType = AnyObject | string | FormData | URLSearchParams | Blob | ArrayBuffer | ArrayBufferView | ReadableStream | null;
 
-export interface RequestConfig<P, D extends BodyType = BodyType, E = AnyObject> extends Omit<RequestInit, 'body' | 'signal' | 'credentials' | 'method'> {
+export interface RequestConfig<P = unknown, D extends BodyType = BodyType, E = AnyObject> extends Omit<RequestInit, 'body' | 'signal' | 'credentials' | 'method'> {
   url: string;
   baseURL: string;
   params?: P;
@@ -20,12 +21,10 @@ export interface RequestConfig<P, D extends BodyType = BodyType, E = AnyObject> 
   withCredentials?: boolean;
   extra?: E;
   method: RequestMethod;
-  resolve?: (() => any) | null;
-  // qsArrayFormat?: QueryString.IStringifyOptions['arrayFormat'];
   qsConfig?: QueryString.IStringifyOptions;
+  timeout?: number;
 }
 
-// 下方 request 的 option
 export type BaseRequestOptions<P = AnyObject, D extends BodyType = BodyType, E = AnyObject> = Partial<{
   plugins: Array<HookFetchPlugin>;
   timeout: number;
@@ -33,7 +32,6 @@ export type BaseRequestOptions<P = AnyObject, D extends BodyType = BodyType, E =
   data: D;
   controller: AbortController;
   extra: E;
-  // qsArrayFormat: QueryString.IStringifyOptions['arrayFormat'];
   qsConfig?: QueryString.IStringifyOptions;
   withCredentials: boolean;
   method: RequestMethod;
@@ -42,14 +40,43 @@ export type BaseRequestOptions<P = AnyObject, D extends BodyType = BodyType, E =
   baseURL: string;
 };
 
-// 插件模式
-export interface FetchPluginContext<T = unknown, E = unknown, P = unknown, D extends BodyType = BodyType> {
-  config: RequestConfig<P, D, E>;
+// ─── Context Types ───
+
+export interface BaseCtx<E = unknown> {
+  config: RequestConfig<unknown, BodyType, E>;
+}
+
+export interface DecisionCtx<E = unknown> extends BaseCtx<E> {
+  resolve: <T>(value: T) => ResolveDecision<T>;
+  reject: (error: Error | ResponseError) => RejectDecision;
+}
+
+export interface BeforeRequestCtx<E = unknown> extends DecisionCtx<E> {}
+
+export interface AfterResponseCtx<T = unknown, E = unknown> extends DecisionCtx<E> {
   response: Response;
   responseType: FetchResponseType;
-  result?: T;
-  controller: AbortController;
+  result: T;
 }
+
+export interface OnErrorCtx<E = unknown> extends DecisionCtx<E> {
+  error: ResponseError<E>;
+}
+
+export interface OnFinallyCtx<E = unknown> extends BaseCtx<E> {}
+
+export interface BeforeStreamCtx<E = unknown> extends BaseCtx<E> {
+  body: ReadableStream;
+  response: Response;
+}
+
+export interface TransformChunkCtx<E = unknown> extends BaseCtx<E> {
+  chunk: StreamContext;
+}
+
+export interface AfterStreamCtx<E = unknown> extends BaseCtx<E> {}
+
+// ─── Stream Context ───
 
 export interface StreamContext<T = unknown> {
   result: T;
@@ -57,42 +84,50 @@ export interface StreamContext<T = unknown> {
   error: unknown | null;
 }
 
-export type BeforeRequestHandler<E = unknown, P = unknown, D extends BodyType = BodyType> = (config: RequestConfig<P, D, E>) => RequestConfig<P, D, E> | PromiseLike<RequestConfig<P, D, E>>;
+// ─── Handler Types ───
 
-export type AfterResponseHandler<T = unknown, E = unknown, P = unknown, D extends BodyType = BodyType> = (context: FetchPluginContext<T>, config: RequestConfig<P, D, E>) => FetchPluginContext<T> | PromiseLike<FetchPluginContext<T>>;
+export type BeforeRequestHandler<E = unknown> =
+  (ctx: BeforeRequestCtx<E>) => RequestConfig | PipelineDecision | Promise<RequestConfig | PipelineDecision>;
 
-export type BeforeStreamHandler<E = unknown, P = unknown, D extends BodyType = BodyType> = (body: ReadableStream<any>, config: RequestConfig<P, D, E>) => ReadableStream<any> | PromiseLike<ReadableStream<any>>;
+export type AfterResponseHandler<T = unknown, E = unknown> =
+  (ctx: AfterResponseCtx<T, E>) => AfterResponseCtx<T, E> | PipelineDecision | Promise<AfterResponseCtx<T, E> | PipelineDecision>;
 
-export type TransformStreamChunkHandler<E = unknown, P = unknown, D extends BodyType = BodyType> = (chunk: StreamContext<any>, config: RequestConfig<P, D, E>) => StreamContext | PromiseLike<StreamContext>;
+export type OnErrorHandler<E = unknown> =
+  (ctx: OnErrorCtx<E>) => PipelineDecision | void | Promise<PipelineDecision | void>;
 
-export type OnFinallyHandler<E = unknown, P = unknown, D extends BodyType = BodyType> = (res: Pick<FetchPluginContext<unknown, E, P, D>, 'config'>) => void | PromiseLike<void>;
+export type OnFinallyHandler<E = unknown> =
+  (ctx: OnFinallyCtx<E>) => void | Promise<void>;
 
-export type OnErrorHandler<E = unknown, P = unknown, D extends BodyType = BodyType> = (error: ResponseError<E>, config: RequestConfig<P, D, E>) => PromiseLike<Error | void | ResponseError<E>> | Error | void | ResponseError<E>;
-// interface HookFetchErrorContext<E = unknown, P = unknown, D extends BodyType = BodyType> {
-//   error: ResponseError;
-//   resolve: (config: RequestConfig<P, D, E>) => PromiseLike<void>;
-//   reject: ()
-// }
+export type BeforeStreamHandler<E = unknown> =
+  (ctx: BeforeStreamCtx<E>) => ReadableStream | Promise<ReadableStream>;
 
-export interface HookFetchPlugin<T = unknown, E = unknown, P = unknown, D extends BodyType = BodyType> {
-  /** 插件名称 */
+export type TransformStreamChunkHandler<E = unknown> =
+  (ctx: TransformChunkCtx<E>) => StreamContext | Promise<StreamContext>;
+
+export type AfterStreamHandler<E = unknown> =
+  (ctx: AfterStreamCtx<E>) => void | Promise<void>;
+
+// ─── Plugin Interface ───
+
+export interface HookFetchPlugin<T = unknown, E = unknown> {
   name: string;
-  /** 优先级 */
   priority?: number;
-  beforeRequest?: BeforeRequestHandler<E, P, D>;
-  afterResponse?: AfterResponseHandler<T, E, P, D>;
-  beforeStream?: BeforeStreamHandler<E, P, D>;
-  transformStreamChunk?: TransformStreamChunkHandler<E, P, D>;
-  onError?: OnErrorHandler<E, P, D>;
-  onFinally?: OnFinallyHandler<E, P, D>;
+  beforeRequest?: BeforeRequestHandler<E>;
+  afterResponse?: AfterResponseHandler<T, E>;
+  onError?: OnErrorHandler<E>;
+  onFinally?: OnFinallyHandler<E>;
+  beforeStream?: BeforeStreamHandler<E>;
+  transformStreamChunk?: TransformStreamChunkHandler<E>;
+  afterStream?: AfterStreamHandler<E>;
 }
 
-// 核心内容
+// ─── Options Types ───
+
 export interface OptionProps {
   baseURL: string;
   timeout: number;
   headers: HeadersInit;
-  plugins: Array<HookFetchPlugin<any, any, any, any>>;
+  plugins: Array<HookFetchPlugin<any, any>>;
   withCredentials: boolean;
   extra: AnyObject;
   qsConfig: QueryString.IStringifyOptions;
@@ -127,11 +162,6 @@ export type GetOptions<P = AnyObject, E = AnyObject> = RequestWithParamsFnOption
 
 export type HeadOptions<P = AnyObject, E = AnyObject> = RequestWithParamsFnOptions<P, E>;
 
-/**
- * OPTIONS 方法请求的可选参数类型
- *
- * OPTIONS method request optional parameter types
- */
 export type OptionsOptions<P = AnyObject, D extends BodyType = BodyType, E = AnyObject> = RequestUseOptions<P, D, E>;
 
 export type DeleteOptions<P = AnyObject, D extends BodyType = BodyType, E = AnyObject> = RequestUseOptions<P, D, E>;

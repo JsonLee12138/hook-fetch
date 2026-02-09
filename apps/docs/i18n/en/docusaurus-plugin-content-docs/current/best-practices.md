@@ -2,176 +2,321 @@
 sidebar_position: 7
 ---
 
-# Best Practices
+# 最佳实践
 
-This guide covers recommended practices and patterns for using Hook-Fetch effectively in your projects.
+本文档总结了使用 Hook-Fetch 的最佳实践，帮助您构建高效、可维护的应用程序。
 
-## Project Structure
+## 项目结构
 
-### Organizing API Calls
+### 推荐的项目结构
+
+```
+src/
+├── api/
+│   ├── index.ts          # API 实例配置
+│   ├── endpoints.ts      # 端点定义
+│   ├── types.ts          # 类型定义
+│   └── plugins/          # 自定义插件
+│       ├── auth.ts
+│       ├── logger.ts
+│       └── retry.ts
+├── hooks/
+│   ├── useApi.ts         # 通用 API Hook
+│   ├── useAuth.ts        # 认证相关 Hook
+│   └── useStream.ts      # 流式数据 Hook
+└── utils/
+    ├── constants.ts      # 常量定义
+    └── helpers.ts        # 辅助函数
+```
+
+### API 实例配置
 
 ```typescript
-// api/client.ts
+// src/api/index.ts
 import hookFetch from 'hook-fetch';
-// api/users.ts
-import { apiClient } from './client';
 import { authPlugin } from './plugins/auth';
 import { loggerPlugin } from './plugins/logger';
-
 import { retryPlugin } from './plugins/retry';
 
-export const apiClient = hookFetch.create({
+// 创建主 API 实例
+export const api = hookFetch.create({
   baseURL: process.env.REACT_APP_API_URL || 'https://api.example.com',
   timeout: 10000,
   headers: {
-    'Content-Type': 'application/json',
+    'Content-Type': 'application/json'
   },
   plugins: [
     authPlugin(),
-    loggerPlugin(),
-    retryPlugin({ maxRetries: 3 })
+    retryPlugin({ maxRetries: 3, delay: 1000 }),
+    loggerPlugin()
   ]
 });
 
+// 创建专门的流式 API 实例
+export const streamApi = hookFetch.create({
+  baseURL: process.env.REACT_APP_STREAM_URL || 'https://stream.example.com',
+  plugins: [
+    authPlugin(),
+    sseTextDecoderPlugin({
+      json: true,
+      prefix: 'data: ',
+      doneSymbol: '[DONE]'
+    })
+  ]
+});
+```
+
+### 端点定义
+
+```typescript
+// src/api/endpoints.ts
+export const endpoints = {
+  // 用户相关
+  users: {
+    list: '/users',
+    detail: (id: string) => `/users/${id}`,
+    create: '/users',
+    update: (id: string) => `/users/${id}`,
+    delete: (id: string) => `/users/${id}`
+  },
+
+  // 认证相关
+  auth: {
+    login: '/auth/login',
+    logout: '/auth/logout',
+    refresh: '/auth/refresh',
+    profile: '/auth/profile'
+  },
+
+  // 流式端点
+  stream: {
+    chat: '/stream/chat',
+    logs: '/stream/logs',
+    metrics: '/stream/metrics'
+  }
+} as const;
+```
+
+### 类型定义
+
+```typescript
+// src/api/types.ts
 export interface User {
   id: string;
   name: string;
   email: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
-export const userApi = {
-  getUser: (id: string) => apiClient.get<User>(`/users/${id}`),
-  createUser: (data: Omit<User, 'id'>) => apiClient.post<User>('/users', data),
-  updateUser: (id: string, data: Partial<User>) => apiClient.put<User>(`/users/${id}`, data),
-  deleteUser: (id: string) => apiClient.delete(`/users/${id}`)
-};
-```
+export interface ApiResponse<T = any> {
+  data: T;
+  message: string;
+  success: boolean;
+  code: number;
+}
 
-### Service Layer Pattern
+export interface PaginatedResponse<T = any> {
+  data: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
+}
 
-```typescript
-// services/UserService.ts
-import { userApi } from '../api/users';
-
-export class UserService {
-  static async getUser(id: string): Promise<User> {
-    try {
-      const response = await userApi.getUser(id).json();
-      return response.data;
-    }
-    catch (error) {
-      throw new Error(`Failed to fetch user: ${error.message}`);
-    }
-  }
-
-  static async createUser(userData: Omit<User, 'id'>): Promise<User> {
-    try {
-      const response = await userApi.createUser(userData).json();
-      return response.data;
-    }
-    catch (error) {
-      throw new Error(`Failed to create user: ${error.message}`);
-    }
-  }
+export interface StreamMessage {
+  id: string;
+  content: string;
+  timestamp: number;
+  type: 'user' | 'assistant' | 'system';
 }
 ```
 
-## Error Handling
+## 错误处理
 
-### Global Error Handling
+### 全局错误处理
 
 ```typescript
-// plugins/errorHandler.ts
-import { HookFetchPlugin } from 'hook-fetch';
-
-export function errorHandlerPlugin(): HookFetchPlugin {
+// src/api/plugins/error.ts
+export function errorHandlerPlugin() {
   return {
     name: 'error-handler',
-    priority: 1,
-    async onError(error, config) {
-    // Log error
-      console.error(`API Error [${config.method}] ${config.url}:`, error);
+    async onError({ error, config }) {
+    // 记录错误
+      console.error(`[API Error] ${config.method} ${config.url}:`, error);
 
-      // Handle specific error types
-      if (error.response?.status === 401) {
-      // Handle unauthorized
-        window.location.href = '/login';
-        return;
+      // 根据错误类型处理
+      if (error.response) {
+        const status = error.status;
+
+        switch (status) {
+          case 401:
+          // 未授权，重定向到登录页
+            window.location.href = '/login';
+            break;
+          case 403:
+          // 权限不足
+            showNotification('权限不足', 'error');
+            break;
+          case 404:
+          // 资源不存在
+            showNotification('请求的资源不存在', 'error');
+            break;
+          case 500:
+          // 服务器错误
+            showNotification('服务器内部错误，请稍后重试', 'error');
+            break;
+          default:
+            showNotification('请求失败，请检查网络连接', 'error');
+        }
+      }
+      else if (error.name === 'AbortError') {
+      // 请求被取消，通常不需要显示错误
+        console.log('Request was aborted');
+      }
+      else {
+      // 网络错误或其他错误
+        showNotification('网络连接失败，请检查网络设置', 'error');
       }
 
-      if (error.response?.status === 403) {
-      // Handle forbidden
-        throw new Error('Access denied');
-      }
-
-      if (error.response?.status >= 500) {
-      // Handle server errors
-        throw new Error('Server error occurred');
-      }
-
-      // Re-throw for other errors
-      throw error;
+      // 返回 undefined 让错误继续传播
+      return undefined;
     }
   };
 }
 ```
 
-### Typed Error Handling
+### 组件级错误处理
 
 ```typescript
-// types/errors.ts
-export interface ApiError {
-  code: string;
-  message: string;
-  details?: any;
-}
+// src/hooks/useApi.ts
+import { useHookFetch } from 'hook-fetch/react';
+import { api } from '../api';
 
-export class ApiException extends Error {
-  constructor(
-    public code: string,
-    message: string,
-    public details?: any
-  ) {
-    super(message);
-    this.name = 'ApiException';
-  }
-}
-
-// plugins/typedErrorHandler.ts
-export function typedErrorHandlerPlugin(): HookFetchPlugin {
-  return {
-    name: 'typed-error-handler',
-    async onError(error, config) {
-      if (error.response) {
-        const errorData = await error.response.json();
-        throw new ApiException(
-          errorData.code || 'UNKNOWN_ERROR',
-          errorData.message || 'An error occurred',
-          errorData.details
-        );
+export function useApi() {
+  const { request, loading, cancel } = useHookFetch({
+    request: api.request,
+    onError: (error) => {
+      // 组件级错误处理
+      if (error.response?.status === 422) {
+        // 表单验证错误
+        return error.response.json().then((data) => {
+          showValidationErrors(data.errors);
+        });
       }
-      throw error;
+    }
+  });
+
+  return {
+    request,
+    loading,
+    cancel,
+    // 封装常用方法
+    get: (url: string, params?: any) =>
+      request(url, { method: 'GET', params }).json(),
+    post: (url: string, data?: any) =>
+      request(url, { method: 'POST', data }).json(),
+    put: (url: string, data?: any) =>
+      request(url, { method: 'PUT', data }).json(),
+    delete: (url: string) =>
+      request(url, { method: 'DELETE' }).json()
+  };
+}
+```
+
+## 性能优化
+
+### 请求缓存
+
+```typescript
+// src/api/plugins/cache.ts
+export function cachePlugin(options = {}) {
+  const defaultOptions = {
+    ttl: 5 * 60 * 1000, // 5分钟
+    maxSize: 100,
+    excludeMethods: ['POST', 'PUT', 'PATCH', 'DELETE']
+  };
+
+  const config = { ...defaultOptions, ...options };
+  const cache = new Map();
+
+  const getRequestKey = (url: string, method: string, params: any, data: any) => {
+    return `${url}::${method}::${JSON.stringify(params)}::${JSON.stringify(data)}`;
+  };
+
+  return {
+    name: 'cache',
+    async beforeRequest({ config: requestConfig, resolve }) {
+      if (config.excludeMethods.includes(requestConfig.method)) {
+        return requestConfig;
+      }
+
+      const key = getRequestKey(
+        requestConfig.url,
+        requestConfig.method,
+        requestConfig.params,
+        requestConfig.data
+      );
+      const cached = cache.get(key);
+
+      if (cached) {
+        // 检查缓存是否过期
+        if (cached.timestamp + config.ttl > Date.now()) {
+          // 返回缓存数据，使用 resolve() 短路
+          return resolve(cached.data);
+        }
+        else {
+          // 缓存已过期，删除缓存
+          cache.delete(key);
+        }
+      }
+
+      return requestConfig;
+    },
+    async afterResponse(ctx) {
+      if (config.excludeMethods.includes(ctx.config.method)) {
+        return ctx;
+      }
+
+      const key = getRequestKey(
+        ctx.config.url,
+        ctx.config.method,
+        ctx.config.params,
+        ctx.config.data
+      );
+
+      // 限制缓存大小
+      if (cache.size >= config.maxSize) {
+        const firstKey = cache.keys().next().value;
+        cache.delete(firstKey);
+      }
+
+      // 缓存响应
+      cache.set(key, {
+        data: ctx.result,
+        timestamp: Date.now()
+      });
+
+      return ctx;
     }
   };
 }
 ```
 
-## Performance Optimization
+### 请求去重
 
-### Request Deduplication
+:::warning 官方不推荐使用
+虽然我们提供了请求去重插件,但**官方并不推荐在生产环境中使用**。去重逻辑会增加系统复杂度,可能导致意外的行为。建议在应用层面通过设计来避免重复请求:
 
-:::warning Official Not Recommended
-While we provide a request deduplication plugin, **we do not officially recommend using it in production environments**. Deduplication logic adds system complexity and may lead to unexpected behavior. We recommend preventing duplicate requests at the application level through design:
+- 禁用按钮防止重复点击
+- 使用防抖/节流处理用户输入
+- 使用请求状态管理避免并发请求
 
-- Disable buttons to prevent repeated clicks
-- Use debounce/throttle for user input handling
-- Use request state management to avoid concurrent requests
-
-If you really need deduplication functionality, please use the official plugin, but use it with caution.
+如果确实需要使用去重功能,请使用官方提供的插件,但请谨慎使用。
 :::
 
 ```typescript
-// Use the official deduplication plugin
+// 使用官方去重插件
 import { dedupePlugin, isDedupeError } from 'hook-fetch/plugins/dedupe';
 
 const api = hookFetch.create({
@@ -179,46 +324,46 @@ const api = hookFetch.create({
   plugins: [dedupePlugin()]
 });
 
-// Concurrent identical requests will be deduplicated
+// 并发相同请求会被去重
 try {
   const promises = [
     api.get('/users/1').json(),
-    api.get('/users/1').json(), // Will be deduplicated
+    api.get('/users/1').json(), // 会被去重
   ];
 
   const results = await Promise.allSettled(promises);
   results.forEach((result, index) => {
     if (result.status === 'rejected' && isDedupeError(result.reason)) {
-      console.log(`Request ${index + 1} was deduplicated`);
+      console.log(`请求 ${index + 1} 被去重`);
     }
     else if (result.status === 'fulfilled') {
-      console.log(`Request ${index + 1} succeeded:`, result.value);
+      console.log(`请求 ${index + 1} 成功:`, result.value);
     }
   });
 }
 catch (error) {
   if (isDedupeError(error)) {
-    console.log('Duplicate request detected');
+    console.log('检测到重复请求');
   }
 }
 
-// Disable deduplication for specific requests
+// 禁用特定请求的去重
 const response = await api.get('/users/1', {}, {
   extra: { dedupeAble: false }
 }).json();
 ```
 
-**Better Alternatives:**
+**更好的替代方案：**
 
 ```typescript
-// Recommended: Use debounce to avoid duplicate submissions
+// 推荐：使用防抖避免重复提交
 import { debounce } from 'lodash-es';
 
 const handleSubmit = debounce(async (data) => {
   await api.post('/users', data).json();
 }, 300);
 
-// Recommended: Use button disabled state
+// 推荐：使用按钮禁用状态
 function UserForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -236,67 +381,273 @@ function UserForm() {
 
   return (
     <button disabled={isSubmitting} onClick={handleSubmit}>
-      {isSubmitting ? 'Submitting...' : 'Submit'}
+      {isSubmitting ? '提交中...' : '提交'}
     </button>
   );
 }
 ```
 
-### Caching Strategy
+### 批量请求
 
 ```typescript
-// plugins/cache.ts
-interface CacheEntry {
-  data: any;
-  timestamp: number;
-  ttl: number;
+// src/utils/batch.ts
+export class BatchRequestManager {
+  private batchQueue: Array<{
+    url: string;
+    params: any;
+    resolve: (data: any) => void;
+    reject: (error: any) => void;
+  }> = [];
+
+  private batchTimeout: NodeJS.Timeout | null = null;
+
+  constructor(
+    private api: any,
+    private batchSize = 10,
+    private delay = 100
+  ) {}
+
+  async request(url: string, params: any): Promise<any> {
+    return new Promise((resolve, reject) => {
+      this.batchQueue.push({ url, params, resolve, reject });
+
+      if (this.batchQueue.length >= this.batchSize) {
+        this.processBatch();
+      }
+      else if (!this.batchTimeout) {
+        this.batchTimeout = setTimeout(() => {
+          this.processBatch();
+        }, this.delay);
+      }
+    });
+  }
+
+  private async processBatch() {
+    if (this.batchTimeout) {
+      clearTimeout(this.batchTimeout);
+      this.batchTimeout = null;
+    }
+
+    const currentBatch = this.batchQueue.splice(0, this.batchSize);
+
+    try {
+      const batchRequest = {
+        requests: currentBatch.map(({ url, params }) => ({ url, params }))
+      };
+
+      const response = await this.api.post('/batch', batchRequest);
+
+      response.results.forEach((result: any, index: number) => {
+        const { resolve, reject } = currentBatch[index];
+        if (result.success) {
+          resolve(result.data);
+        }
+        else {
+          reject(new Error(result.error));
+        }
+      });
+    }
+    catch (error) {
+      currentBatch.forEach(({ reject }) => reject(error));
+    }
+  }
 }
+```
 
-export function cachePlugin(defaultTtl = 5 * 60 * 1000): HookFetchPlugin {
-  const cache = new Map<string, CacheEntry>();
+## 流式数据处理
 
-  return {
-    name: 'cache',
-    async beforeRequest(config) {
-      if (config.method === 'GET') {
-        const key = `${config.url}?${JSON.stringify(config.params)}`;
-        const cached = cache.get(key);
+### 流式数据管理
 
-        if (cached && Date.now() - cached.timestamp < cached.ttl) {
-          return Promise.resolve(cached.data);
+```typescript
+import { useHookFetch } from 'hook-fetch/react';
+// src/hooks/useStream.ts
+import { useCallback, useRef } from 'react';
+
+export function useStream<T = any>(requestFn: (...args: any[]) => any) {
+  const dataRef = useRef<T[]>([]);
+  const listenersRef = useRef<Set<(data: T[]) => void>>(new Set());
+
+  const { stream, loading, cancel } = useHookFetch({
+    request: requestFn,
+    onError: (error) => {
+      console.error('Stream error:', error);
+    }
+  });
+
+  const subscribe = useCallback((listener: (data: T[]) => void) => {
+    listenersRef.current.add(listener);
+
+    return () => {
+      listenersRef.current.delete(listener);
+    };
+  }, []);
+
+  const startStream = useCallback(async (...args: any[]) => {
+    dataRef.current = [];
+
+    try {
+      for await (const chunk of stream(...args)) {
+        if (chunk.result) {
+          dataRef.current.push(chunk.result);
+
+          // 通知所有监听者
+          listenersRef.current.forEach((listener) => {
+            listener([...dataRef.current]);
+          });
         }
       }
-      return config;
-    },
-    async afterResponse(context, config) {
-      if (config.method === 'GET') {
-        const key = `${config.url}?${JSON.stringify(config.params)}`;
-        const ttl = config.extra?.cacheTtl || defaultTtl;
-
-        cache.set(key, {
-          data: context.result,
-          timestamp: Date.now(),
-          ttl
-        });
-      }
-      return context;
     }
+    catch (error) {
+      console.error('Stream processing error:', error);
+    }
+  }, [stream]);
+
+  const clear = useCallback(() => {
+    dataRef.current = [];
+    listenersRef.current.forEach((listener) => {
+      listener([]);
+    });
+  }, []);
+
+  return {
+    startStream,
+    subscribe,
+    clear,
+    cancel,
+    loading,
+    data: dataRef.current
   };
 }
 ```
 
-## Security
-
-### Authentication
+### 流式数据缓冲
 
 ```typescript
-// plugins/auth.ts
-export function authPlugin(): HookFetchPlugin {
+// src/utils/streamBuffer.ts
+export class StreamBuffer<T> {
+  private buffer: T[] = [];
+  private flushTimeout: NodeJS.Timeout | null = null;
+
+  constructor(
+    private onFlush: (items: T[]) => void,
+    private bufferSize = 10,
+    private flushInterval = 1000
+  ) {}
+
+  add(item: T) {
+    this.buffer.push(item);
+
+    if (this.buffer.length >= this.bufferSize) {
+      this.flush();
+    }
+    else if (!this.flushTimeout) {
+      this.flushTimeout = setTimeout(() => {
+        this.flush();
+      }, this.flushInterval);
+    }
+  }
+
+  flush() {
+    if (this.flushTimeout) {
+      clearTimeout(this.flushTimeout);
+      this.flushTimeout = null;
+    }
+
+    if (this.buffer.length > 0) {
+      this.onFlush([...this.buffer]);
+      this.buffer = [];
+    }
+  }
+
+  clear() {
+    this.buffer = [];
+    if (this.flushTimeout) {
+      clearTimeout(this.flushTimeout);
+      this.flushTimeout = null;
+    }
+  }
+}
+```
+
+## 测试
+
+### 单元测试
+
+```typescript
+// src/api/__tests__/api.test.ts
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { api } from '../index';
+
+// 模拟 fetch
+global.fetch = vi.fn();
+
+describe('API', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('should make GET request', async () => {
+    const mockResponse = { data: { id: 1, name: 'John' } };
+
+    (fetch as any).mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockResponse
+    });
+
+    const result = await api.get('/users/1').json();
+
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/users/1'),
+      expect.objectContaining({
+        method: 'GET'
+      })
+    );
+
+    expect(result).toEqual(mockResponse);
+  });
+
+  it('should handle errors', async () => {
+    (fetch as any).mockRejectedValueOnce(new Error('Network error'));
+
+    await expect(api.get('/users/1').json()).rejects.toThrow('Network error');
+  });
+});
+```
+
+### 集成测试
+
+```typescript
+// src/hooks/__tests__/useApi.test.ts
+import { act, renderHook } from '@testing-library/react';
+import { useApi } from '../useApi';
+
+describe('useApi', () => {
+  it('should handle loading state', async () => {
+    const { result } = renderHook(() => useApi());
+
+    expect(result.current.loading).toBe(false);
+
+    act(() => {
+      result.current.get('/users');
+    });
+
+    expect(result.current.loading).toBe(true);
+  });
+});
+```
+
+## 安全性
+
+### 认证和授权
+
+```typescript
+// src/api/plugins/auth.ts
+export function authPlugin() {
   return {
     name: 'auth',
     priority: 1,
-    async beforeRequest(config) {
-      const token = localStorage.getItem('accessToken');
+    async beforeRequest({ config }) {
+      const token = localStorage.getItem('authToken');
 
       if (token) {
         config.headers = new Headers(config.headers);
@@ -305,48 +656,51 @@ export function authPlugin(): HookFetchPlugin {
 
       return config;
     },
-    async onError(error) {
-      if (error.response?.status === 401) {
-        // Token expired, notify application to handle
-        console.error('Authentication failed, please login again');
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
+    async onError({ error }) {
+      if (error.status === 401) {
+      // Token 过期，提示用户重新登录
+        console.error('认证失败，请重新登录');
+        localStorage.removeItem('authToken');
 
-        // Use event system to notify application layer
-        // This is better than directly modifying window.location in plugin
+        // 可以在这里发出事件或导航到登录页
+        // 注意：在插件中直接修改 window.location 可能不是最佳实践
+        // 建议使用事件系统通知应用层处理
+
+        // 方式1：使用自定义事件
         window.dispatchEvent(new CustomEvent('auth:logout'));
 
-        // Or redirect directly (not recommended in plugins)
-        // window.location.href = '/login';
+      // 方式2：或者直接跳转（不推荐在插件中使用）
+      // window.location.href = '/login';
       }
-      return error;
+
+      return undefined;
     }
   };
 }
 ```
 
-### Request Signing
+### 请求签名
 
 ```typescript
-// plugins/requestSigning.ts
+// src/api/plugins/signature.ts
 import { createHmac } from 'node:crypto';
 
-export function requestSigningPlugin(secretKey: string): HookFetchPlugin {
+export function signaturePlugin(secretKey: string) {
   return {
-    name: 'request-signing',
+    name: 'signature',
     async beforeRequest(config) {
       const timestamp = Date.now().toString();
-      const method = config.method.toUpperCase();
-      const url = config.url;
-      const body = config.data ? JSON.stringify(config.data) : '';
+      const nonce = Math.random().toString(36).substring(2);
 
-      const stringToSign = `${method}\n${url}\n${timestamp}\n${body}`;
+      // 创建签名字符串
+      const signString = `${config.method}${config.url}${timestamp}${nonce}`;
       const signature = createHmac('sha256', secretKey)
-        .update(stringToSign)
+        .update(signString)
         .digest('hex');
 
       config.headers = new Headers(config.headers);
       config.headers.set('X-Timestamp', timestamp);
+      config.headers.set('X-Nonce', nonce);
       config.headers.set('X-Signature', signature);
 
       return config;
@@ -355,211 +709,108 @@ export function requestSigningPlugin(secretKey: string): HookFetchPlugin {
 }
 ```
 
-## Testing
+## 监控和调试
 
-### Mocking Requests
-
-```typescript
-// __tests__/mocks/api.ts
-import { jest } from '@jest/globals';
-
-// __tests__/UserService.test.ts
-import { UserService } from '../services/UserService';
-import { mockApiClient } from './mocks/api';
-
-export const mockApiClient = {
-  get: jest.fn(),
-  post: jest.fn(),
-  put: jest.fn(),
-  delete: jest.fn(),
-  use: jest.fn()
-};
-
-jest.mock('../api/client', () => ({
-  apiClient: mockApiClient
-}));
-
-describe('UserService', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  test('should fetch user successfully', async () => {
-    const mockUser = { id: '1', name: 'John', email: 'john@example.com' };
-    mockApiClient.get.mockReturnValue({
-      json: jest.fn().mockResolvedValue({ data: mockUser })
-    });
-
-    const result = await UserService.getUser('1');
-
-    expect(mockApiClient.get).toHaveBeenCalledWith('/users/1');
-    expect(result).toEqual(mockUser);
-  });
-
-  test('should handle error when fetching user fails', async () => {
-    mockApiClient.get.mockReturnValue({
-      json: jest.fn().mockRejectedValue(new Error('Network error'))
-    });
-
-    await expect(UserService.getUser('1')).rejects.toThrow('Failed to fetch user');
-  });
-});
-```
-
-### Integration Testing
+### 性能监控
 
 ```typescript
-import { rest } from 'msw';
-import { setupServer } from 'msw/node';
-// __tests__/integration/api.test.ts
-import { apiClient } from '../api/client';
+// src/api/plugins/performance.ts
+export function performancePlugin() {
+  return {
+    name: 'performance',
+    async beforeRequest({ config }) {
+      config.extra = {
+        ...config.extra,
+        startTime: performance.now()
+      };
+      return config;
+    },
+    async afterResponse(ctx) {
+      const endTime = performance.now();
+      const duration = endTime - ((ctx.config.extra as any)?.startTime || 0);
 
-const server = setupServer(
-  rest.get('/users/:id', (req, res, ctx) => {
-    return res(
-      ctx.json({
-        data: { id: req.params.id, name: 'John', email: 'john@example.com' }
-      })
-    );
-  })
-);
+      // 记录性能指标
+      console.log(`[Performance] ${ctx.config.method} ${ctx.config.url}: ${duration.toFixed(2)}ms`);
 
-beforeAll(() => server.listen());
-afterEach(() => server.resetHandlers());
-afterAll(() => server.close());
+      // 发送到监控系统
+      if (duration > 5000) { // 超过5秒的请求
+        sendToMonitoring({
+          type: 'slow_request',
+          url: ctx.config.url,
+          method: ctx.config.method,
+          duration
+        });
+      }
 
-describe('API Integration', () => {
-  test('should make real HTTP request', async () => {
-    const response = await apiClient.get('/users/1').json();
-
-    expect(response.data).toEqual({
-      id: '1',
-      name: 'John',
-      email: 'john@example.com'
-    });
-  });
-});
-```
-
-## TypeScript Best Practices
-
-### Type-Safe API Definitions
-
-```typescript
-// types/api.ts
-export interface ApiResponse<T> {
-  data: T;
-  message: string;
-  success: boolean;
-}
-
-export interface PaginatedResponse<T> extends ApiResponse<T[]> {
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
+      return ctx;
+    }
   };
 }
-
-// api/typed-client.ts
-class TypedApiClient {
-  private client = hookFetch.create({
-    baseURL: process.env.API_URL
-  });
-
-  async get<T>(url: string, params?: Record<string, any>): Promise<ApiResponse<T>> {
-    const response = await this.client.get(url, params).json();
-    return response as ApiResponse<T>;
-  }
-
-  async post<T, D = any>(url: string, data?: D): Promise<ApiResponse<T>> {
-    const response = await this.client.post(url, data).json();
-    return response as ApiResponse<T>;
-  }
-
-  async getPaginated<T>(
-    url: string,
-    params?: Record<string, any>
-  ): Promise<PaginatedResponse<T>> {
-    const response = await this.client.get(url, params).json();
-    return response as PaginatedResponse<T>;
-  }
-}
-
-export const typedApiClient = new TypedApiClient();
 ```
 
-### Generic Request Functions
+### 调试工具
 
 ```typescript
-// utils/requests.ts
-export async function fetchWithRetry<T>(
-  requestFn: () => Promise<T>,
-  maxRetries = 3,
-  delay = 1000
-): Promise<T> {
-  for (let i = 0; i < maxRetries; i++) {
-    try {
-      return await requestFn();
-    }
-    catch (error) {
-      if (i === maxRetries - 1)
-        throw error;
-      await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
-    }
-  }
-  throw new Error('Max retries exceeded');
-}
+// src/utils/debug.ts
+export function createDebugger(namespace: string) {
+  const isDebugEnabled = process.env.NODE_ENV === 'development'
+    || localStorage.getItem('debug') === 'true';
 
-// Usage
-const user = await fetchWithRetry(
-  () => apiClient.get<User>('/users/1').json(),
-  3,
-  1000
-);
+  return {
+    log: (...args: any[]) => {
+      if (isDebugEnabled) {
+        console.log(`[${namespace}]`, ...args);
+      }
+    },
+    warn: (...args: any[]) => {
+      if (isDebugEnabled) {
+        console.warn(`[${namespace}]`, ...args);
+      }
+    },
+    error: (...args: any[]) => {
+      if (isDebugEnabled) {
+        console.error(`[${namespace}]`, ...args);
+      }
+    }
+  };
+}
 ```
 
-## Environment Configuration
+## 部署和生产环境
 
-### Environment-Specific Settings
+### 环境配置
 
 ```typescript
-// config/api.ts
-// client.ts
-import { apiConfig } from './config/api';
-
-interface ApiConfig {
-  baseURL: string;
-  timeout: number;
-  retryAttempts: number;
-  enableLogging: boolean;
-}
-
-const configs: Record<string, ApiConfig> = {
-  development: {
-    baseURL: 'http://localhost:3000/api',
-    timeout: 30000,
-    retryAttempts: 3,
-    enableLogging: true
-  },
-  production: {
-    baseURL: 'https://api.example.com',
-    timeout: 10000,
-    retryAttempts: 1,
-    enableLogging: false
-  }
+// src/config/index.ts
+export const config = {
+  apiUrl: process.env.REACT_APP_API_URL || 'https://api.example.com',
+  streamUrl: process.env.REACT_APP_STREAM_URL || 'https://stream.example.com',
+  timeout: Number.parseInt(process.env.REACT_APP_TIMEOUT || '10000'),
+  retryAttempts: Number.parseInt(process.env.REACT_APP_RETRY_ATTEMPTS || '3'),
+  debug: process.env.NODE_ENV === 'development'
 };
+```
 
-export const apiConfig = configs[process.env.NODE_ENV] || configs.development;
+### 生产环境优化
 
-export const apiClient = hookFetch.create({
-  baseURL: apiConfig.baseURL,
-  timeout: apiConfig.timeout,
+```typescript
+// src/api/production.ts
+import { config } from '../config';
+
+export const productionApi = hookFetch.create({
+  baseURL: config.apiUrl,
+  timeout: config.timeout,
   plugins: [
-    ...(apiConfig.enableLogging ? [loggerPlugin()] : []),
-    retryPlugin({ maxRetries: apiConfig.retryAttempts })
+    // 生产环境插件
+    authPlugin(),
+    retryPlugin({ maxRetries: config.retryAttempts }),
+    cachePlugin({ ttl: 10 * 60 * 1000 }), // 10分钟缓存
+    // 注意：去重插件不推荐在生产环境使用，建议在应用层面处理
+    // dedupePlugin(), // 不推荐
+    errorHandlerPlugin(),
+    ...(config.debug ? [loggerPlugin()] : []) // 只在调试模式下启用日志
   ]
 });
 ```
 
-These best practices will help you build robust, maintainable, and performant applications with Hook-Fetch.
+通过遵循这些最佳实践，您可以构建出高性能、可维护且安全的应用程序。

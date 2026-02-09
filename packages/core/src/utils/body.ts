@@ -28,9 +28,7 @@ export function getBody(body: BodyType, method: RequestMethod, headers?: Headers
       if (!(body instanceof FormData) && typeof body === 'object') {
         const _data = body as AnyObject;
         Object.keys(_data).forEach((key) => {
-          if (_data['prototype'].hasOwnProperty.call(key)) {
-            formData.append(key, _data[key]);
-          }
+          formData.append(key, _data[key]);
         });
         res = formData;
       }

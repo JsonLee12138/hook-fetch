@@ -19,23 +19,25 @@ Hook-Fetch 的插件系统是其最强大的特性之一，允许您在请求的
 ## 插件结构
 
 ```typescript
-interface HookFetchPlugin<T = unknown, E = unknown, P = unknown, D = unknown> {
+interface HookFetchPlugin<T = unknown, E = unknown> {
   /** 插件名称 (必需) | Plugin name (required) */
   name: string;
   /** 插件优先级, 数字越小越高 (可选) | Plugin priority, smaller number means higher priority (optional) */
   priority?: number;
   /** 请求发送前钩子 | Hook before request is sent */
-  beforeRequest?: (config: RequestConfig<P, D, E>) => RequestConfig<P, D, E> | Promise<RequestConfig<P, D, E>>;
+  beforeRequest?: (ctx: BeforeRequestCtx<E>) => RequestConfig | PipelineDecision | Promise<RequestConfig | PipelineDecision>;
   /** 响应接收后钩子 | Hook after response is received */
-  afterResponse?: (context: FetchPluginContext<T>, config: RequestConfig<P, D, E>) => FetchPluginContext<T> | Promise<FetchPluginContext<T>>;
+  afterResponse?: (ctx: AfterResponseCtx<T, E>) => AfterResponseCtx<T, E> | PipelineDecision | Promise<AfterResponseCtx<T, E> | PipelineDecision>;
   /** 流式处理前钩子 | Hook before stream processing */
-  beforeStream?: (body: ReadableStream<any>, config: RequestConfig<P, D, E>) => ReadableStream<any> | Promise<ReadableStream<any>>;
+  beforeStream?: (ctx: BeforeStreamCtx<E>) => ReadableStream | Promise<ReadableStream>;
   /** 流式数据块转换钩子 | Hook for transforming stream chunks */
-  transformStreamChunk?: (chunk: StreamContext<any>, config: RequestConfig<P, D, E>) => StreamContext | Promise<StreamContext>;
+  transformStreamChunk?: (ctx: TransformChunkCtx<E>) => StreamContext | Promise<StreamContext>;
   /** 错误处理钩子 | Hook for error handling */
-  onError?: (error: ResponseError, config: RequestConfig<P, D, E>) => Promise<Error | void | ResponseError<E>>;
+  onError?: (ctx: OnErrorCtx<E>) => PipelineDecision | void | Promise<PipelineDecision | void>;
+  /** 流式处理后钩子 | Hook after stream processing */
+  afterStream?: (ctx: AfterStreamCtx<E>) => void | Promise<void>;
   /** 请求完成时钩子(无论成功或失败) | Hook when request is finalized (whether success or failure) */
-  onFinally?: (res: Pick<FetchPluginContext<unknown, E, P, D>, 'config' | 'response'>) => void | Promise<void>;
+  onFinally?: (ctx: OnFinallyCtx<E>) => void | Promise<void>;
 }
 ```
 
@@ -48,7 +50,73 @@ interface HookFetchPlugin<T = unknown, E = unknown, P = unknown, D = unknown> {
 3. **transformStreamChunk** - 流式数据块转换（仅流式请求）
 4. **afterResponse** - 响应接收后
 5. **onError** - 错误处理
-6. **onFinally** - 最终清理
+6. **afterStream** - 流式处理后（仅流式请求）
+7. **onFinally** - 最终清理
+
+## PipelineDecision 控制流
+
+Hook-Fetch 使用 `PipelineDecision` 来实现插件中的流程控制。通过 `resolve()` 和 `reject()` 函数，插件可以提前返回结果或中止请求：
+
+### resolve() - 短路返回
+
+使用 `resolve()` 直接返回值，跳过后续的网络请求或处理流程：
+
+```typescript
+// 缓存插件示例：命中缓存直接返回
+function cachePlugin() {
+  const cache = new Map();
+
+  return {
+    name: 'cache',
+    async beforeRequest({ config, resolve }) {
+      const cached = cache.get(config.url);
+      if (cached) {
+        return resolve(cached.data); // 直接返回缓存，跳过网络请求
+      }
+      return config; // 未命中缓存，继续正常流程
+    }
+  };
+}
+```
+
+### reject() - 提前中止
+
+使用 `reject()` 提前中止请求链，抛出指定的错误：
+
+```typescript
+// 请求验证插件示例
+function validationPlugin() {
+  return {
+    name: 'validation',
+    async beforeRequest({ config, reject }) {
+      if (!config.url) {
+        return reject(new Error('URL is required'));
+      }
+      return config;
+    }
+  };
+}
+```
+
+### 错误恢复
+
+在 `onError` 钩子中使用 `resolve()` 实现错误恢复和降级：
+
+```typescript
+function gracefulDegradation() {
+  return {
+    name: 'graceful-degradation',
+    async onError({ error, resolve }) {
+      if (error.status === 503) {
+        // 服务不可用，返回降级数据
+        return resolve({ data: [], message: 'Service unavailable, showing cached data' });
+      }
+      // 让错误继续传播
+      return undefined;
+    }
+  };
+}
+```
 
 ## 使用插件
 
@@ -246,7 +314,7 @@ function authPlugin(getToken: () => string) {
   return {
     name: 'auth',
     priority: 1,
-    async beforeRequest(config) {
+    async beforeRequest({ config }) {
       const token = getToken();
       if (token) {
         config.headers = new Headers(config.headers);
@@ -271,17 +339,18 @@ const api = hookFetch.create({
 function loggerPlugin() {
   return {
     name: 'logger',
-    async beforeRequest(config) {
+    async beforeRequest({ config }) {
       console.log(`[${config.method}] ${config.url}`);
       return config;
     },
-    async afterResponse(context, config) {
-      console.log(`[${config.method}] ${config.url} - ${context.response.status}`);
-      return context;
+    async afterResponse(ctx) {
+      const { config, response } = ctx;
+      console.log(`[${config.method}] ${config.url} - ${response.status}`);
+      return ctx;
     },
-    async onError(error) {
-      console.error(`Error:`, error.message);
-      return error;
+    async onError({ error, config }) {
+      console.error(`[${config.method}] ${config.url} - Error:`, error.message);
+      return undefined; // 让错误继续传播
     }
   };
 }
@@ -289,42 +358,40 @@ function loggerPlugin() {
 
 ### 3. 重试插件
 
-自动重试失败的请求：
+Hook-Fetch 提供了内置的重试插件，支持指数退避、自定义重试逻辑等功能：
 
 ```typescript
-// 注意：重试插件应该在请求失败后手动调用 retry() 方法
-// 或者使用 beforeRequest 钩子来配置重试逻辑
-function retryPlugin(maxRetries = 3, delay = 1000) {
-  return {
-    name: 'retry',
-    async onError(error, config) {
-      const retryCount = config.extra?.retryCount || 0;
+import { retryPlugin } from 'hook-fetch/plugins/retry';
 
-      if (retryCount < maxRetries && error.response?.status >= 500) {
-        console.log(`重试请求 (${retryCount + 1}/${maxRetries})`);
-        // 延迟后可以让调用者使用 retry() 方法重试
-        await new Promise(resolve => setTimeout(resolve, delay));
+const api = hookFetch.create({
+  plugins: [
+    retryPlugin({
+      retryableStatuses: [408, 429, 500, 502, 503, 504], // 默认可重试的状态码
+      maxAttempts: 3,                                      // 最大尝试次数
+      initialDelay: 1000,                                  // 初始延迟 (ms)
+      maxDelay: 30000,                                     // 最大延迟 (ms)
+      backoffStrategy: 'exponential',                      // 'linear' | 'exponential' | 自定义函数
+      jitter: 0.1                                          // 随机抖动 (0-1)
+    })
+  ]
+});
+
+// 使用自定义重试条件
+const customApi = hookFetch.create({
+  plugins: [
+    retryPlugin({
+      shouldRetry: (error) => {
+        // 自定义重试逻辑
+        return error.status === 429 || (error.status >= 500 && error.status < 600);
       }
-
-      return error;
-    }
-  };
-}
-
-// 使用示例：
-// const req = api.get('/endpoint');
-// try {
-//   const data = await req.json();
-// } catch (error) {
-//   // 手动重试
-//   const retryReq = req.retry();
-//   const data = await retryReq.json();
-// }
+    })
+  ]
+});
 ```
 
 ### 4. 缓存插件
 
-缓存请求的响应：
+缓存请求的响应以避免重复网络请求：
 
 ```typescript
 // 内存缓存插件，通过插件参数配置 TTL
@@ -344,7 +411,7 @@ function cachePlugin(options = {}) {
 
   return {
     name: 'cache',
-    async beforeRequest(requestConfig) {
+    async beforeRequest({ config: requestConfig, resolve }) {
       const key = getRequestKey(
         requestConfig.url,
         requestConfig.method,
@@ -356,14 +423,8 @@ function cachePlugin(options = {}) {
       if (cached) {
         // 检查缓存是否过期
         if (cached.timestamp + config.ttl > Date.now()) {
-          // 返回缓存数据，使用 resolve 属性
-          return {
-            ...requestConfig,
-            resolve: () => new Response(JSON.stringify(cached.data), {
-              status: 200,
-              headers: { 'Content-Type': 'application/json' }
-            })
-          };
+          // 直接返回缓存数据，跳过网络请求
+          return resolve(cached.data);
         }
         else {
           // 缓存已过期，删除缓存
@@ -373,7 +434,8 @@ function cachePlugin(options = {}) {
 
       return requestConfig;
     },
-    async afterResponse(context, requestConfig) {
+    async afterResponse(ctx) {
+      const { config: requestConfig, result } = ctx;
       const key = getRequestKey(
         requestConfig.url,
         requestConfig.method,
@@ -383,11 +445,11 @@ function cachePlugin(options = {}) {
 
       // 缓存响应数据
       cache.set(key, {
-        data: context.result,
+        data: result,
         timestamp: Date.now()
       });
 
-      return context;
+      return ctx;
     }
   };
 }
@@ -415,7 +477,7 @@ await fastCacheApi.get('/users/1').json();
 function streamTransformPlugin() {
   return {
     name: 'stream-transform',
-    async transformStreamChunk(chunk, config) {
+    async transformStreamChunk({ chunk }) {
       if (!chunk.error && typeof chunk.result === 'string') {
         try {
         // 尝试解析 JSON
@@ -439,7 +501,7 @@ function streamTransformPlugin() {
 function errorTransformPlugin() {
   return {
     name: 'error-transform',
-    async onError(error) {
+    async onError({ error }) {
       // error 是 ResponseError 实例，已包含完整的错误信息
       console.error('请求失败:', {
         message: error.message,
@@ -460,7 +522,8 @@ function errorTransformPlugin() {
         error.message = '服务器错误，请稍后重试';
       }
 
-      return error;
+      // 不返回任何值让错误继续传播
+      return undefined;
     }
   };
 }
@@ -482,21 +545,94 @@ function errorTransformPlugin() {
 function errorHandlingPlugin() {
   return {
     name: 'error-handling',
-    async beforeRequest(config) {
+    async beforeRequest({ config }) {
       // 验证配置
       if (!config.url) {
         throw new Error('URL is required');
       }
       return config;
     },
-    async onError(error) {
+    async onError({ error, config }) {
       // 统一处理所有错误
-      console.error('请求错误:', error.message);
+      console.error(`[${config.method}] ${config.url} 请求错误:`, error.message);
 
       // 可以进行错误上报
-      reportErrorToService(error);
+      // reportErrorToService(error);
 
-      return error;
+      // 返回 undefined 让错误继续传播
+      return undefined;
+    }
+  };
+}
+```
+
+#### onError 上下文实现错误恢复与重试
+
+`onError` 钩子接收一个 context 对象，包含错误信息和控制流函数：
+
+```typescript
+interface OnErrorCtx<E = unknown> {
+  error: ResponseError<E>;           // 错误对象
+  config: RequestConfig<unknown, BodyType, E>; // 请求配置
+  resolve: <T>(value: T) => ResolveDecision<T>; // 返回成功值
+  reject: (error: Error | ResponseError) => RejectDecision;  // 返回错误
+}
+```
+
+使用 `resolve()` 实现错误恢复：
+
+```typescript
+function errorRecoveryPlugin() {
+  return {
+    name: 'error-recovery',
+    async onError({ error, resolve }) {
+      // 如果是 503 错误，返回降级数据
+      if (error.status === 503) {
+        return resolve({
+          data: [],
+          message: '服务暂时不可用，返回缓存数据'
+        });
+      }
+
+      // 其他错误继续传播
+      return undefined;
+    }
+  };
+}
+```
+
+使用 `config.extra` 实现自动重试（配合 retryPlugin 或自定义逻辑）：
+
+```typescript
+function contextualRetryPlugin() {
+  return {
+    name: 'contextual-retry',
+    async onError({ error, config, resolve }) {
+      const attempt = (config.extra?.__retryAttempt as number) ?? 0;
+      const maxAttempts = 3;
+
+      // 5xx 错误自动重试
+      if (error.status && error.status >= 500 && attempt < maxAttempts) {
+        console.log(`重试请求 (${attempt + 1}/${maxAttempts})`);
+
+        // 等待后重新发起请求
+        await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt)));
+
+        const { request } = await import('hook-fetch');
+        const retryResult = await request(config.url, {
+          ...config,
+          extra: {
+            ...config.extra,
+            __retryAttempt: attempt + 1
+          }
+        });
+
+        // 返回重试结果
+        return resolve(retryResult);
+      }
+
+      // 达到最大重试次数或不可重试，让错误传播
+      return undefined;
     }
   };
 }
@@ -521,7 +657,7 @@ function configurablePlugin(options = {}) {
 
   return {
     name: 'configurable-plugin',
-    async beforeRequest(requestConfig) {
+    async beforeRequest({ config: requestConfig }) {
       // 仅在启用时执行插件逻辑
       if (config.enabled) {
         requestConfig.headers = new Headers(requestConfig.headers);
@@ -562,13 +698,13 @@ function debugPlugin() {
   return {
     name: 'debug',
     priority: -1, // 最低优先级，最后执行
-    async beforeRequest(config) {
+    async beforeRequest({ config }) {
       console.log('Plugin execution order - beforeRequest');
       return config;
     },
-    async afterResponse(context, config) {
+    async afterResponse(ctx) {
       console.log('Plugin execution order - afterResponse');
-      return context;
+      return ctx;
     }
   };
 }
@@ -602,7 +738,7 @@ const api = hookFetch.create({
 function multiApiPlugin(apiConfigs: Record<string, { baseURL: string; apiKey: string }>) {
   return {
     name: 'multi-api',
-    async beforeRequest(config) {
+    async beforeRequest({ config }) {
       // 根据 URL 前缀选择不同的 API 配置
       const apiName = config.extra?.apiName;
       const apiConfig = apiConfigs[apiName];
@@ -642,7 +778,7 @@ await api.get('/projects', {}, { extra: { apiName: 'gitlab' } }).json();
 function conditionalPlugin(condition: () => boolean) {
   return {
     name: 'conditional',
-    async beforeRequest(config) {
+    async beforeRequest({ config }) {
       if (condition()) {
       // 只在满足条件时执行
         config.headers = new Headers(config.headers);

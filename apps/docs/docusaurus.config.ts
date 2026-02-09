@@ -36,18 +36,12 @@ const config: Config = {
   // may want to replace "en" with "zh-Hans".
   i18n: {
     defaultLocale: 'zh-Hans',
-    locales: ['zh-Hans', 'en'],
+    locales: ['zh-Hans'],
     localeConfigs: {
       'zh-Hans': {
         label: '简体中文',
         direction: 'ltr',
         htmlLang: 'zh-CN',
-      },
-      'en': {
-        label: 'English',
-        direction: 'ltr',
-        htmlLang: 'en-US',
-        path: 'en',
       },
     },
   },
@@ -182,6 +176,22 @@ const config: Config = {
           sidebarId: 'tutorialSidebar',
           position: 'left',
           label: '文档',
+        },
+        // 版本选择器
+        {
+          type: 'docsVersionDropdown',
+          position: 'left',
+          dropdownItemsAfter: [
+            {
+              type: 'html',
+              value: '<hr style="margin: 0.5rem 0;">',
+            },
+            {
+              href: 'https://github.com/JsonLee12138/hook-fetch/releases',
+              label: 'All versions',
+            },
+          ],
+          dropdownActiveClassDisabled: true,
         },
         // { to: '/blog', label: '博客', position: 'left' },
         {

@@ -2,79 +2,147 @@
 sidebar_position: 4
 ---
 
-# Plugin System
+# 插件系统
 
-Hook-Fetch's plugin system is one of its most powerful features, allowing you to inject custom logic into the request lifecycle for highly customizable functionality.
+Hook-Fetch 的插件系统是其最强大的特性之一，允许您在请求的生命周期中插入自定义逻辑，实现高度可定制的功能。
 
-## Plugin Overview
+## 插件概述
 
-A plugin is an object containing hook functions that execute at different stages of the request lifecycle. Plugins can:
+插件是一个对象，包含了在请求生命周期不同阶段执行的钩子函数。插件可以：
 
-- Modify request configuration
-- Process response data
-- Transform streaming data
-- Handle errors
-- Perform cleanup operations
+- 修改请求配置
+- 处理响应数据
+- 转换流式数据
+- 处理错误
+- 执行清理操作
 
-## Plugin Structure
+## 插件结构
 
 ```typescript
-interface HookFetchPlugin<T = unknown, E = unknown, P = unknown, D = unknown> {
-  /** Plugin name (required) */
+interface HookFetchPlugin<T = unknown, E = unknown> {
+  /** 插件名称 (必需) | Plugin name (required) */
   name: string;
-  /** Priority (optional, default 0) */
+  /** 插件优先级, 数字越小越高 (可选) | Plugin priority, smaller number means higher priority (optional) */
   priority?: number;
-  /** Hook before request is sent */
-  beforeRequest?: BeforeRequestHandler<E, P, D>;
-  /** Hook after response is received */
-  afterResponse?: AfterResponseHandler<T, E, P, D>;
-  /** Hook before stream processing */
-  beforeStream?: BeforeStreamHandler<E, P, D>;
-  /** Hook for transforming stream chunks */
-  transformStreamChunk?: TransformStreamChunkHandler<E, P, D>;
-  /** Hook for error handling */
-  onError?: OnErrorHandler<E, P, D>;
-  /** Hook when request is finalized */
-  onFinally?: OnFinallyHandler<E, P, D>;
+  /** 请求发送前钩子 | Hook before request is sent */
+  beforeRequest?: (ctx: BeforeRequestCtx<E>) => RequestConfig | PipelineDecision | Promise<RequestConfig | PipelineDecision>;
+  /** 响应接收后钩子 | Hook after response is received */
+  afterResponse?: (ctx: AfterResponseCtx<T, E>) => AfterResponseCtx<T, E> | PipelineDecision | Promise<AfterResponseCtx<T, E> | PipelineDecision>;
+  /** 流式处理前钩子 | Hook before stream processing */
+  beforeStream?: (ctx: BeforeStreamCtx<E>) => ReadableStream | Promise<ReadableStream>;
+  /** 流式数据块转换钩子 | Hook for transforming stream chunks */
+  transformStreamChunk?: (ctx: TransformChunkCtx<E>) => StreamContext | Promise<StreamContext>;
+  /** 错误处理钩子 | Hook for error handling */
+  onError?: (ctx: OnErrorCtx<E>) => PipelineDecision | void | Promise<PipelineDecision | void>;
+  /** 流式处理后钩子 | Hook after stream processing */
+  afterStream?: (ctx: AfterStreamCtx<E>) => void | Promise<void>;
+  /** 请求完成时钩子(无论成功或失败) | Hook when request is finalized (whether success or failure) */
+  onFinally?: (ctx: OnFinallyCtx<E>) => void | Promise<void>;
 }
 ```
 
-## Plugin Lifecycle
+## 插件生命周期
 
-Plugins execute in the following order:
+插件的执行顺序如下：
 
-1. **beforeRequest** - Before request is sent
-2. **beforeStream** - Before stream processing (stream requests only)
-3. **transformStreamChunk** - Transform stream chunks (stream requests only)
-4. **afterResponse** - After response is received
-5. **onError** - Error handling
-6. **onFinally** - Final cleanup
+1. **beforeRequest** - 请求发送前
+2. **beforeStream** - 流式处理前（仅流式请求）
+3. **transformStreamChunk** - 流式数据块转换（仅流式请求）
+4. **afterResponse** - 响应接收后
+5. **onError** - 错误处理
+6. **afterStream** - 流式处理后（仅流式请求）
+7. **onFinally** - 最终清理
 
-## Using Plugins
+## PipelineDecision 控制流
 
-### Registering Plugins
+Hook-Fetch 使用 `PipelineDecision` 来实现插件中的流程控制。通过 `resolve()` 和 `reject()` 函数，插件可以提前返回结果或中止请求：
+
+### resolve() - 短路返回
+
+使用 `resolve()` 直接返回值，跳过后续的网络请求或处理流程：
 
 ```typescript
-// Register during instance creation
+// 缓存插件示例：命中缓存直接返回
+function cachePlugin() {
+  const cache = new Map();
+
+  return {
+    name: 'cache',
+    async beforeRequest({ config, resolve }) {
+      const cached = cache.get(config.url);
+      if (cached) {
+        return resolve(cached.data); // 直接返回缓存，跳过网络请求
+      }
+      return config; // 未命中缓存，继续正常流程
+    }
+  };
+}
+```
+
+### reject() - 提前中止
+
+使用 `reject()` 提前中止请求链，抛出指定的错误：
+
+```typescript
+// 请求验证插件示例
+function validationPlugin() {
+  return {
+    name: 'validation',
+    async beforeRequest({ config, reject }) {
+      if (!config.url) {
+        return reject(new Error('URL is required'));
+      }
+      return config;
+    }
+  };
+}
+```
+
+### 错误恢复
+
+在 `onError` 钩子中使用 `resolve()` 实现错误恢复和降级：
+
+```typescript
+function gracefulDegradation() {
+  return {
+    name: 'graceful-degradation',
+    async onError({ error, resolve }) {
+      if (error.status === 503) {
+        // 服务不可用，返回降级数据
+        return resolve({ data: [], message: 'Service unavailable, showing cached data' });
+      }
+      // 让错误继续传播
+      return undefined;
+    }
+  };
+}
+```
+
+## 使用插件
+
+### 注册插件
+
+```typescript
+// 创建实例时注册
 const api = hookFetch.create({
   baseURL: 'https://api.example.com',
   plugins: [myPlugin(), anotherPlugin()]
 });
 
-// Or use the use method
+// 或者使用 use 方法注册
 api.use(myPlugin());
 ```
 
-### Plugin Priority
+### 插件优先级
 
-Plugins execute by priority, with lower numbers having higher priority:
+插件按优先级执行，数字越小优先级越高：
 
 ```typescript
 const highPriorityPlugin = {
   name: 'high-priority',
   priority: 1,
   beforeRequest(config) {
-    // Executes first
+    // 优先执行
     return config;
   }
 };
@@ -83,17 +151,17 @@ const lowPriorityPlugin = {
   name: 'low-priority',
   priority: 10,
   beforeRequest(config) {
-    // Executes later
+    // 后执行
     return config;
   }
 };
 ```
 
-## Built-in Plugins
+## 内置插件
 
-### SSE Text Decoder Plugin
+### SSE 文本解码插件
 
-Hook-Fetch provides a built-in SSE (Server-Sent Events) text decoder plugin:
+Hook-Fetch 提供了一个内置的 SSE（Server-Sent Events）文本解码插件：
 
 ```typescript
 import { sseTextDecoderPlugin } from 'hook-fetch/plugins/sse';
@@ -101,123 +169,123 @@ import { sseTextDecoderPlugin } from 'hook-fetch/plugins/sse';
 const api = hookFetch.create({
   plugins: [
     sseTextDecoderPlugin({
-      json: true, // Auto-parse JSON
-      prefix: 'data: ', // Remove prefix
-      splitSeparator: '\n\n', // Event separator
-      doneSymbol: '[DONE]' // End marker
+      json: true, // 自动解析 JSON
+      prefix: 'data: ',
+      splitSeparator: '\n\n', // 事件分隔符
+      doneSymbol: '[DONE]' // 结束标记
     })
   ]
 });
 
-// Use SSE
+// 使用 SSE
 for await (const chunk of api.get('/sse-endpoint').stream()) {
-  console.log(chunk.result); // Auto-parsed data
+  console.log(chunk.result); // 自动解析的数据
 }
 ```
 
-### Request Deduplication Plugin (Not Recommended)
+### 请求去重插件 (不推荐)
 
-:::warning Official Not Recommended
-While we provide a request deduplication plugin, **we do not officially recommend using it in production environments**. Deduplication logic adds system complexity and may lead to unexpected behavior. We recommend preventing duplicate requests at the application level through design, such as:
+:::warning 官方不推荐使用
+虽然我们提供了请求去重插件,但**官方并不推荐在生产环境中使用**。去重逻辑会增加系统复杂度,可能导致意外的行为。建议在应用层面通过设计来避免重复请求,例如:
 
-- Disable buttons to prevent repeated clicks
-- Use debounce/throttle for user input handling
-- Use request state management to avoid concurrent requests
+- 禁用按钮防止重复点击
+- 使用防抖/节流处理用户输入
+- 使用请求状态管理避免并发请求
 
-Since many developers have this scenario requirement, we provide this plugin as a temporary solution, but please use it with caution.
+由于很多开发者有这个场景需求,我们提供了该插件作为临时解决方案,但请谨慎使用。
 :::
 
-The request deduplication plugin prevents concurrent identical requests, allowing subsequent identical requests to execute only after the first request completes:
+请求去重插件用于防止并发的相同请求,仅当第一个请求完成后才允许后续相同请求执行:
 
 ```typescript
-import { dedupePlugin, isDedupeError } from 'hook-fetch/plugins/dedup';
+import { dedupePlugin, isDedupeError } from 'hook-fetch/plugins/dedupe';
 
 const api = hookFetch.create({
   baseURL: 'https://api.example.com',
   plugins: [dedupePlugin({})]
 });
 
-// Make multiple concurrent identical requests
+// 发起多个并发的相同请求
 const promises = [
   api.get('/users/1').json(),
-  api.get('/users/1').json(), // Will be deduplicated, throws DedupeError
-  api.get('/users/1').json(), // Will be deduplicated, throws DedupeError
+  api.get('/users/1').json(), // 会被去重,抛出 DedupeError
+  api.get('/users/1').json(), // 会被去重,抛出 DedupeError
 ];
 
 const results = await Promise.allSettled(promises);
 
-// Check if it's a deduplication error
+// 检查是否是去重错误
 results.forEach((result, index) => {
   if (result.status === 'rejected' && isDedupeError(result.reason)) {
-    console.log(`Request ${index + 1} was deduplicated`);
+    console.log(`请求 ${index + 1} 被去重`);
   }
   else if (result.status === 'fulfilled') {
-    console.log(`Request ${index + 1} succeeded:`, result.value);
+    console.log(`请求 ${index + 1} 成功:`, result.value);
   }
 });
 ```
 
-**Plugin Configuration Options:**
+**插件配置选项:**
 
 ```typescript
 interface DedupePluginOptions {
-  // No configuration options in current version
+  // 当前版本暂无配置选项
 }
 ```
 
-**Deduplication Rules:**
+**去重规则:**
 
-The deduplication plugin generates a unique identifier for requests based on the following parameter combination:
+去重插件通过以下参数组合生成请求的唯一标识:
 
 - URL
-- HTTP method (GET, POST, etc.)
-- URL parameters (params)
-- Request body data (data)
+- HTTP 方法 (GET, POST 等)
+- URL 参数 (params)
+- 请求体数据 (data)
 
-When a request with the same identifier is in progress, subsequent requests will throw a `DedupeError`.
+当检测到相同标识的请求正在进行时,后续请求会抛出 `DedupeError`。
 
-**Disable Deduplication for Specific Requests:**
+**禁用特定请求的去重:**
 
-You can disable deduplication for specific requests using the `extra.dedupeAble` option:
+可以通过 `extra.dedupeAble` 选项禁用特定请求的去重功能:
 
 ```typescript
-// This request will not be deduplicated
+// 该请求不会被去重
 const response = await api.get('/users/1', {}, {
   extra: { dedupeAble: false }
 }).json();
 ```
 
-**Deduplication Behavior:**
+**去重行为说明:**
 
 ```typescript
 const api = hookFetch.create({
   plugins: [dedupePlugin({})]
 });
 
-// ✅ Concurrent identical requests will be deduplicated
+// ✅ 并发相同请求会被去重
 Promise.all([
-  api.get('/users/1').json(), // Executes normally
-  api.get('/users/1').json(), // Deduplicated, throws error
+  api.get('/users/1').json(), // 正常执行
+  api.get('/users/1').json(), // 被去重,抛出错误
 ]);
 
-// ✅ Sequential requests will not be deduplicated
-await api.get('/users/1').json(); // First request
-await api.get('/users/1').json(); // Second request, executes normally
+// ✅ 顺序请求不会被去重
+await api.get('/users/1').json(); // 第一个请求
+await api.get('/users/1').json(); // 第二个请求,正常执行
 
-// ✅ Requests with different parameters will not be deduplicated
+// ✅ 不同参数的请求不会被去重
 Promise.all([
-  api.get('/users/1', { params: { page: 1 } }).json(), // Executes normally
-  api.get('/users/1', { params: { page: 2 } }).json(), // Executes normally
+  api.get('/users/1', { params: { page: 1 } }).json(), // 正常执行
+  api.get('/users/1', { params: { page: 2 } }).json(), // 正常执行
 ]);
 
-// ✅ Requests with different HTTP methods will not be deduplicated
+// ✅ 不同 HTTP 方法的请求不会被去重
 Promise.all([
-  api.get('/users/1').json(), // Executes normally
-  api.post('/users/1').json(), // Executes normally
+  api.get('/users/1').json(), // 正常执行
+  api.post('/users/1').json(), // 正常执行
 ]);
 ```
 
-**Error Handling:**
+**错误处理:**
 
 ```typescript
 try {
@@ -225,28 +293,28 @@ try {
 }
 catch (error) {
   if (isDedupeError(error)) {
-    // Handle deduplication error
-    console.log('Duplicate request detected');
+    // 处理去重错误
+    console.log('检测到重复请求');
   }
   else {
-    // Handle other errors
-    console.error('Request failed:', error);
+    // 处理其他错误
+    console.error('请求失败:', error);
   }
 }
 ```
 
-## Custom Plugin Examples
+## 自定义插件示例
 
-### 1. Authentication Plugin
+### 1. 认证插件
 
-Automatically add authentication headers:
+自动添加认证头：
 
 ```typescript
 function authPlugin(getToken: () => string) {
   return {
     name: 'auth',
     priority: 1,
-    async beforeRequest(config) {
+    async beforeRequest({ config }) {
       const token = getToken();
       if (token) {
         config.headers = new Headers(config.headers);
@@ -257,82 +325,82 @@ function authPlugin(getToken: () => string) {
   };
 }
 
-// Usage
+// 使用
 const api = hookFetch.create({
   plugins: [authPlugin(() => localStorage.getItem('token') || '')]
 });
 ```
 
-### 2. Logger Plugin
+### 2. 日志插件
 
-Log requests and responses:
+记录请求和响应：
 
 ```typescript
 function loggerPlugin() {
   return {
     name: 'logger',
-    async beforeRequest(config) {
+    async beforeRequest({ config }) {
       console.log(`[${config.method}] ${config.url}`);
       return config;
     },
-    async afterResponse(context, config) {
-      console.log(`[${config.method}] ${config.url} - ${context.response.status}`);
-      return context;
+    async afterResponse(ctx) {
+      const { config, response } = ctx;
+      console.log(`[${config.method}] ${config.url} - ${response.status}`);
+      return ctx;
     },
-    async onError(error) {
-      console.error('Error:', error.message);
-      return error;
+    async onError({ error, config }) {
+      console.error(`[${config.method}] ${config.url} - Error:`, error.message);
+      return undefined; // 让错误继续传播
     }
   };
 }
 ```
 
-### 3. Retry Plugin
+### 3. 重试插件
 
-Handle retry logic with manual retry() method:
+Hook-Fetch 提供了内置的重试插件，支持指数退避、自定义重试逻辑等功能：
 
 ```typescript
-// Note: Retry should be implemented at application level using retry() method
-function retryPlugin(maxRetries = 3, delay = 1000) {
-  return {
-    name: 'retry',
-    async onError(error, config) {
-      const retryCount = config.extra?.retryCount || 0;
+import { retryPlugin } from 'hook-fetch/plugins/retry';
 
-      if (retryCount < maxRetries && error.response?.status >= 500) {
-        console.log(`Retry request (${retryCount + 1}/${maxRetries})`);
-        // Delay suggestion for manual retry
-        await new Promise(resolve => setTimeout(resolve, delay));
+const api = hookFetch.create({
+  plugins: [
+    retryPlugin({
+      retryableStatuses: [408, 429, 500, 502, 503, 504], // 默认可重试的状态码
+      maxAttempts: 3,                                      // 最大尝试次数
+      initialDelay: 1000,                                  // 初始延迟 (ms)
+      maxDelay: 30000,                                     // 最大延迟 (ms)
+      backoffStrategy: 'exponential',                      // 'linear' | 'exponential' | 自定义函数
+      jitter: 0.1                                          // 随机抖动 (0-1)
+    })
+  ]
+});
+
+// 使用自定义重试条件
+const customApi = hookFetch.create({
+  plugins: [
+    retryPlugin({
+      shouldRetry: (error) => {
+        // 自定义重试逻辑
+        return error.status === 429 || (error.status >= 500 && error.status < 600);
       }
-
-      return error;
-    }
-  };
-}
-
-// Usage example:
-// const req = api.get('/endpoint');
-// try {
-//   const data = await req.json();
-// } catch (error) {
-//   // Manual retry
-//   const retryReq = req.retry();
-//   const data = await retryReq.json();
-// }
+    })
+  ]
+});
 ```
 
-### 4. Cache Plugin
+### 4. 缓存插件
 
-Cache request responses:
+缓存请求的响应以避免重复网络请求：
 
 ```typescript
-// Memory cache plugin with configurable TTL
-// Note: Cache plugin differs from deduplication plugin
-// - Cache plugin: Stores response results to avoid repeated requests and improve performance
-// - Deduplication plugin: Prevents concurrent identical requests without caching results
+// 内存缓存插件，通过插件参数配置 TTL
+// 注意：缓存插件与去重插件功能不同
+// - 缓存插件: 存储响应结果，避免重复请求，提高性能
+// - 去重插件: 防止并发相同请求，不缓存结果
 function cachePlugin(options = {}) {
   const defaultOptions = {
-    ttl: 5 * 60 * 1000, // Default 5 minutes
+    ttl: 5 * 60 * 1000, // 默认 5 分钟
   };
   const config = { ...defaultOptions, ...options };
   const cache = new Map();
@@ -343,7 +411,7 @@ function cachePlugin(options = {}) {
 
   return {
     name: 'cache',
-    async beforeRequest(requestConfig) {
+    async beforeRequest({ config: requestConfig, resolve }) {
       const key = getRequestKey(
         requestConfig.url,
         requestConfig.method,
@@ -353,26 +421,21 @@ function cachePlugin(options = {}) {
       const cached = cache.get(key);
 
       if (cached) {
-        // Check if cache is expired
+        // 检查缓存是否过期
         if (cached.timestamp + config.ttl > Date.now()) {
-          // Return cached data using resolve property
-          return {
-            ...requestConfig,
-            resolve: () => new Response(JSON.stringify(cached.data), {
-              status: 200,
-              headers: { 'Content-Type': 'application/json' }
-            })
-          };
+          // 直接返回缓存数据，跳过网络请求
+          return resolve(cached.data);
         }
         else {
-          // Cache expired, delete it
+          // 缓存已过期，删除缓存
           cache.delete(key);
         }
       }
 
       return requestConfig;
     },
-    async afterResponse(context, requestConfig) {
+    async afterResponse(ctx) {
+      const { config: requestConfig, result } = ctx;
       const key = getRequestKey(
         requestConfig.url,
         requestConfig.method,
@@ -380,167 +443,351 @@ function cachePlugin(options = {}) {
         requestConfig.data
       );
 
-      // Cache response data
+      // 缓存响应数据
       cache.set(key, {
-        data: context.result,
+        data: result,
         timestamp: Date.now()
       });
 
-      return context;
+      return ctx;
     }
   };
 }
 
-// Usage example
+// 使用示例：使用默认 5 分钟缓存
 const api = hookFetch.create({
-  plugins: [cachePlugin({ ttl: 10 * 1000 })] // 10 seconds cache
+  plugins: [cachePlugin()]
 });
 
 await api.get('/users/1').json();
+
+// 自定义 TTL（10 秒）
+const fastCacheApi = hookFetch.create({
+  plugins: [cachePlugin({ ttl: 10 * 1000 })]
+});
+
+await fastCacheApi.get('/users/1').json();
 ```
 
-### 5. Response Transform Plugin
+### 5. 流式数据转换插件
 
-Transform response data format:
+转换流式数据：
 
 ```typescript
-function responseTransformPlugin() {
+function streamTransformPlugin() {
   return {
-    name: 'response-transform',
-    async afterResponse(context, config) {
-      if (context.responseType === 'json' && context.result) {
-      // Transform API response format
-        if (context.result.code === 200) {
-          context.result = context.result.data;
+    name: 'stream-transform',
+    async transformStreamChunk({ chunk }) {
+      if (!chunk.error && typeof chunk.result === 'string') {
+        try {
+        // 尝试解析 JSON
+          chunk.result = JSON.parse(chunk.result);
         }
-        else {
-          throw new Error(context.result.message);
+        catch {
+        // 如果不是 JSON，保持原样
         }
       }
-      return context;
+      return chunk;
     }
   };
 }
 ```
 
-## Advanced Plugin Development
+### 6. 错误转换插件
 
-### Plugin with State
-
-```typescript
-function statisticsPlugin() {
-  let requestCount = 0;
-  let errorCount = 0;
-
-  return {
-    name: 'statistics',
-    async beforeRequest(config) {
-      requestCount++;
-      console.log(`Total requests: ${requestCount}`);
-      return config;
-    },
-    async onError(error, config) {
-      errorCount++;
-      console.log(`Total errors: ${errorCount}`);
-      return error;
-    },
-    getStats() {
-      return { requestCount, errorCount };
-    }
-  };
-}
-```
-
-### Async Plugin Operations
+转换和丰富错误信息：
 
 ```typescript
-function asyncPlugin() {
+function errorTransformPlugin() {
   return {
-    name: 'async-plugin',
-    async beforeRequest(config) {
-    // Async operation
-      const signature = await generateSignature(config);
-      config.headers = new Headers(config.headers);
-      config.headers.set('X-Signature', signature);
-      return config;
-    },
-    async afterResponse(context, config) {
-    // Async response processing
-      await logToAnalytics(config.url, context.response.status);
-      return context;
-    }
-  };
-}
-```
-
-## Plugin Best Practices
-
-### 1. Error Handling
-
-Always handle errors gracefully in plugins:
-
-```typescript
-function safePlugin() {
-  return {
-    name: 'safe-plugin',
-    async beforeRequest(config) {
-      try {
-      // Plugin logic
-        return config;
-      }
-      catch (error) {
-        console.error('Plugin error:', error);
-        return config; // Return original config on error
-      }
-    }
-  };
-}
-```
-
-### 2. Performance Considerations
-
-Avoid blocking operations in plugins:
-
-```typescript
-function performantPlugin() {
-  return {
-    name: 'performant-plugin',
-    async beforeRequest(config) {
-    // Use non-blocking operations
-      setImmediate(() => {
-      // Background task
-        updateMetrics(config);
+    name: 'error-transform',
+    async onError({ error }) {
+      // error 是 ResponseError 实例，已包含完整的错误信息
+      console.error('请求失败:', {
+        message: error.message,
+        status: error.status,
+        statusText: error.statusText,
+        url: error.config?.url,
+        method: error.config?.method
       });
+
+      // 可以根据 status 返回不同的友好提示
+      if (error.status === 404) {
+        error.message = '请求的资源不存在';
+      }
+      else if (error.status === 403) {
+        error.message = '没有权限访问该资源';
+      }
+      else if (error.status && error.status >= 500) {
+        error.message = '服务器错误，请稍后重试';
+      }
+
+      // 不返回任何值让错误继续传播
+      return undefined;
+    }
+  };
+}
+```
+
+## 插件开发最佳实践
+
+### 1. 命名规范
+
+- 使用描述性的名称
+- 避免与其他插件冲突
+- 使用 kebab-case 格式
+
+### 2. 错误处理
+
+插件中的错误会自动被框架捕获，无需在每个插件中单独 try-catch。如果需要特殊的错误处理逻辑，可以使用 `onError` 钩子：
+
+```typescript
+function errorHandlingPlugin() {
+  return {
+    name: 'error-handling',
+    async beforeRequest({ config }) {
+      // 验证配置
+      if (!config.url) {
+        throw new Error('URL is required');
+      }
+      return config;
+    },
+    async onError({ error, config }) {
+      // 统一处理所有错误
+      console.error(`[${config.method}] ${config.url} 请求错误:`, error.message);
+
+      // 可以进行错误上报
+      // reportErrorToService(error);
+
+      // 返回 undefined 让错误继续传播
+      return undefined;
+    }
+  };
+}
+```
+
+#### onError 上下文实现错误恢复与重试
+
+`onError` 钩子接收一个 context 对象，包含错误信息和控制流函数：
+
+```typescript
+interface OnErrorCtx<E = unknown> {
+  error: ResponseError<E>;           // 错误对象
+  config: RequestConfig<unknown, BodyType, E>; // 请求配置
+  resolve: <T>(value: T) => ResolveDecision<T>; // 返回成功值
+  reject: (error: Error | ResponseError) => RejectDecision;  // 返回错误
+}
+```
+
+使用 `resolve()` 实现错误恢复：
+
+```typescript
+function errorRecoveryPlugin() {
+  return {
+    name: 'error-recovery',
+    async onError({ error, resolve }) {
+      // 如果是 503 错误，返回降级数据
+      if (error.status === 503) {
+        return resolve({
+          data: [],
+          message: '服务暂时不可用，返回缓存数据'
+        });
+      }
+
+      // 其他错误继续传播
+      return undefined;
+    }
+  };
+}
+```
+
+使用 `config.extra` 实现自动重试（配合 retryPlugin 或自定义逻辑）：
+
+```typescript
+function contextualRetryPlugin() {
+  return {
+    name: 'contextual-retry',
+    async onError({ error, config, resolve }) {
+      const attempt = (config.extra?.__retryAttempt as number) ?? 0;
+      const maxAttempts = 3;
+
+      // 5xx 错误自动重试
+      if (error.status && error.status >= 500 && attempt < maxAttempts) {
+        console.log(`重试请求 (${attempt + 1}/${maxAttempts})`);
+
+        // 等待后重新发起请求
+        await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt)));
+
+        const { request } = await import('hook-fetch');
+        const retryResult = await request(config.url, {
+          ...config,
+          extra: {
+            ...config.extra,
+            __retryAttempt: attempt + 1
+          }
+        });
+
+        // 返回重试结果
+        return resolve(retryResult);
+      }
+
+      // 达到最大重试次数或不可重试，让错误传播
+      return undefined;
+    }
+  };
+}
+```
+
+### 3. 性能考虑
+
+- 避免在插件中执行耗时操作
+- 使用异步操作时要谨慎
+- 考虑缓存计算结果
+
+### 4. 配置验证
+
+```typescript
+function configurablePlugin(options = {}) {
+  const defaultOptions = {
+    enabled: true,
+    headerPrefix: 'X-Custom-'
+  };
+
+  const config = { ...defaultOptions, ...options };
+
+  return {
+    name: 'configurable-plugin',
+    async beforeRequest({ config: requestConfig }) {
+      // 仅在启用时执行插件逻辑
+      if (config.enabled) {
+        requestConfig.headers = new Headers(requestConfig.headers);
+        requestConfig.headers.set(
+          `${config.headerPrefix}Timestamp`,
+          Date.now().toString()
+        );
+      }
+
+      return requestConfig;
+    }
+  };
+}
+```
+
+## 插件组合
+
+可以组合多个插件来实现复杂功能：
+
+```typescript
+const api = hookFetch.create({
+  plugins: [
+    authPlugin(() => getAuthToken()),
+    retryPlugin(3, 1000),
+    loggerPlugin(),
+    cachePlugin(10 * 60 * 1000), // 10分钟缓存
+    errorTransformPlugin()
+  ]
+});
+```
+
+## 调试插件
+
+### 插件执行顺序
+
+```typescript
+function debugPlugin() {
+  return {
+    name: 'debug',
+    priority: -1, // 最低优先级，最后执行
+    async beforeRequest({ config }) {
+      console.log('Plugin execution order - beforeRequest');
+      return config;
+    },
+    async afterResponse(ctx) {
+      console.log('Plugin execution order - afterResponse');
+      return ctx;
+    }
+  };
+}
+```
+
+### 插件状态检查
+
+```typescript
+// 检查已注册的插件
+const api = hookFetch.create({
+  plugins: [plugin1(), plugin2()]
+});
+
+// 插件会按优先级排序并存储在实例中
+```
+
+## 高级插件模式
+
+### 插件工厂
+
+```typescript
+// 推荐：直接在 baseURL 中配置
+const api = hookFetch.create({
+  baseURL: 'https://api.example.com',
+  headers: {
+    'X-API-Key': 'my-api-key'
+  }
+});
+
+// 仅在需要多个接口代理时使用插件
+function multiApiPlugin(apiConfigs: Record<string, { baseURL: string; apiKey: string }>) {
+  return {
+    name: 'multi-api',
+    async beforeRequest({ config }) {
+      // 根据 URL 前缀选择不同的 API 配置
+      const apiName = config.extra?.apiName;
+      const apiConfig = apiConfigs[apiName];
+
+      if (apiConfig) {
+        config.headers = new Headers(config.headers);
+        config.headers.set('X-API-Key', apiConfig.apiKey);
+
+        if (!config.url.startsWith('http')) {
+          config.url = `${apiConfig.baseURL}${config.url}`;
+        }
+      }
+
+      return config;
+    }
+  };
+}
+
+// 使用示例：代理多个 API
+const api = hookFetch.create({
+  plugins: [
+    multiApiPlugin({
+      github: { baseURL: 'https://api.github.com', apiKey: 'github-key' },
+      gitlab: { baseURL: 'https://gitlab.com/api/v4', apiKey: 'gitlab-key' }
+    })
+  ]
+});
+
+// 指定使用哪个 API
+await api.get('/users', {}, { extra: { apiName: 'github' } }).json();
+await api.get('/projects', {}, { extra: { apiName: 'gitlab' } }).json();
+```
+
+### 条件插件
+
+```typescript
+function conditionalPlugin(condition: () => boolean) {
+  return {
+    name: 'conditional',
+    async beforeRequest({ config }) {
+      if (condition()) {
+      // 只在满足条件时执行
+        config.headers = new Headers(config.headers);
+        config.headers.set('X-Conditional', 'true');
+      }
       return config;
     }
   };
 }
 ```
 
-### 3. Plugin Composition
-
-Create reusable plugin factories:
-
-```typescript
-function createApiPlugin(options: ApiPluginOptions) {
-  return {
-    name: 'api-plugin',
-    ...createAuthBehavior(options.auth),
-    ...createRetryBehavior(options.retry),
-    ...createCacheBehavior(options.cache)
-  };
-}
-```
-
-## Hook Functions Reference
-
-- `beforeRequest`: Modify request configuration before sending
-- `afterResponse`: Process response data after receiving
-- `beforeStream`: Initialize or transform stream before processing
-- `transformStreamChunk`: Process streaming data chunks
-- `onError`: Handle request errors
-- `onFinally`: Cleanup operations after request completion
-
-All lifecycle hooks support both synchronous and asynchronous operations. Each hook function receives the current configuration object for context-aware processing.
-
-This plugin system provides powerful extensibility for Hook-Fetch, allowing you to customize request behavior for any use case.
+插件系统为 Hook-Fetch 提供了无限的扩展可能性，让您能够根据具体需求定制请求行为。

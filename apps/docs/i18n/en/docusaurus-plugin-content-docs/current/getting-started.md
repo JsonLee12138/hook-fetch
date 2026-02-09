@@ -2,37 +2,37 @@
 sidebar_position: 2
 ---
 
-# Getting Started
+# 快速开始
 
-This guide will help you get started with Hook-Fetch quickly, learning basic usage and common scenarios.
+本指南将帮助您快速上手 Hook-Fetch，学习基本的使用方法和常见场景。
 
-## Installation
+## 安装
 
-First, install Hook-Fetch:
+首先，安装 Hook-Fetch：
 
 ```bash
-# Using npm
+# 使用 npm
 npm install hook-fetch
 
-# Using yarn
+# 使用 yarn
 yarn add hook-fetch
 
-# Using pnpm
+# 使用 pnpm
 pnpm add hook-fetch
 ```
 
-## Basic Usage
+## 基础使用
 
-### Making Simple Requests
+### 发起简单请求
 
 ```typescript
 import hookFetch from 'hook-fetch';
 
-// GET request
+// GET 请求
 const response = await hookFetch('https://jsonplaceholder.typicode.com/posts/1').json();
 console.log(response);
 
-// POST request
+// POST 请求
 const newPost = await hookFetch('https://jsonplaceholder.typicode.com/posts', {
   method: 'POST',
   data: {
@@ -43,9 +43,9 @@ const newPost = await hookFetch('https://jsonplaceholder.typicode.com/posts', {
 }).json();
 ```
 
-### Creating an Instance
+### 创建实例
 
-For better configuration management, it's recommended to create an instance:
+为了更好地管理配置，推荐创建一个实例：
 
 ```typescript
 const api = hookFetch.create({
@@ -53,32 +53,32 @@ const api = hookFetch.create({
   headers: {
     'Content-Type': 'application/json'
   },
-  timeout: 5000 // 5 seconds timeout
+  timeout: 5000 // 5秒超时
 });
 
-// Use the instance
+// 使用实例
 const posts = await api.get('/posts').json();
 const users = await api.get('/users').json();
 ```
 
-## HTTP Methods
+## HTTP 方法
 
-Hook-Fetch supports all standard HTTP methods:
+Hook-Fetch 支持所有标准的 HTTP 方法：
 
-### GET Requests
+### GET 请求
 
 ```typescript
-// Without parameters
+// 无参数
 const posts = await api.get('/posts').json();
 
-// With query parameters
+// 带查询参数
 const filteredPosts = await api.get('/posts', {
   userId: 1,
   _limit: 10
 }).json();
 ```
 
-### POST Requests
+### POST 请求
 
 ```typescript
 const newPost = await api.post('/posts', {
@@ -88,7 +88,7 @@ const newPost = await api.post('/posts', {
 }).json();
 ```
 
-### PUT Requests
+### PUT 请求
 
 ```typescript
 const updatedPost = await api.put('/posts/1', {
@@ -99,7 +99,7 @@ const updatedPost = await api.put('/posts/1', {
 }).json();
 ```
 
-### PATCH Requests
+### PATCH 请求
 
 ```typescript
 const patchedPost = await api.patch('/posts/1', {
@@ -107,89 +107,89 @@ const patchedPost = await api.patch('/posts/1', {
 }).json();
 ```
 
-### DELETE Requests
+### DELETE 请求
 
 ```typescript
 const result = await api.delete('/posts/1').json();
 ```
 
-### HEAD and OPTIONS Requests
+### HEAD 和 OPTIONS 请求
 
 ```typescript
-// HEAD request - get only response headers
+// HEAD 请求 - 只获取响应头
 const headResponse = await api.head('/posts/1');
 console.log(headResponse.headers);
 
-// OPTIONS request - get allowed methods
+// OPTIONS 请求 - 获取允许的方法
 const optionsResponse = await api.options('/posts');
 ```
 
-## Response Handling
+## 响应处理
 
-Hook-Fetch provides multiple response handling methods:
+Hook-Fetch 提供多种响应处理方式：
 
 ```typescript
 const request = api.get('/posts/1');
 
-// JSON parsing
+// JSON 解析
 const jsonData = await request.json();
 
-// Text parsing
+// 文本解析
 const textData = await request.text();
 
-// Blob handling (for file downloads)
+// Blob 处理（适用于文件下载）
 const blobData = await request.blob();
 
-// ArrayBuffer handling
+// ArrayBuffer 处理
 const arrayBufferData = await request.arrayBuffer();
 
-// FormData handling
+// FormData 处理
 const formData = await request.formData();
 
-// Byte data
+// 字节数据
 const bytesData = await request.bytes();
 ```
 
-## Error Handling
+## 错误处理
 
 ```typescript
 try {
   const response = await api.get('/posts/999').json();
-} catch (error) {
-  if (error.response) {
-    // Server responded with error status code
-    console.log('Error status:', error.response.status);
-    console.log('Error data:', error.response.data);
-  } else if (error.request) {
-    // Request was sent but no response received
-    console.log('No response received');
-  } else {
-    // Other errors
+}
+catch (error) {
+  if (error instanceof ResponseError) {
+    // HTTP 错误
+    console.log('Error status:', error.status);
+    console.log('Error message:', error.message);
+    console.log('Error statusText:', error.statusText);
+  }
+  else {
+    // 其他错误
     console.log('Error:', error.message);
   }
 }
 ```
 
-## Request Configuration
+## 请求配置
 
-### Timeout Settings
+### 超时设置
 
 ```typescript
-// Global timeout
+// 全局超时
 const api = hookFetch.create({
-  timeout: 5000 // 5 seconds
+  timeout: 5000 // 5秒
 });
 
-// Individual request timeout
+// 单个请求超时
 const response = await api.get('/posts', {}, {
-  timeout: 10000 // 10 seconds
+  timeout: 10000 // 10秒，第三个参数是 options
 }).json();
 ```
 
-### Custom Headers
+### 自定义请求头
 
 ```typescript
-// Global headers
+// 全局请求头
 const api = hookFetch.create({
   headers: {
     'Authorization': 'Bearer your-token',
@@ -197,30 +197,115 @@ const api = hookFetch.create({
   }
 });
 
-// Individual request headers
+// 单个请求的自定义请求头
 const response = await api.get('/posts', {}, {
   headers: {
-    'Custom-Header': 'custom-value'
+    'X-Custom-Header': 'custom-value'
   }
 }).json();
 ```
 
-## File Upload
+### 凭证设置
 
 ```typescript
-// Using the upload method
-const fileInput = document.querySelector('input[type="file"]');
-const file = fileInput.files[0];
+// 发送 cookies
+const api = hookFetch.create({
+  withCredentials: true
+});
+```
 
-const result = await api.upload('/upload', {
-  file: file,
-  description: 'My uploaded file'
+## 请求中断
+
+```typescript
+const request = api.get('/long-running-request');
+
+// 3秒后中断请求
+setTimeout(() => {
+  request.abort();
+}, 3000);
+
+try {
+  const response = await request.json();
+}
+catch (error) {
+  if (error.name === 'AbortError') {
+    console.log('Request was aborted');
+  }
+}
+```
+
+## 请求重试
+
+推荐使用内置的 `retryPlugin` 进行自动重试：
+
+```typescript
+import { retryPlugin } from 'hook-fetch/plugins/retry';
+
+// 使用内置重试插件
+const api = hookFetch.create({
+  plugins: [
+    retryPlugin({
+      maxAttempts: 3,              // 最大重试次数
+      retryableStatuses: [408, 429, 500, 502, 503, 504]
+    })
+  ]
+});
+
+// 自动重试逻辑由插件处理
+const response = await api.get('/unstable-endpoint').json();
+```
+
+或者使用错误处理手动重试：
+
+```typescript
+const request = api.get('/endpoint');
+
+try {
+  const response = await request.json();
+}
+catch (error) {
+  // 手动创建新请求进行重试
+  const retryRequest = api.get('/endpoint');
+  const response = await retryRequest.json();
+}
+```
+
+## 文件上传
+
+```typescript
+// 使用 FormData
+const formData = new FormData();
+formData.append('file', fileInput.files[0]);
+formData.append('name', 'My File');
+
+const response = await api.post('/upload', formData).json();
+
+// 或者使用 upload 方法
+const uploadResponse = await api.upload('/upload', {
+  file: fileInput.files[0],
+  name: 'My File'
 }).json();
 ```
 
-## Next Steps
+## 下载文件
 
-- [API Reference](/docs/api-reference) - Complete API documentation
-- [Plugin System](/docs/plugins) - Learn about plugins
-- [Streaming](/docs/streaming) - Streaming data processing
-- [Framework Integration](/docs/framework-integration) - React and Vue integration
+```typescript
+// 下载文件
+const response = await api.get('/download/file.pdf');
+const blob = await response.blob();
+
+// 创建下载链接
+const url = window.URL.createObjectURL(blob);
+const a = document.createElement('a');
+a.href = url;
+a.download = 'file.pdf';
+a.click();
+window.URL.revokeObjectURL(url);
+```
+
+## 下一步
+
+- [API 参考](/docs/api-reference) - 详细的 API 文档
+- [插件系统](/docs/plugins) - 学习如何使用和开发插件
+- [流式处理](/docs/streaming) - 处理 SSE 和流式数据
+- [框架集成](/docs/framework-integration) - React 和 Vue 的集成
